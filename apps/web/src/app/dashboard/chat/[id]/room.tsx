@@ -136,7 +136,7 @@ export function ChatRoom({
     void createClient()
       .storage.from(CHAT_BUCKET)
       .createSignedUrls(missing, 60 * 60)
-      .then(({ data }) => {
+      .then(({ data }: { data: Array<{ path: string | null; signedUrl: string }> | null }) => {
         if (!data) return;
         setUrls((prev) => {
           const next = { ...prev };
