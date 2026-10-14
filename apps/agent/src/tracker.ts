@@ -13,6 +13,7 @@ export type Settings = {
   track_apps: boolean;
   track_urls: boolean;
   screenshots_enabled?: boolean;
+  track_window_titles?: boolean; // false on the Free plan (agent 0.4+): app names only
 };
 
 export type Account = {
@@ -614,7 +615,7 @@ export class Tracker {
 
   private addApp(b: BlockRec, window: ActiveWindow | null, seconds: number) {
     if (!this.appTrackingAllowed || !window?.app) return;
-    const title = window.title.slice(0, 300);
+    const title = this.state.settings.track_window_titles === false ? "" : window.title.slice(0, 300);
     const key = `${window.app.slice(0, 120)}\u0000${title}`;
     b.apps[key] = (b.apps[key] ?? 0) + seconds;
   }

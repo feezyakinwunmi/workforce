@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FREE_HISTORY_DAYS, getBilling, hasStandard, historyLimit } from "@/lib/billing";
 import { requireMember } from "@/lib/session";
+import { isAdminRole } from "@/lib/types";
 import { addDays, formatDay, formatHours, localDateIn, percent } from "@/lib/time";
 import { buildTimesheet } from "@/lib/timesheet";
 import { cn } from "@/lib/utils";
@@ -17,6 +19,10 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
   const grand = rows.reduce((s, r) => s + r.total, 0);
   const grandActive = rows.reduce((s, r) => s + r.active, 0);
   const isCurrentWeek = days.includes(today);
+  const billing = await getBilling();
+  const standard = hasStandard(billing);
+  const oldest = historyLimit(billing, today);
+  const locked = Boolean(oldest && days[6] < oldest);
 
   return (
     <div className="space-y-6">
@@ -32,10 +38,20 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
           <Link className="btn-secondary" href={`/dashboard/timesheets?week=${addDays(week, -7)}`}>← Previous</Link>
           {!isCurrentWeek && <Link className="btn-secondary" href="/dashboard/timesheets">This week</Link>}
           <Link className="btn-secondary" href={`/dashboard/timesheets?week=${addDays(week, 7)}`}>Next →</Link>
-          <a className="btn-primary" href={`/dashboard/timesheets/export?week=${week}`}>Download CSV</a>
+          {standard ? (
+            <a className="btn-primary" href={`/dashboard/timesheets/export?week=${week}`}>Download CSV</a>
+          ) : (
+            <span className="btn-secondary cursor-not-allowed opacity-60" title="CSV downloads are part of the Standard plan">Download CSV · Standard</span>
+          )}
         </div>
       </header>
 
+      {locked ? (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-200 bg-brand-50 p-5 text-sm text-brand-900">
+          <p>The Free plan shows the last {FREE_HISTORY_DAYS} days. Older weeks are kept safe and appear again on Standard.</p>
+          {isAdminRole(me.role) && <Link href="/dashboard/billing" className="btn-primary btn-sm">See plans</Link>}
+        </section>
+      ) : (
       <section className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -99,6 +115,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
           </table>
         </div>
       </section>
+      )}
 
       <p className="text-xs text-slate-500">
         Hours are time clocked in with the desktop app, minus idle time the worker chose to remove. Each person&apos;s

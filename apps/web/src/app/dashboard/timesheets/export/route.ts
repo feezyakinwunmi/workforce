@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getBilling, hasStandard } from "@/lib/billing";
 import { getSession } from "@/lib/session";
 import { buildTimesheet } from "@/lib/timesheet";
 
@@ -15,6 +16,9 @@ export async function GET(request: NextRequest) {
   const { supabase, member, org } = await getSession();
   if (!member || member.status !== "active" || !org) {
     return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+  }
+  if (!hasStandard(await getBilling())) {
+    return NextResponse.json({ error: "CSV downloads are part of the Standard plan." }, { status: 402 });
   }
 
   const { week, days, rows } = await buildTimesheet(supabase, member, request.nextUrl.searchParams.get("week") ?? undefined);

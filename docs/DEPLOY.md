@@ -107,6 +107,33 @@ Then **Deployments → ⋯ → Redeploy**. Without these variables, task emails 
 
 **Later, with your own domain:** use [Resend](https://resend.com) (verify the domain, then host `smtp.resend.com`, port `465`, user `resend`, password = API key) in both places, so emails come from `hello@yourdomain.com`.
 
+## 8. Turn on payments (Paystack)
+
+The Plan and billing page (owners and admins) takes payments through Paystack: card, bank transfer and USSD.
+
+1. Paystack dashboard → **Settings → API Keys & Webhooks**. Copy the **Secret Key** (`sk_test_...` while testing).
+2. Supabase dashboard → **Project Settings → API Keys** → copy the **service_role** key (secret; the dashboard server uses it only to record confirmed payments).
+3. Vercel → project → **Settings → Environment Variables** (Production), add:
+
+   | Name | Value |
+   | --- | --- |
+   | `PAYSTACK_SECRET_KEY` | the Paystack secret key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | the Supabase service_role key |
+
+   Never put either in a `NEXT_PUBLIC_` variable, the desktop app or GitHub.
+4. Back in Paystack, same page: **Test Webhook URL** = `https://<your dashboard>/api/paystack/webhook`, **Test Callback URL** = `https://<your dashboard>/dashboard/billing/callback`. Save.
+5. Vercel → **Deployments → ⋯ → Redeploy**.
+6. Test: dashboard → **Plan and billing** → pay with Paystack's test card `4084 0840 8408 4081`, any future expiry, CVV `408`, PIN `0000`, OTP `123456`.
+
+**Going live:** when Paystack approves your business (CAC documents), swap in the **live** secret key and set the **Live** webhook and callback URLs to the same addresses.
+
+**Giving a pilot company Standard for free:** Supabase → SQL Editor:
+```sql
+insert into public.payments (organization_id, reference, kind, seats, months, amount_kobo, status, period_start, period_end)
+select id, 'manual-' || slug || '-' || to_char(now(), 'YYYYMMDD'), 'manual', 20, 1, 0, 'success', now(), now() + interval '1 month'
+from public.organizations where slug = 'their-company-slug';
+```
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AutoSubmitSelect, CopyButton, TimezoneSelect } from "@/components/form";
+import { getBilling } from "@/lib/billing";
 import { requireMember } from "@/lib/session";
 import {
   isAdminRole,
@@ -54,6 +55,9 @@ export default async function TeamPage({
   ]);
 
   const members = (memberRows ?? []) as Membership[];
+  const billing = await getBilling();
+  const covered = new Set(billing.tracked_member_ids);
+  const limited = billing.seat_limit !== null;
   const teams = (teamRows ?? []) as Team[];
   const invites = (invitesResult.data ?? []) as Invitation[];
 
@@ -149,6 +153,9 @@ export default async function TeamPage({
                           <p className="truncate text-xs text-slate-500">{m.job_title ? `${m.job_title} · ` : ""}{p?.email}</p>
                         </div>
                         {m.status === "suspended" && <span className="badge bg-amber-100 text-amber-800">Suspended</span>}
+                        {limited && m.status === "active" && !covered.has(m.user_id) && (
+                          <span className="badge bg-red-100 text-red-700" title="Not covered by the company's plan: the desktop app won't clock them in">Not on plan</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">

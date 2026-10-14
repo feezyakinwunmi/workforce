@@ -13,7 +13,7 @@ import {
   Tray,
 } from "electron";
 import { ActiveWindowReader } from "./activeWindow";
-import { Api, ApiError } from "./api";
+import { Api, ApiError, type AgentBilling } from "./api";
 import { APP_NAME, DASHBOARD_URL, HEARTBEAT_SECONDS, SYNC_SECONDS, TICK_SECONDS } from "./config";
 import { SecureStore } from "./storage";
 import { Tracker } from "./tracker";
@@ -35,6 +35,7 @@ let loginMessage: string | null = null;
 let lastPendingIdleCount = 0;
 let lastState: "active" | "idle" = "active";
 let updater: ReturnType<typeof startAutoUpdates>;
+let billing: AgentBilling | null = null; // plan limits from the server; null = unknown (allowed)
 let askClockOut = false; // the window shows the "what did you get done?" panel
 let lastTaskFetch = 0;
 
@@ -218,6 +219,8 @@ function view() {
     tasks: s.taskCache ?? [],
     currentTaskId: tracker.currentTask?.id ?? null,
     askClockOut: askClockOut && tracker.clockedIn,
+    canTrack: billing ? billing.can_track : true,
+    planMessage: billing && !billing.can_track ? billing.message : null,
   };
 }
 
@@ -272,6 +275,7 @@ async function heartbeat() {
       return;
     }
     tracker.setSettings(res.settings);
+    applyBilling(res.billing);
     void checkNotifications();
   } catch (e) {
     await handleApiError(e);
@@ -399,6 +403,7 @@ async function refreshDevice() {
   );
   tracker.setServerTime(info.server_time);
   tracker.setSettings(info.settings);
+  applyBilling(info.billing);
   tracker.setAccount({
     userId: user.id,
     email: user.email ?? "",
@@ -465,8 +470,27 @@ async function logout() {
   push();
 }
 
+/** The company's plan may not cover this person: stop tracking and say why. */
+function applyBilling(next: AgentBilling | undefined) {
+  if (!next) return;
+  billing = next;
+  if (!next.can_track && tracker.clockedIn) {
+    tracker.clockOut("clock_out");
+    tracker.state.notice = next.message ?? "Your company's plan doesn't cover you, so you were clocked out.";
+    tracker.save();
+    notify("Clocked out", tracker.state.notice);
+    void sync();
+  }
+}
+
 function clockIn() {
   if (!tracker.state.account || tracker.needsConsent) return;
+  if (billing && !billing.can_track) {
+    tracker.state.notice = billing.message ?? "Your company's plan doesn't cover you yet. Ask your company admin.";
+    tracker.save();
+    push();
+    return;
+  }
   tracker.clockIn();
   lastPendingIdleCount = 0;
   push();

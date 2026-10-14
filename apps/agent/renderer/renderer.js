@@ -125,7 +125,9 @@ function mainScreen() {
           ? ""
           : v.clockedIn
             ? `<button class="clock-out full" data-action="clock-out">Clock out</button>`
-            : `<button class="clock-in full" data-action="clock-in">Clock in</button>`
+            : v.canTrack === false
+              ? `<p class="plan-note">${esc(v.planMessage || "Your company's plan doesn't cover you yet.")}</p><button class="clock-in full" disabled>Clock in</button>`
+              : `<button class="clock-in full" data-action="clock-in">Clock in</button>`
       }
     </div>
     <div class="stats">
@@ -213,6 +215,8 @@ function render() {
     busy,
     view.screen === "consent" ? view.settings : null,
     view.askClockOut,
+    view.canTrack,
+    view.planMessage,
     view.askClockOut ? view.currentTaskId : null,
   ]);
   if (key !== layoutKey) {

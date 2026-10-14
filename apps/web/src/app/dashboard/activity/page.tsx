@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FREE_HISTORY_DAYS, getBilling, hasStandard, historyLimit } from "@/lib/billing";
 import { requireMember } from "@/lib/session";
 import {
   addDays,
@@ -59,6 +60,17 @@ export default async function ActivityPage({
 
   const tz = target.timezone;
   const date = isValidDate(params.date) ? params.date : localDateIn(tz);
+  const billing = await getBilling();
+  const standard = hasStandard(billing);
+  const oldest = historyLimit(billing, localDateIn(tz));
+  if (oldest && date < oldest) {
+    return (
+      <div className="space-y-4">
+        <Link className="text-sm text-slate-500 hover:text-slate-800" href={`/dashboard/activity?user=${target.user_id}`}>← Back to today</Link>
+        <UpgradeCard admin={admin} text={`The Free plan shows the last ${FREE_HISTORY_DAYS} days. Your older data is kept safe: upgrade to Standard to see it.`} />
+      </div>
+    );
+  }
   const dayStart = zonedMidnight(date, tz);
   const dayEnd = zonedMidnight(addDays(date, 1), tz);
   const from = dayStart.toISOString();
@@ -276,6 +288,9 @@ export default async function ActivityPage({
         </div>
       )}
 
+      {!standard ? (
+        <UpgradeCard admin={admin} text="See the hour-by-hour timeline of every day, and which document or website was open, on the Standard plan." />
+      ) : (
       <section className="card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Through the day</h2>
@@ -321,6 +336,7 @@ export default async function ActivityPage({
           <p className="mt-3 text-xs text-slate-500">{formatHours(removed)} of idle time was removed and is not counted.</p>
         )}
       </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card p-5">
@@ -346,7 +362,9 @@ export default async function ActivityPage({
 
         <section className="card p-5">
           <h2 className="mb-3 font-semibold">Top windows</h2>
-          {topTitles.length === 0 ? (
+          {!standard ? (
+            <p className="text-sm text-slate-500">Window titles (which document or website) are part of the Standard plan.</p>
+          ) : topTitles.length === 0 ? (
             <p className="text-sm text-slate-500">No window titles for this day.</p>
           ) : (
             <ul className="divide-y divide-slate-100 text-sm">
@@ -457,5 +475,18 @@ function Legend({ className, label }: { className: string; label: string }) {
       <span className={cn("h-2.5 w-2.5 rounded-sm", className)} aria-hidden />
       {label}
     </span>
+  );
+}
+
+function UpgradeCard({ text, admin }: { text: string; admin: boolean }) {
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-200 bg-brand-50 p-5">
+      <p className="text-sm text-brand-900">{text}</p>
+      {admin ? (
+        <Link href="/dashboard/billing" className="btn-primary btn-sm">See plans</Link>
+      ) : (
+        <span className="text-xs text-brand-900/70">Ask your company admin about upgrading.</span>
+      )}
+    </section>
   );
 }

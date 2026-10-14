@@ -41,7 +41,7 @@ Nigeria and Africa come first, then foreign companies. Nigerian companies with s
 | 5 | Screenshots: random every 10–20 min, blur, per-company on/off, retention by plan | Phase 2 |
 | 6 | Chat and groups, announcements, online status, notifications | Phase 2 (task notifications done: Week 8) |
 | 7 | Productivity insights: app labels per role, reports, output vs activity, digests | Phase 2 |
-| 8 | Billing: per-seat plans, Paystack (NGN), USD checkout, invoices, trials | Phase 2 |
+| 8 | Billing: per-seat plans, Paystack (NGN), USD checkout, invoices, trials | Phase 2 (NGN prepaid plans + trial done: Week 9) |
 | 9 | Leave and requests: types, balances, approvals, holidays per country | Phase 3 |
 | 10 | Payroll and performance: hours × rate exports, PAYE/pension add-on, KPIs, reviews, API | Phase 4 |
 
@@ -121,19 +121,15 @@ Every table carries `organization_id` with RLS; timestamps are in UTC.
 - Windows needs a code-signing certificate.
 - macOS needs an Apple Developer account, notarization, and Accessibility / Screen Recording permissions.
 
-## Pricing (proposal, to test with pilots)
+## Pricing (built in Week 9)
 
-| Plan | Includes | NGN / user / month | USD / user / month |
-| --- | --- | --- | --- |
-| Basic | Time tracking, idle detection, timesheets, tasks, daily reports | ₦2,000 | $4 |
-| Pro | + apps and websites, productivity reports, chat | ₦3,500 | $7 |
-| Business | + screenshots, leave, payroll exports, audit log, API | ₦5,500 | $10 |
+| Plan | Includes | NGN / person / month |
+| --- | --- | --- |
+| Free | Up to 3 people; clock in/out, hours, idle check, activity %, app names; tasks, reports, notifications; last 30 days | ₦0 |
+| Standard | Unlimited people; + window titles, hour-by-hour day timeline, full history, CSV timesheets | ₦2,500 |
+| Pro (coming soon) | + screenshots, leave, payroll exports | ₦4,000 (planned) |
 
-Every plan starts with a 14-day trial of Pro. Seats are counted as active workers in the billing period.
-
-**Payments:**
-- NGN: Paystack, with 7.5% VAT on invoices.
-- USD: a merchant of record (Paddle / Lemon Squeezy). Confirm they onboard Nigerian sellers first.
+Every new company gets a 14-day trial of Standard, then falls back to Free (never locked out). Companies prepay for a number of people for 1, 3 or 12 months (12 months = price of 10) through Paystack (card, transfer, USSD); new hires can be added pro-rata. Foreign companies pay the naira price by card for now; USD checkout (Paystack USD or a merchant of record) later. VAT (7.5%) on invoices once the business is registered.
 
 ## Privacy and compliance
 

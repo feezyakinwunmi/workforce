@@ -23,6 +23,7 @@ workforce/
 - Notifications: task assigned, new comment, task done, due tomorrow, in the dashboard and as desktop pop-ups (plus email once SMTP is set up)
 - Admin tools: team managers, expected hours and time zone per member, ownership transfer
 - Public pages: what we track, privacy policy, terms of service
+- Billing: Free (3 people), 14-day Standard trial, Standard ₦2,500 per person per month prepaid through Paystack
 
 ## 1. Database
 
@@ -103,4 +104,4 @@ See **docs/DEPLOY.md**: deploy the dashboard to Vercel, update the Supabase URLs
 
 ## Next
 
-Billing (Paystack in naira, USD card checkout), then chat and leave requests. Code signing for the installer and the Mac version before paying customers. See `CLAUDE.md`.
+Renewal reminders and invoices, Mac build, then chat and leave requests. Code signing for the installer and the Mac version before paying customers. See `CLAUDE.md`.

@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { SideNav, type NavItem } from "@/components/nav";
+import { daysLeft, getBilling } from "@/lib/billing";
 import { APP_NAME } from "@/lib/config";
 import { requireMember } from "@/lib/session";
 import { isAdminRole, ROLE_LABELS } from "@/lib/types";
@@ -7,11 +9,11 @@ import { initials } from "@/lib/utils";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { supabase, org, member, profile, user } = await requireMember();
   const admin = isAdminRole(member.role);
-  const { count: unread } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .is("read_at", null);
+  const [{ count: unread }, billing] = await Promise.all([
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
+    getBilling(),
+  ]);
+  const banner = billingBanner(billing, admin);
 
   const items: NavItem[] = [
     { href: "/dashboard", label: "Overview" },
@@ -22,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/tasks", label: "Tasks" },
     ...(admin || member.role === "manager" ? [{ href: "/dashboard/projects", label: "Projects" }] : []),
     ...(admin ? [{ href: "/dashboard/settings", label: "Company settings" }] : []),
+    ...(admin ? [{ href: "/dashboard/billing", label: "Plan and billing" }] : []),
     { href: "/dashboard/profile", label: "My profile" },
     { href: "/download", label: "Download desktop app" },
   ];
@@ -59,8 +62,42 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </aside>
       <main className="flex-1 px-4 py-8 md:px-10">
-        <div className="mx-auto max-w-5xl">{children}</div>
+        <div className="mx-auto max-w-5xl">
+          {banner && (
+            <div className={`mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${banner.urgent ? "border-amber-200 bg-amber-50 text-amber-900" : "border-brand-200 bg-brand-50 text-brand-900"}`}>
+              <span>{banner.text}</span>
+              {banner.action && <Link href="/dashboard/billing" className="btn-primary btn-sm">{banner.action}</Link>}
+            </div>
+          )}
+          {children}
+        </div>
       </main>
     </div>
   );
+}
+
+/** One line at the top of every page when the plan needs attention. */
+function billingBanner(b: Awaited<ReturnType<typeof getBilling>>, admin: boolean) {
+  const over = b.seat_limit !== null ? b.active_members - b.seat_limit : 0;
+  if (!admin) {
+    return b.can_track
+      ? null
+      : { text: "Your company's plan doesn't cover you yet, so the desktop app can't clock you in. Ask your company admin.", urgent: true, action: null };
+  }
+  if (over > 0) {
+    return {
+      text: `${over} ${over === 1 ? "person isn't" : "people aren't"} covered by your ${b.tier === "free" ? "free plan" : "plan"} and can't clock in.`,
+      urgent: true,
+      action: b.tier === "free" ? "Upgrade" : "Add people",
+    };
+  }
+  if (b.tier === "trial") {
+    const d = daysLeft(b.trial_ends_at);
+    return d <= 7 ? { text: `Your free trial ends in ${d} ${d === 1 ? "day" : "days"}. Choose a plan to keep every feature.`, urgent: d <= 2, action: "Choose a plan" } : null;
+  }
+  if (b.tier === "standard") {
+    const d = daysLeft(b.paid_until);
+    return d <= 5 ? { text: `Your plan ends in ${d} ${d === 1 ? "day" : "days"}.`, urgent: true, action: "Renew" } : null;
+  }
+  return null;
 }

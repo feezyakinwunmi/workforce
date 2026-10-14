@@ -81,3 +81,4 @@ button:disabled { opacity: .6; cursor: default; }
 .mt12 { margin-top: 12px; }
 .mb10 { margin: 0 0 10px; }
 .err-text { color: var(--red); }
+.plan-note { background: #fffbeb; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 0 0 10px; }

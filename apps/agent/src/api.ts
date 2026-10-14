@@ -3,6 +3,9 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 import type { SecureStore } from "./storage";
 import type { Payload, Settings, TaskItem } from "./tracker";
 
+/** The company's plan, as it affects this person (agent 0.4+). */
+export type AgentBilling = { tier: "free" | "trial" | "standard"; can_track: boolean; message: string | null };
+
 export type DeviceInfo = {
   device_id: string;
   organization_id: string;
@@ -11,6 +14,7 @@ export type DeviceInfo = {
   timezone: string;
   full_name: string;
   settings: Settings;
+  billing?: AgentBilling;
   server_time: string;
 };
 
@@ -18,6 +22,7 @@ export type HeartbeatResult = {
   active: boolean;
   device_revoked?: boolean;
   settings?: Settings;
+  billing?: AgentBilling;
   server_time: string;
 };
 
