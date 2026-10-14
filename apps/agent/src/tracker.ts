@@ -78,6 +78,7 @@ export type TrackerState = {
   currentTaskId?: string | null; // task being worked on (agent 0.2+)
   taskCache?: TaskItem[]; // the worker's open tasks, kept for offline use
   reports?: Record<string, ReportRec>; // end-of-session reports waiting to upload
+  notifiedUntil?: string | null; // newest notification already shown as a pop-up (agent 0.3+)
 };
 
 export type Payload = {
@@ -580,6 +581,7 @@ export class Tracker {
       currentTaskId: null,
       taskCache: [],
       reports: {},
+      notifiedUntil: null,
     };
     this.save();
   }

@@ -88,6 +88,7 @@ function consentScreen() {
         ${item(false, "No screenshots, webcam, microphone or keystrokes")}
       </ul>
       <p class="small muted mt10">Nothing is recorded when you are clocked out. Your company admins and your team manager can see this data, and so can you on <em>My activity</em> in the dashboard.</p>
+      <button class="link small mt10" data-action="what-we-track">Read exactly what is tracked ↗</button>
     </div>
     <button class="primary full" data-action="consent">I understand, continue</button>
     <button class="secondary full" data-action="decline">Log out</button>`;
@@ -321,6 +322,8 @@ root.addEventListener("click", async (e) => {
       return window.agent.dismissNotice();
     case "my-activity":
       return window.agent.openDashboard("/dashboard/activity");
+    case "what-we-track":
+      return window.agent.openDashboard("/what-we-track");
     case "retry":
       return window.agent.retrySync();
   }

@@ -67,9 +67,22 @@ export async function updateMember(formData: FormData) {
     if (!STATUSES.includes(status)) fail("Unknown status.");
     patch.status = status;
   }
+  if (formData.has("timezone")) {
+    patch.timezone = String(formData.get("timezone")); // checked by the database
+  }
+  if (formData.has("job_title")) {
+    const title = String(formData.get("job_title")).trim();
+    if (title.length > 100) fail("Keep the job title under 100 characters.");
+    patch.job_title = title || null;
+  }
+  if (formData.has("expected_hours_per_day")) {
+    const hours = Number(formData.get("expected_hours_per_day"));
+    if (!Number.isFinite(hours) || hours < 0 || hours > 24) fail("Expected hours must be between 0 and 24.");
+    patch.expected_hours_per_day = String(hours);
+  }
 
   const { data, error } = await supabase.from("memberships").update(patch).eq("id", id).select("id");
-  if (error) fail(error.message);
+  if (error) fail(/time zone/i.test(error.message) ? "Pick a valid time zone." : error.message);
   if (!data?.length) fail("You don't have permission to change this member.");
   revalidatePath(PATH);
 }
@@ -92,4 +105,27 @@ export async function deleteTeam(formData: FormData) {
   const { error } = await supabase.from("teams").delete().eq("id", id);
   if (error) fail(error.message);
   revalidatePath(PATH);
+}
+
+/** Who manages a team: they see the team's time, activity and reports. */
+export async function setTeamManager(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const id = String(formData.get("team_id") ?? "");
+  const managerId = String(formData.get("manager_id") ?? "") || null;
+  const { data, error } = await supabase.from("teams").update({ manager_id: managerId }).eq("id", id).select("id");
+  if (error) fail(error.message);
+  if (!data?.length) fail("You don't have permission to change this team.");
+  revalidatePath(PATH);
+}
+
+/** The owner hands the company to another member and becomes an admin. */
+export async function transferOwnership(formData: FormData) {
+  const { supabase, member } = await requireAdmin();
+  if (member.role !== "owner") fail("Only the owner can transfer ownership.");
+  const newOwner = String(formData.get("user_id") ?? "");
+  if (!newOwner) fail("Pick the new owner.");
+  const { error } = await supabase.rpc("transfer_ownership", { p_new_owner: newOwner });
+  if (error) fail(error.message);
+  revalidatePath("/dashboard", "layout");
+  redirect(`${PATH}?transferred=1`);
 }

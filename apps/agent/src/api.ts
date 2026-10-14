@@ -21,6 +21,15 @@ export type HeartbeatResult = {
   server_time: string;
 };
 
+export type AgentNotification = {
+  id: string;
+  kind: "task_assigned" | "task_comment" | "task_done" | "task_due";
+  title: string;
+  body: string | null;
+  link: string | null;
+  created_at: string;
+};
+
 /** Error kinds the app reacts to differently. */
 export class ApiError extends Error {
   constructor(
@@ -114,6 +123,19 @@ export class Api {
     const { data, error } = await this.supabase.from("tasks").update({ status }).eq("id", taskId).select("id");
     if (error) throw classify(error);
     if (!data?.length) throw new ApiError("This task is no longer assigned to you.", "other");
+  }
+
+  /** Notifications newer than `since` (each person only ever reads their own). */
+  async newNotifications(since: string): Promise<AgentNotification[]> {
+    const { data, error } = await this.supabase
+      .from("notifications")
+      .select("id, kind, title, body, link, created_at")
+      .gt("created_at", since)
+      .is("read_at", null)
+      .order("created_at", { ascending: true })
+      .limit(10);
+    if (error) throw classify(error);
+    return (data ?? []) as AgentNotification[];
   }
 
   async ingest(payload: Payload): Promise<{ server_time: string }> {

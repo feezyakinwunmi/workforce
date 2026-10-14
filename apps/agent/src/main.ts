@@ -272,10 +272,46 @@ async function heartbeat() {
       return;
     }
     tracker.setSettings(res.settings);
+    void checkNotifications();
   } catch (e) {
     await handleApiError(e);
   }
   push();
+}
+
+/** Show new task notifications (assigned, comments, due tomorrow) as Windows pop-ups. */
+let checkingNotifications = false;
+const shownNotes: Notification[] = []; // keep references so click handlers survive garbage collection
+async function checkNotifications() {
+  if (!tracker.state.account || tracker.needsConsent || checkingNotifications) return;
+  checkingNotifications = true;
+  try {
+    // First run on this computer: start from now instead of replaying old notifications.
+    const since = tracker.state.notifiedUntil ?? new Date(tracker.now()).toISOString();
+    if (!tracker.state.notifiedUntil) {
+      tracker.state.notifiedUntil = since;
+      tracker.save();
+      return;
+    }
+    const items = await api.newNotifications(since);
+    if (!items.length) return;
+    tracker.state.notifiedUntil = items[items.length - 1].created_at;
+    tracker.save();
+    for (const n of items.slice(-3)) {
+      if (!Notification.isSupported()) break;
+      const note = new Notification({ title: n.title, body: n.body ?? "", icon: path.join(assets, "icon.png") });
+      const link = n.link && n.link.startsWith("/dashboard") ? n.link : "/dashboard/notifications";
+      note.on("click", () => void shell.openExternal(`${DASHBOARD_URL}${link}`));
+      note.show();
+      shownNotes.push(note);
+      if (shownNotes.length > 10) shownNotes.shift();
+    }
+    if (items.some((n) => n.kind === "task_assigned" || n.kind === "task_due")) void refreshTasks(true);
+  } catch {
+    // Not important enough to show an error; the next heartbeat tries again.
+  } finally {
+    checkingNotifications = false;
+  }
 }
 
 async function sync() {
@@ -577,7 +613,17 @@ ipcMain.handle("dismiss-notice", () => {
   push();
 });
 ipcMain.handle("open-dashboard", (_e, page: string) => {
-  const safe = ["/dashboard", "/dashboard/activity", "/dashboard/timesheets", "/dashboard/tasks", "/forgot-password", "/signup"].includes(page) ? page : "/dashboard";
+  const safe = [
+    "/dashboard",
+    "/dashboard/activity",
+    "/dashboard/timesheets",
+    "/dashboard/tasks",
+    "/dashboard/notifications",
+    "/forgot-password",
+    "/signup",
+    "/what-we-track",
+    "/privacy",
+  ].includes(page) ? page : "/dashboard";
   void shell.openExternal(`${DASHBOARD_URL}${safe}`);
 });
 ipcMain.handle("retry-sync", () => sync());

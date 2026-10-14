@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { emailMembers } from "@/lib/email";
 import { requireMember } from "@/lib/session";
 import { readTaskForm, STATUSES, type TaskStatus } from "@/lib/tasks";
 import type { FormState } from "@/lib/types";
@@ -34,20 +35,28 @@ export async function createTask(_prev: FormState, formData: FormData): Promise<
   if (member.role === "worker" && values.assignee_id && values.assignee_id !== member.user_id) {
     return { error: "Only managers and admins can assign tasks to other people." };
   }
-  const { error } = await supabase.from("tasks").insert(values);
+  const { data, error } = await supabase.from("tasks").insert(values).select("id").single();
   if (error) return { error: friendly(error) };
+  if (values.assignee_id && values.assignee_id !== member.user_id) {
+    await emailAssignment(supabase, member.user_id, values.assignee_id, data.id, values.title, values.due_date);
+  }
   revalidatePath(PATH);
   return { success: `Task "${values.title}" created.` };
 }
 
 export async function updateTask(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requireMember();
+  const { supabase, member } = await requireMember();
   const id = String(formData.get("id") ?? "");
   const parsed = readTaskForm(formData);
   if ("error" in parsed) return { error: parsed.error };
+  const { data: before } = await supabase.from("tasks").select("assignee_id").eq("id", id).maybeSingle();
   const { data, error } = await supabase.from("tasks").update(parsed.values).eq("id", id).select("id");
   if (error) return { error: friendly(error) };
   if (!data?.length) return { error: "You don't have permission to change this task." };
+  const assignee = parsed.values.assignee_id;
+  if (assignee && assignee !== member.user_id && assignee !== before?.assignee_id) {
+    await emailAssignment(supabase, member.user_id, assignee, id, parsed.values.title, parsed.values.due_date);
+  }
   revalidatePath(PATH);
   revalidatePath(`${PATH}/${id}`);
   return { success: "Saved." };
@@ -79,13 +88,28 @@ export async function deleteTask(formData: FormData) {
 }
 
 export async function addComment(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requireMember();
+  const { supabase, member, profile, user } = await requireMember();
   const taskId = String(formData.get("task_id") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return { error: "Write a comment first." };
   if (body.length > 5000) return { error: "Keep comments under 5,000 characters." };
   const { error } = await supabase.from("task_comments").insert({ task_id: taskId, body });
   if (error) return { error: friendly(error) };
+  const { data: task } = await supabase.from("tasks").select("title, assignee_id, created_by").eq("id", taskId).maybeSingle();
+  if (task) {
+    const who = profile?.full_name || user.email || "Someone";
+    await emailMembers(
+      supabase,
+      [task.assignee_id, task.created_by].filter((id) => id !== member.user_id),
+      {
+        subject: `${who} commented on "${task.title}"`,
+        heading: `${who} commented on "${task.title}"`,
+        text: body,
+        link: `${PATH}/${taskId}`,
+        button: "Reply",
+      },
+    );
+  }
   revalidatePath(`${PATH}/${taskId}`);
   return { success: "Comment added." };
 }
@@ -99,4 +123,23 @@ export async function deleteComment(formData: FormData) {
   if (!data?.length) fail(to, "You can only delete your own comments.");
   revalidatePath(to.split("?")[0]);
   redirect(to);
+}
+
+async function emailAssignment(
+  supabase: Awaited<ReturnType<typeof requireMember>>["supabase"],
+  actorId: string,
+  assigneeId: string,
+  taskId: string,
+  title: string,
+  due: string | null,
+) {
+  const { data: actor } = await supabase.from("profiles").select("full_name, email").eq("id", actorId).maybeSingle();
+  const who = actor?.full_name || actor?.email || "Someone";
+  await emailMembers(supabase, [assigneeId], {
+    subject: `New task: ${title}`,
+    heading: `${who} assigned you a task`,
+    text: `${title}${due ? `\nDue ${due}` : ""}\n\nPick it in the desktop app under "Working on" so your time is logged to it.`,
+    link: `${PATH}/${taskId}`,
+    button: "Open the task",
+  });
 }

@@ -18,6 +18,29 @@
 }
 
 @layer components {
+  /* Long-form text on the public pages (privacy, terms, what we track). */
+  .legal h1 {
+    @apply text-3xl font-semibold;
+  }
+  .legal h2 {
+    @apply mt-10 mb-3 text-xl font-semibold;
+  }
+  .legal h3 {
+    @apply mt-6 mb-2 font-semibold;
+  }
+  .legal p,
+  .legal li {
+    @apply leading-7 text-slate-700;
+  }
+  .legal p {
+    @apply mb-4;
+  }
+  .legal ul {
+    @apply mb-4 list-disc space-y-1 pl-6;
+  }
+  .legal a {
+    @apply font-medium text-brand-700 hover:underline;
+  }
   .card {
     @apply rounded-xl border border-slate-200 bg-white shadow-sm;
   }

@@ -5,11 +5,17 @@ import { isAdminRole, ROLE_LABELS } from "@/lib/types";
 import { initials } from "@/lib/utils";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { org, member, profile, user } = await requireMember();
+  const { supabase, org, member, profile, user } = await requireMember();
   const admin = isAdminRole(member.role);
+  const { count: unread } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .is("read_at", null);
 
   const items: NavItem[] = [
     { href: "/dashboard", label: "Overview" },
+    { href: "/dashboard/notifications", label: "Notifications", badge: unread ?? 0 },
     { href: "/dashboard/activity", label: admin || member.role === "manager" ? "Activity" : "My activity" },
     { href: "/dashboard/timesheets", label: "Timesheets" },
     { href: "/dashboard/team", label: "Team" },

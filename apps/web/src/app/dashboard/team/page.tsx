@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AutoSubmitSelect, CopyButton } from "@/components/form";
+import { AutoSubmitSelect, CopyButton, TimezoneSelect } from "@/components/form";
 import { requireMember } from "@/lib/session";
 import {
   isAdminRole,
@@ -11,7 +11,7 @@ import {
   type Team,
 } from "@/lib/types";
 import { cn, formatDate, initials, siteUrl } from "@/lib/utils";
-import { deleteTeam, revokeInvitation, updateMember } from "./actions";
+import { deleteTeam, revokeInvitation, setTeamManager, transferOwnership, updateMember } from "./actions";
 import { ConfirmSubmit, CreateTeamForm, InviteForm } from "./forms";
 
 export const metadata: Metadata = { title: "Team" };
@@ -33,9 +33,9 @@ function localTime(timeZone: string) {
 export default async function TeamPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; welcome?: string }>;
+  searchParams: Promise<{ error?: string; welcome?: string; transferred?: string }>;
 }) {
-  const { error, welcome } = await searchParams;
+  const { error, welcome, transferred } = await searchParams;
   const { supabase, member: me, org } = await requireMember();
   const admin = isAdminRole(me.role);
 
@@ -63,6 +63,18 @@ export default async function TeamPage({
   const profiles = new Map(((profileRows ?? []) as Profile[]).map((p) => [p.id, p]));
   const teamName = new Map(teams.map((t) => [t.id, t.name]));
   const teamOptions = [{ value: "", label: "No team" }, ...teams.map((t) => ({ value: t.id, label: t.name }))];
+  const nameOf = (userId: string) => {
+    const p = profiles.get(userId);
+    return p?.full_name || p?.email || "Unknown";
+  };
+  // Only managers, admins and the owner can manage a team (workers would not see the team's data).
+  const managerOptions = [
+    { value: "", label: "No manager" },
+    ...members
+      .filter((m) => m.status === "active" && m.role !== "worker")
+      .map((m) => ({ value: m.user_id, label: `${nameOf(m.user_id)} (${ROLE_LABELS[m.role]})` })),
+  ];
+  const transferTargets = members.filter((m) => m.status === "active" && m.user_id !== me.user_id);
 
   return (
     <div className="space-y-8">
@@ -78,6 +90,11 @@ export default async function TeamPage({
           <strong>{org.name} is ready.</strong> Invite your first workers below. Each person gets a link
           to create their account and join your company.
         </div>
+      )}
+      {transferred && (
+        <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          Ownership transferred. You are now an admin.
+        </p>
       )}
       {error && (
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
@@ -98,7 +115,7 @@ export default async function TeamPage({
                 <th className="px-4 py-3 font-medium">Member</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Team</th>
-                <th className="px-4 py-3 font-medium">Time zone</th>
+                <th className="px-4 py-3 font-medium">Time zone · hours</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
                 {admin && <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>}
               </tr>
@@ -107,8 +124,10 @@ export default async function TeamPage({
               {members.map((m) => {
                 const p = profiles.get(m.user_id);
                 const isMe = m.user_id === me.user_id;
-                // Owner access and your own row are never edited from here (ownership transfer comes later).
+                // Role and status of the owner and of yourself are never changed here (see "Transfer ownership").
                 const editable = admin && !isMe && m.role !== "owner";
+                // Only the owner can change the owner's own details.
+                const detailsEditable = admin && (m.role !== "owner" || me.role === "owner");
                 return (
                   <tr key={m.id} className={cn(m.status === "suspended" && "bg-amber-50/50")}>
                     <td className="px-4 py-3">
@@ -127,7 +146,7 @@ export default async function TeamPage({
                             )}
                             {isMe && <span className="ml-1 text-slate-400">(you)</span>}
                           </p>
-                          <p className="truncate text-xs text-slate-500">{p?.email}</p>
+                          <p className="truncate text-xs text-slate-500">{m.job_title ? `${m.job_title} · ` : ""}{p?.email}</p>
                         </div>
                         {m.status === "suspended" && <span className="badge bg-amber-100 text-amber-800">Suspended</span>}
                       </div>
@@ -156,11 +175,34 @@ export default async function TeamPage({
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       <p>{m.timezone.replaceAll("_", " ")}</p>
-                      <p className="text-xs text-slate-400">{localTime(m.timezone)} local</p>
+                      <p className="text-xs text-slate-400">{localTime(m.timezone)} local · {Number(m.expected_hours_per_day)} h/day</p>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{formatDate(m.joined_at, org.timezone)}</td>
                     {admin && (
                       <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-start justify-end gap-2">
+                        {detailsEditable && (
+                          <details>
+                            <summary className="btn-secondary btn-sm cursor-pointer list-none">Edit</summary>
+                            <form action={updateMember} className="mt-2 w-72 space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
+                              <input type="hidden" name="membership_id" value={m.id} />
+                              <div>
+                                <label className="label" htmlFor={`title-${m.id}`}>Job title</label>
+                                <input className="input" id={`title-${m.id}`} name="job_title" defaultValue={m.job_title ?? ""} maxLength={100} placeholder="e.g. Designer" />
+                              </div>
+                              <div>
+                                <label className="label" htmlFor={`hours-${m.id}`}>Expected hours per day</label>
+                                <input className="input" id={`hours-${m.id}`} name="expected_hours_per_day" type="number" min="0" max="24" step="0.5" defaultValue={Number(m.expected_hours_per_day)} />
+                              </div>
+                              <div>
+                                <label className="label" htmlFor={`tz-${m.id}`}>Time zone</label>
+                                <TimezoneSelect id={`tz-${m.id}`} defaultValue={m.timezone} />
+                                <p className="mt-1 text-xs text-slate-500">Their work day and timesheets follow this.</p>
+                              </div>
+                              <button className="btn-primary w-full">Save</button>
+                            </form>
+                          </details>
+                        )}
                         {editable && (
                           <div className="flex justify-end gap-2">
                             <form action={updateMember}>
@@ -179,6 +221,7 @@ export default async function TeamPage({
                             </form>
                           </div>
                         )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -220,15 +263,26 @@ export default async function TeamPage({
 
       <section className="card p-5">
         <h2 className="mb-1 font-semibold">Teams</h2>
-        <p className="mb-4 text-sm text-slate-600">Group people by department or client. Managers will see their team&apos;s time and tasks.</p>
+        <p className="mb-4 text-sm text-slate-600">Group people by department or client. A manager sees the time, activity and reports of their own team and of the teams they manage. Only people with the Manager or Admin role can manage a team.</p>
         {teams.length > 0 && (
-          <ul className="mb-4 flex flex-wrap gap-2">
+          <ul className="mb-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
             {teams.map((t) => (
-              <li key={t.id} className="flex items-center gap-2 rounded-lg border border-slate-200 py-1 pr-1 pl-3 text-sm">
-                {t.name}
-                <span className="text-xs text-slate-400">
-                  {members.filter((m) => m.team_id === t.id).length}
+              <li key={t.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 font-medium">
+                  {t.name}{" "}
+                  <span className="text-xs font-normal text-slate-400">
+                    {members.filter((m) => m.team_id === t.id).length} members
+                  </span>
                 </span>
+                {admin ? (
+                  <form action={setTeamManager} className="flex items-center gap-2">
+                    <input type="hidden" name="team_id" value={t.id} />
+                    <span className="text-xs text-slate-500">Manager</span>
+                    <AutoSubmitSelect name="manager_id" defaultValue={t.manager_id ?? ""} options={managerOptions} ariaLabel={`Manager of ${t.name}`} />
+                  </form>
+                ) : (
+                  <span className="text-xs text-slate-500">Manager: {t.manager_id ? nameOf(t.manager_id) : "none"}</span>
+                )}
                 {admin && (
                   <form action={deleteTeam}>
                     <input type="hidden" name="id" value={t.id} />
@@ -243,6 +297,26 @@ export default async function TeamPage({
         )}
         {admin ? <CreateTeamForm /> : teams.length === 0 && <p className="text-sm text-slate-500">No teams yet.</p>}
       </section>
+
+      {me.role === "owner" && transferTargets.length > 0 && (
+        <section className="card border-red-200 p-5">
+          <h2 className="mb-1 font-semibold">Transfer ownership</h2>
+          <p className="mb-4 text-sm text-slate-600">
+            Make someone else the owner of {org.name}. You become an admin and can&apos;t undo this yourself.
+          </p>
+          <form action={transferOwnership} className="flex flex-wrap items-center gap-2">
+            <select name="user_id" className="input w-auto" defaultValue="" required aria-label="New owner">
+              <option value="" disabled>Choose the new owner…</option>
+              {transferTargets.map((m) => (
+                <option key={m.user_id} value={m.user_id}>{nameOf(m.user_id)} ({ROLE_LABELS[m.role]})</option>
+              ))}
+            </select>
+            <ConfirmSubmit message={`Transfer ownership of ${org.name}? You will become an admin, and only the new owner can give it back.`} className="btn-danger">
+              Transfer ownership
+            </ConfirmSubmit>
+          </form>
+        </section>
+      )}
     </div>
   );
 }

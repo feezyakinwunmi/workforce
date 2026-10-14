@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export type NavItem = { href: string; label: string; soon?: boolean };
+export type NavItem = { href: string; label: string; soon?: boolean; badge?: number };
 
 export function SideNav({ items }: { items: NavItem[] }) {
   const path = usePathname();
@@ -32,7 +32,14 @@ export function SideNav({ items }: { items: NavItem[] }) {
               active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
             )}
           >
-            {item.label}
+            <span className="flex items-center justify-between gap-2">
+              {item.label}
+              {item.badge ? (
+                <span className="badge bg-brand-600 text-white" aria-label={`${item.badge} unread`}>
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              ) : null}
+            </span>
           </Link>
         );
       })}

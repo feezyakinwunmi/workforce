@@ -39,7 +39,7 @@ Nigeria and Africa come first, then foreign companies. Nigerian companies with s
 | 3 | Activity monitoring: active vs idle, activity % per 10-minute block, idle prompt, apps and websites | MVP |
 | 4 | Tasks and projects: tasks, assignees, status, comments, time per task, daily work report | MVP (done: Week 7) |
 | 5 | Screenshots: random every 10–20 min, blur, per-company on/off, retention by plan | Phase 2 |
-| 6 | Chat and groups, announcements, online status, notifications | Phase 2 |
+| 6 | Chat and groups, announcements, online status, notifications | Phase 2 (task notifications done: Week 8) |
 | 7 | Productivity insights: app labels per role, reports, output vs activity, digests | Phase 2 |
 | 8 | Billing: per-seat plans, Paystack (NGN), USD checkout, invoices, trials | Phase 2 |
 | 9 | Leave and requests: types, balances, approvals, holidays per country | Phase 3 |

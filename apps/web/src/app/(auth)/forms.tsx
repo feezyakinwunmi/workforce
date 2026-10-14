@@ -67,6 +67,11 @@ export function SignupForm({ next, email }: { next: string; email?: string }) {
       </div>
       <FormMessage state={state} />
       <SubmitButton className="btn-primary w-full" pendingText="Creating account…">Create account</SubmitButton>
+      <p className="text-center text-xs text-slate-500">
+        By creating an account you agree to the{" "}
+        <Link className="underline hover:text-slate-800" href="/terms" target="_blank">terms</Link> and{" "}
+        <Link className="underline hover:text-slate-800" href="/privacy" target="_blank">privacy policy</Link>.
+      </p>
       <p className="text-center text-sm text-slate-600">
         Already have an account?{" "}
         <Link className="font-medium text-brand-700 hover:underline" href={`/login?next=${encodeURIComponent(next)}`}>

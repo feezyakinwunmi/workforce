@@ -20,6 +20,9 @@ workforce/
 - Dashboard: who is working now, per-person activity day view, weekly timesheets with CSV export
 - Distribution: one-click Windows installer, auto-update, public /download page
 - Tasks: projects, tasks with assignee, priority, due date and comments; the worker picks the current task in the desktop app so time is logged per task; a "what I got done" report at clock-out
+- Notifications: task assigned, new comment, task done, due tomorrow, in the dashboard and as desktop pop-ups (plus email once SMTP is set up)
+- Admin tools: team managers, expected hours and time zone per member, ownership transfer
+- Public pages: what we track, privacy policy, terms of service
 
 ## 1. Database
 
@@ -92,7 +95,7 @@ The window closes to the system tray. **Quit** from the tray menu clocks you out
 - The desktop app can only write through `register_device`, `heartbeat` and `ingest_batch`. These check the signed-in user, the computer (admins can disconnect it) and session ownership.
 - Nobody can change their own role, and only the owner can touch owner access. Changes are written to `audit_logs`.
 
-Tested on a local Postgres simulating Supabase (100 checks), with a simulated workday through the agent's tracking logic, and with spot checks on the live database.
+Tested on a local Postgres simulating Supabase (over 120 checks), with a simulated workday through the agent's tracking logic, and with spot checks on the live database.
 
 ## Going live
 
@@ -100,4 +103,4 @@ See **docs/DEPLOY.md**: deploy the dashboard to Vercel, update the Supabase URLs
 
 ## Next
 
-Team manager picker and expected hours, notifications, leave requests, then chat. Code signing for the installer and the Mac version before paying customers. See `CLAUDE.md`.
+Billing (Paystack in naira, USD card checkout), then chat and leave requests. Code signing for the installer and the Mac version before paying customers. See `CLAUDE.md`.

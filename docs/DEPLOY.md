@@ -70,6 +70,43 @@ Visit `https://<your dashboard>/download`. The **Download for Windows** button i
 
 Installed apps download the update in the background and install it the next time the worker is clocked out. The tag must match the version, or the build stops with a clear message.
 
+## 7. Turn on email (password resets, sign-up confirmations, task emails)
+
+Supabase's built-in sender only reaches your own Supabase team's addresses. Before real users, give it (and the dashboard) a real mailbox. Without a domain, a Gmail address works well for a pilot (up to about 500 emails a day).
+
+**A. Create a Gmail app password**
+1. Use a Gmail account for the product (e.g. `info.phantomire@gmail.com`). Turn on **2-Step Verification**: [myaccount.google.com/security](https://myaccount.google.com/security).
+2. Open [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), create one named `Workforce`, copy the 16-letter password.
+
+**B. Supabase (password resets and sign-up emails)**
+Supabase dashboard → **Authentication → Emails → SMTP Settings** → enable custom SMTP:
+
+| Field | Value |
+| --- | --- |
+| Sender email | your Gmail address |
+| Sender name | `Workforce` |
+| Host | `smtp.gmail.com` |
+| Port | `465` |
+| Username | your Gmail address |
+| Password | the app password |
+
+Then **Authentication → Sign In / Providers → Email** → turn **Confirm email** back on, and in **Authentication → Rate Limits** raise "emails per hour" (e.g. 100).
+
+**C. Vercel (task emails: "assigned to you", new comments)**
+Vercel → your project → **Settings → Environment Variables**, add for Production:
+
+| Name | Value |
+| --- | --- |
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `465` |
+| `SMTP_USER` | your Gmail address |
+| `SMTP_PASS` | the app password |
+| `MAIL_FROM` | `Workforce <your Gmail address>` |
+
+Then **Deployments → ⋯ → Redeploy**. Without these variables, task emails are simply skipped; in-app and desktop notifications still work.
+
+**Later, with your own domain:** use [Resend](https://resend.com) (verify the domain, then host `smtp.resend.com`, port `465`, user `resend`, password = API key) in both places, so emails come from `hello@yourdomain.com`.
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.
