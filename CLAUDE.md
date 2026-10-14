@@ -48,6 +48,8 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - **Leave and holidays:**
   - DB: migration 0010 `leave` (applied live): `leave_types` (defaults Annual 20 / Sick 10 / Unpaid per company via trigger; admins edit), `holidays` (admins add/remove), `leave_requests` (trigger `prepare_leave_request` sets user, company, status and `days` = weekdays minus holidays via `private.leave_days`; no overlaps). RPCs `decide_leave` (manager/admin who can see the person; never their own unless owner), `cancel_leave` (pending, or approved before it starts), `leave_balances(user, year)`. Notifications `leave_requested` (owner/admins + team manager) and `leave_decided`. 0011 `fk_indexes`.
   - dashboard: `/dashboard/leave` (balances, request form with live day count, my requests, approvals, who's off in 30 days, holidays), `/dashboard/leave/settings` (admins: leave types, holidays, Nigerian presets 2026/2027 in `lib/leave.ts` with Eid/Maulud marked estimated). Timesheets mark approved leave and holidays; CSV adds "Leave days"; Overview shows "On leave"; nav badge for pending approvals.
+- **Payroll (Standard plan, owner/admin):** migration 0012 `payroll` (applied live): `member_pay` (one rate per person: hourly/monthly, NGN/USD, minor units; owner/admin read+write, each person reads own; changes audited by trigger). `lib/payroll.ts` `buildPayroll`: hourly = (hours + paid leave days × expected hours/day) × rate; monthly = salary − unpaid leave share of working days; "no time" days shown, never auto-deducted. `/dashboard/payroll` (+ `/export` CSV).
+- Plans now: leave is in every plan; payroll is Standard; Pro = screenshots (coming).
 - **Public homepage** (`app/page.tsx` + `app/_landing/timeline.tsx`): hero = the product's own day timeline for a team across time zones (one load animation, reduced-motion safe), set-up steps, features, privacy ("it never records"), naira pricing from `lib/billing.ts`, FAQ. Font: Bricolage Grotesque (next/font) on this page only. Logged-in visitors get "Open dashboard". Update the privacy list if screenshots ever ship.
 - **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0004, 0007 and 0008 schedule pg_cron jobs.
 - **Manual Supabase settings (not possible via MCP):**
@@ -75,7 +77,7 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/app/(auth)          login, signup (server actions + useActionState)
   src/app/onboarding      create company / accept pending invites
   src/app/invite/[token]  invite landing page
-  src/app/dashboard       overview (live), chat (+ [id], new), leave (+ settings), notifications, billing (+ callback), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
+  src/app/dashboard       overview (live), chat (+ [id], new), leave (+ settings), payroll (+ export), notifications, billing (+ callback), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
   src/lib/tracking.ts     visibility rule (mirrors DB), live status, day stats loaders
   src/lib/time.ts         time-zone helpers (zonedMidnight, localDateIn, mondayOf)
   src/lib/tasks.ts        task/project types, labels, taskPermissions (mirrors guard_task), loadTaskTime
@@ -86,9 +88,10 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/lib/supabase/admin.ts  service-role client (server only, payments confirmation only)
   src/lib/supabase/client.ts browser client (chat Realtime + sending messages; anon key)
   src/lib/chat.ts         chat types and helpers
+  src/lib/payroll.ts      monthly pay calculation (hours, leave, holidays, rates)
   src/lib/leave.ts        leave types/labels, countLeaveDays (mirrors private.leave_days), Nigerian holiday presets
   src/app/(legal)         public what-we-track, privacy, terms pages
-supabase/migrations/      SQL migrations, in order (applied: 0001–0011)
+supabase/migrations/      SQL migrations, in order (applied: 0001–0012)
 docs/SPEC.md              product spec and roadmap
 ```
 

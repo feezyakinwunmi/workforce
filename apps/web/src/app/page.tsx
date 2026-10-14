@@ -200,7 +200,7 @@ export default async function Home() {
                 <li>Up to {FREE_SEATS} people</li>
                 <li>Clock in/out, hours and idle check</li>
                 <li>Activity % and the names of apps used</li>
-                <li>Tasks, daily reports, chat</li>
+                <li>Tasks, daily reports, chat, leave requests</li>
                 <li>Last {FREE_HISTORY_DAYS} days of history</li>
               </ul>
             </div>
@@ -216,6 +216,7 @@ export default async function Home() {
                 <li>Which document or website was open</li>
                 <li>Hour-by-hour timeline of each day</li>
                 <li>Full history and timesheet downloads</li>
+                <li>Monthly payroll from hours, leave and pay rates</li>
               </ul>
               <Link href={user ? "/dashboard/billing" : "/signup"} className="mt-8 inline-block rounded-xl bg-[#6D28D9] px-6 py-3 font-semibold text-white hover:bg-[#5B21B6]">
                 {user ? "See your plan" : "Start free trial"}
@@ -223,7 +224,7 @@ export default async function Home() {
             </div>
           </div>
           <p className="mt-6 text-sm text-[#5B5876]">
-            For a team of 10, Standard is {naira(SEAT_PRICE_NAIRA * 10)} a month. Pro, with leave requests and payroll exports, is coming.
+            For a team of 10, Standard is {naira(SEAT_PRICE_NAIRA * 10)} a month. Pro, with optional screenshots, is coming.
           </p>
         </section>
 

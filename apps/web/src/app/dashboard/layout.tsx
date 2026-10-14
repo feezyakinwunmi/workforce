@@ -35,6 +35,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/leave", label: "Leave", badge: leaveWaiting ?? 0 },
     ...(admin || member.role === "manager" ? [{ href: "/dashboard/projects", label: "Projects" }] : []),
     ...(admin ? [{ href: "/dashboard/settings", label: "Company settings" }] : []),
+    ...(admin ? [{ href: "/dashboard/payroll", label: "Payroll" }] : []),
     ...(admin ? [{ href: "/dashboard/billing", label: "Plan and billing" }] : []),
     { href: "/dashboard/profile", label: "My profile" },
     { href: "/download", label: "Download desktop app" },

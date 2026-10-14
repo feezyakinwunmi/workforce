@@ -126,8 +126,8 @@ Every table carries `organization_id` with RLS; timestamps are in UTC.
 | Plan | Includes | NGN / person / month |
 | --- | --- | --- |
 | Free | Up to 3 people; clock in/out, hours, idle check, activity %, app names; tasks, reports, notifications; last 30 days | ₦0 |
-| Standard | Unlimited people; + window titles, hour-by-hour day timeline, full history, CSV timesheets | ₦2,500 |
-| Pro (coming soon) | + screenshots, leave, payroll exports | ₦4,000 (planned) |
+| Standard | Unlimited people; + window titles, hour-by-hour day timeline, full history, CSV timesheets, payroll export | ₦2,500 |
+| Pro (coming soon) | + optional screenshots | ₦4,000 (planned) |
 
 Every new company gets a 14-day trial of Standard, then falls back to Free (never locked out). Companies prepay for a number of people for 1, 3 or 12 months (12 months = price of 10) through Paystack (card, transfer, USSD); new hires can be added pro-rata. Foreign companies pay the naira price by card for now; USD checkout (Paystack USD or a merchant of record) later. VAT (7.5%) on invoices once the business is registered.
 

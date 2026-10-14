@@ -26,6 +26,7 @@ workforce/
 - Billing: Free (3 people), 14-day Standard trial, Standard ₦2,500 per person per month prepaid through Paystack
 - Chat: #general, announcements, private groups and direct messages, live, with unread counts and who's working now
 - Leave: requests and approvals, yearly balances, public holidays (Nigerian list built in), shown on timesheets
+- Payroll: pay rate per person (hourly or monthly, naira or dollars), monthly pay from hours and leave, CSV download
 
 ## 1. Database
 

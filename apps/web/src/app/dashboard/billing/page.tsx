@@ -97,19 +97,19 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           name="Free"
           price="₦0"
           current={billing.tier === "free"}
-          items={[`Up to ${FREE_SEATS} people`, "Clock in/out, hours, idle check", "Activity % and app names", "Tasks, reports, notifications", `Last ${FREE_HISTORY_DAYS} days of history`]}
+          items={[`Up to ${FREE_SEATS} people`, "Clock in/out, hours, idle check", "Activity % and app names", "Tasks, reports, chat, leave", `Last ${FREE_HISTORY_DAYS} days of history`]}
         />
         <PlanCard
           name="Standard"
           price={`${naira(billing.seat_price_kobo)}`}
           current={billing.tier === "standard" || billing.tier === "trial"}
           highlight
-          items={["Any number of people", "Everything in Free", "Window titles (which document or website)", "Hour-by-hour timeline of each day", "Full history and CSV timesheet downloads"]}
+          items={["Any number of people", "Everything in Free", "Window titles (which document or website)", "Hour-by-hour timeline of each day", "Full history and CSV timesheet downloads", "Monthly payroll export"]}
         />
         <PlanCard
           name="Pro"
           price="Coming soon"
-          items={["Everything in Standard", "Screenshots (optional, blurred)", "Leave requests", "Payroll exports"]}
+          items={["Everything in Standard", "Screenshots (optional, blurred)", "Screenshot retention you choose"]}
           muted
         />
       </section>
