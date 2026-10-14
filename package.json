@@ -1,0 +1,13 @@
+{
+  "name": "workforce",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace web",
+    "agent": "npm run dev --workspace agent",
+    "build": "npm run build --workspace web && npm run build --workspace agent",
+    "lint": "npm run lint --workspace web"
+  }
+}
