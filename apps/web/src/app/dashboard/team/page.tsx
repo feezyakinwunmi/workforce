@@ -191,7 +191,7 @@ export default async function TeamPage({
                         {detailsEditable && (
                           <details>
                             <summary className="btn-secondary btn-sm cursor-pointer list-none">Edit</summary>
-                            <form action={updateMember} className="mt-2 w-72 space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
+                            <form action={updateMember} className="mt-2 w-72 space-y-3 rounded-xl border border-slate-200 bg-surface p-4 text-left shadow-sm">
                               <input type="hidden" name="membership_id" value={m.id} />
                               <div>
                                 <label className="label" htmlFor={`title-${m.id}`}>Job title</label>

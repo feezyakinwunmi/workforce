@@ -121,7 +121,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
             <Link
               key={t.key}
               href={`/dashboard/tasks?view=${t.key}&status=${status}${params.project ? `&project=${params.project}` : ""}`}
-              className={cn("rounded-md px-3 py-1.5 font-medium", view === t.key ? "bg-white shadow-sm" : "text-slate-600 hover:text-slate-900")}
+              className={cn("rounded-md px-3 py-1.5 font-medium", view === t.key ? "bg-surface shadow-sm" : "text-slate-600 hover:text-slate-900")}
             >
               {t.label}
             </Link>

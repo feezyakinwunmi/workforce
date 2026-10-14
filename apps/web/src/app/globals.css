@@ -1,81 +1,257 @@
 @import "tailwindcss";
 
+/* Dark mode follows the .dark class on <html> (set before first paint by the theme script). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Pages use Tailwind's slate scale for neutrals and brand / emerald / amber / red
+ * for meaning; in dark mode the same names point at dark values (below), so every screen
+ * switches theme without per-page dark: classes.
+ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --color-brand-50: #f5f3ff;
-  --color-brand-100: #ede9fe;
-  --color-brand-200: #ddd6fe;
-  --color-brand-500: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-700: #6d28d9;
-  --color-brand-900: #4c1d95;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Neutrals with a hint of ink violet */
+  --color-slate-50: #f7f6fb;
+  --color-slate-100: #efedf6;
+  --color-slate-200: #e3e0ee;
+  --color-slate-300: #ccc8dc;
+  --color-slate-400: #9a95b3;
+  --color-slate-500: #6e6990;
+  --color-slate-600: #555077;
+  --color-slate-700: #3e3a5e;
+  --color-slate-800: #2a2747;
+  --color-slate-900: #15123a;
+  --color-slate-950: #0e0c22;
+
+  /* Workbase violet */
+  --color-brand-50: #f3f0ff;
+  --color-brand-100: #e8e2ff;
+  --color-brand-200: #d3c9ff;
+  --color-brand-300: #b3a4ff;
+  --color-brand-400: #8f7bff;
+  --color-brand-500: #7a5ffa;
+  --color-brand-600: #6a4cf5;
+  --color-brand-700: #5638d9;
+  --color-brand-800: #4429ae;
+  --color-brand-900: #2e1f7a;
+  --color-brand-950: #1c1450;
+
+  /* Marigold: the second brand colour (logo base, idle time in charts, highlights) */
+  --color-marigold-50: #fff8eb;
+  --color-marigold-100: #feedc7;
+  --color-marigold-300: #f8c56a;
+  --color-marigold-400: #f2a93b;
+  --color-marigold-500: #e08d17;
+  --color-marigold-700: #9a5a0b;
+
+  /* Charts (validated for colour-blind separation in both themes) */
+  --color-chart-1: #6a4cf5;
+  --color-chart-2: #cc7a12;
+  --color-chart-grid: #e9e7f2;
+
+  /* Surfaces */
+  --color-canvas: #f7f6fb;
+  --color-surface: #ffffff;
+  --color-raised: #ffffff;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-canvas: #0e0c22;
+  --color-surface: #17152f;
+  --color-raised: #1f1c3b;
+  --color-chart-1: #8f7bff;
+  --color-chart-grid: #2a2748;
+
+  --color-slate-50: #1b1836;
+  --color-slate-100: #221f40;
+  --color-slate-200: #2e2a4f;
+  --color-slate-300: #3d3962;
+  --color-slate-400: #6f6a94;
+  --color-slate-500: #9792b7;
+  --color-slate-600: #b1adca;
+  --color-slate-700: #cac7dd;
+  --color-slate-800: #e0deec;
+  --color-slate-900: #f2f1f8;
+  --color-slate-950: #fafafd;
+
+  --color-brand-50: #221c4d;
+  --color-brand-100: #2a2361;
+  --color-brand-200: #3b3184;
+  --color-brand-300: #5a4cb8;
+  --color-brand-700: #b8aaff;
+  --color-brand-800: #cbc0ff;
+  --color-brand-900: #e0d9ff;
+
+  --color-marigold-50: #2c2110;
+  --color-marigold-100: #3a2b12;
+  --color-marigold-700: #f8c56a;
+
+  --color-emerald-50: #0f2a20;
+  --color-emerald-100: #133527;
+  --color-emerald-200: #1b4a37;
+  --color-emerald-600: #4ade9b;
+  --color-emerald-700: #5fe3a6;
+  --color-emerald-800: #86efc0;
+
+  --color-amber-50: #2c2110;
+  --color-amber-100: #3a2b12;
+  --color-amber-200: #54401a;
+  --color-amber-700: #f5c26b;
+  --color-amber-800: #f8d08a;
+  --color-amber-900: #fbe0ae;
+
+  --color-red-50: #2e1519;
+  --color-red-100: #3d1a20;
+  --color-red-200: #5a242c;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+
+  --color-sky-50: #0f2533;
+  --color-sky-700: #7dd3fc;
+  --color-blue-100: #17254d;
+  --color-blue-800: #bfdbfe;
+  --color-orange-100: #3a2010;
+  --color-orange-700: #fdba74;
 }
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-canvas font-sans text-slate-900 antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-brand-200);
   }
 }
 
 @layer components {
   /* Long-form text on the public pages (privacy, terms, what we track). */
   .legal h1 {
-    @apply text-3xl font-semibold;
+    @apply font-display text-4xl font-bold tracking-tight;
   }
   .legal h2 {
-    @apply mt-10 mb-3 text-xl font-semibold;
+    @apply mt-12 mb-3 font-display text-2xl font-semibold tracking-tight;
   }
   .legal h3 {
     @apply mt-6 mb-2 font-semibold;
   }
   .legal p,
   .legal li {
-    @apply leading-7 text-slate-700;
+    @apply leading-7 text-slate-600;
   }
   .legal p {
     @apply mb-4;
   }
   .legal ul {
-    @apply mb-4 list-disc space-y-1 pl-6;
+    @apply mb-4 list-disc space-y-1.5 pl-6;
   }
   .legal a {
-    @apply font-medium text-brand-700 hover:underline;
+    @apply font-medium text-brand-700 underline-offset-4 hover:underline;
+  }
+
+  .page-title {
+    @apply font-display text-[1.75rem] leading-tight font-semibold tracking-tight text-slate-900;
+  }
+  .section-title {
+    @apply font-display text-lg font-semibold tracking-tight text-slate-900;
   }
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-slate-200 bg-surface;
+  }
+  .panel-head {
+    @apply flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3.5;
   }
   .label {
     @apply mb-1.5 block text-sm font-medium text-slate-700;
   }
   .input {
-    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500;
+    @apply block w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm text-slate-900 transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-500/20 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 bg-brand-600 text-white hover:bg-brand-700;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-60 bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:bg-[#5638d9] dark:hover:bg-[#7a5ffa];
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-60 border border-slate-300 bg-surface text-slate-700 hover:border-slate-400 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-60 text-slate-600 hover:bg-slate-100 hover:text-slate-900;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 border border-red-200 bg-white text-red-600 hover:bg-red-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-60 border border-red-200 bg-surface text-red-600 hover:bg-red-50;
   }
   .btn-sm {
-    @apply px-2.5 py-1 text-xs;
+    @apply gap-1.5 rounded-md px-2.5 py-1 text-xs;
   }
   .badge {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .table-head {
+    @apply bg-slate-50 text-xs font-medium text-slate-500;
+  }
+  .stat-value {
+    @apply font-display text-2xl font-semibold tracking-tight text-slate-900 tabular-nums;
   }
 }
 
 /* Landing page hero: bars grow once on load. */
 @keyframes timeline-grow {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
 }
 .timeline-bar {
   transform-origin: bottom;
   animation: timeline-grow 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+
+/* Walkthrough: the highlighted element sits above a dimmed page. */
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.tour-pop {
+  animation: tour-in 180ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .timeline-bar { animation: none; }
+  .timeline-bar,
+  .tour-pop {
+    animation: none;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
 }

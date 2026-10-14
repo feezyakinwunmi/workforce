@@ -54,7 +54,7 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
                   <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-semibold text-slate-700">
                     {initials(p?.full_name ?? "", p?.email ?? "")}
                     {c.other_user_id && onlineIds.has(c.other_user_id) && (
-                      <span className="absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-full border border-white bg-emerald-500" aria-label="Working now" />
+                      <span className="absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-full border border-surface bg-emerald-500" aria-label="Working now" />
                     )}
                   </span>
                   <span className="truncate">{channelTitle(c, profiles)}</span>

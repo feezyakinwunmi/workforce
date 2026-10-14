@@ -323,7 +323,7 @@ export function ChatRoom({
             <a
               key={a.path}
               href={url ? `${url}&download=${encodeURIComponent(a.name)}` : undefined}
-              className="flex max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:border-brand-300"
+              className="flex max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-surface px-3 py-2 text-sm hover:border-brand-300"
             >
               <span aria-hidden>📄</span>
               <span className="min-w-0">
@@ -476,7 +476,7 @@ export function ChatRoom({
               }}
             >
               {suggest && matches.length > 0 && (
-                <ul role="listbox" aria-label="People to mention" className="absolute bottom-full left-10 z-20 mb-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg">
+                <ul role="listbox" aria-label="People to mention" className="absolute bottom-full left-10 z-20 mb-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-surface py-1 text-sm shadow-lg">
                   {matches.map((p, i) => (
                     <li key={p.id} role="option" aria-selected={i === suggest.index}>
                       <button

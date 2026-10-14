@@ -86,7 +86,7 @@ export default async function ChannelPage({
             <summary className="btn-secondary btn-sm cursor-pointer list-none">
               {channel.kind === "private" ? `${channelMembers.length} members` : "Settings"}
             </summary>
-            <div className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-lg">
+            <div className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded-xl border border-slate-200 bg-surface p-4 text-sm shadow-lg">
               {channel.kind === "private" && (
                 <ul className="max-h-56 space-y-1.5 overflow-y-auto">
                   {channelMembers.map((m) => (
