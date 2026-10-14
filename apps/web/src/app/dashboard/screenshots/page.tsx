@@ -54,7 +54,10 @@ export default async function ScreenshotsPage({
   const { data: signed } = live.length
     ? await supabase.storage.from("screenshots").createSignedUrls(live.map((x) => x.path), 60 * 60)
     : { data: [] as Array<{ path: string | null; signedUrl: string }> };
-  const url = new Map((signed ?? []).filter((x) => x.path).map((x) => [x.path as string, x.signedUrl]));
+  const url = new Map<string, string>();
+  for (const x of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
+    if (x.path && x.signedUrl) url.set(x.path, x.signedUrl);
+  }
 
   // Group by hour of the worker's day.
   const hours = new Map<string, Shot[]>();
