@@ -13,6 +13,9 @@ export type Settings = {
   track_apps: boolean;
   track_urls: boolean;
   screenshots_enabled?: boolean;
+  screenshot_interval_minutes?: number;
+  blur_screenshots?: boolean;
+  screenshots_changed_at?: string | null; // the version of the screenshot rules workers agree to (agent 0.7+)
   track_window_titles?: boolean; // false on the Free plan (agent 0.4+): app names only
 };
 
@@ -64,7 +67,8 @@ export type TrackerState = {
   account: Account | null;
   dataOwner: string | null; // user id the saved tracking data belongs to
   settings: Settings;
-  consent: { orgId: string; trackApps: boolean; at: string } | null;
+  consent: { orgId: string; trackApps: boolean; at: string; screenshots?: string | null } | null;
+  screenshotsOn?: boolean; // the company takes screenshots now (Pro + switched on), from the server (agent 0.7+)
   currentSessionId: string | null;
   sessions: Record<string, SessionRec>;
   blocks: Record<string, BlockRec>;
@@ -176,18 +180,46 @@ export class Tracker {
 
   /** The worker must (re)consent when tracking expands beyond what they agreed to. */
   get needsConsent() {
+    return this.needsBaseConsent || this.needsScreenshotConsent;
+  }
+
+  /** Without this consent nothing is tracked at all. */
+  get needsBaseConsent() {
     const c = this.state.consent;
     if (!this.state.account) return false;
     if (!c || c.orgId !== this.state.account.orgId) return true;
     return this.state.settings.track_apps && !c.trackApps;
   }
 
+  /** Screenshots were switched on or their rules changed since the worker last agreed. */
+  get needsScreenshotConsent() {
+    if (!this.state.account || !this.state.screenshotsOn) return false;
+    return (this.state.consent?.screenshots ?? null) !== this.screenshotVersion;
+  }
+
+  /** Screenshots may be taken: the company has them on and this worker agreed to these rules. */
+  get screenshotsAllowed() {
+    return !!this.state.screenshotsOn && !this.needsConsent;
+  }
+
+  private get screenshotVersion() {
+    return this.state.settings.screenshots_changed_at ?? "on";
+  }
+
+  setScreenshotsOn(on: boolean) {
+    if (!!this.state.screenshotsOn === on) return;
+    this.state.screenshotsOn = on;
+    this.save();
+  }
+
   giveConsent() {
     if (!this.state.account) return;
+    const previous = this.state.consent?.orgId === this.state.account.orgId ? this.state.consent.screenshots : null;
     this.state.consent = {
       orgId: this.state.account.orgId,
       trackApps: this.state.settings.track_apps,
       at: iso(this.now()),
+      screenshots: this.state.screenshotsOn ? this.screenshotVersion : (previous ?? null),
     };
     this.save();
   }

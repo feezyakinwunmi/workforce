@@ -15,6 +15,7 @@ import {
 import { ActiveWindowReader } from "./activeWindow";
 import { Api, ApiError, type AgentBilling } from "./api";
 import { APP_NAME, DASHBOARD_URL, HEARTBEAT_SECONDS, SYNC_SECONDS, TICK_SECONDS } from "./config";
+import { Screenshots } from "./screenshots";
 import { SecureStore } from "./storage";
 import { Tracker } from "./tracker";
 import { startAutoUpdates } from "./updater";
@@ -26,6 +27,7 @@ let tracker: Tracker;
 let api: Api;
 let store: SecureStore;
 let reader: ActiveWindowReader;
+let shots: Screenshots;
 
 let quitting = false;
 let online = true;
@@ -63,6 +65,7 @@ async function start() {
   tracker = new Tracker(path.join(userData, "state.json"));
   api = new Api(store);
   reader = new ActiveWindowReader(userData);
+  shots = new Screenshots(userData);
 
   tracker.recoverAfterRestart();
   createTray();
@@ -169,7 +172,7 @@ function updateTray() {
     Menu.buildFromTemplate([
       { label: status, enabled: false },
       { type: "separator" },
-      ...(tracker.state.account && !tracker.needsConsent
+      ...(tracker.state.account && (!tracker.needsConsent || working)
         ? [
             working
               ? { label: "Clock out…", click: () => requestClockOut() }
@@ -225,6 +228,14 @@ function view() {
     canTrack: billing ? billing.can_track : true,
     unreadChat,
     planMessage: billing && !billing.can_track ? billing.message : null,
+    screenshots: {
+      on: !!s.screenshotsOn,
+      allowed: tracker.screenshotsAllowed,
+      onlyThisChanged: tracker.needsScreenshotConsent && !tracker.needsBaseConsent,
+      interval: s.settings.screenshot_interval_minutes ?? 10,
+      blur: !!s.settings.blur_screenshots,
+      pending: shots.pendingCount(),
+    },
   };
 }
 
@@ -237,7 +248,10 @@ function push() {
 // Tracking loop
 // ---------------------------------------------------------------------
 async function tick() {
-  if (!tracker.state.account || tracker.needsConsent || !tracker.clockedIn) return;
+  if (!tracker.state.account || tracker.needsBaseConsent || !tracker.clockedIn) {
+    shots?.reset();
+    return;
+  }
 
   const idleSeconds = powerMonitor.getSystemIdleTime();
   const window = tracker.appTrackingAllowed ? await reader.get().catch(() => null) : null;
@@ -255,7 +269,44 @@ async function tick() {
     showWindow();
   }
   lastPendingIdleCount = pendingCount;
+  maybeScreenshot();
   push();
+}
+
+/** Pro plan screenshots: one per interval, only while clocked in, agreed to and not away. */
+function maybeScreenshot() {
+  const account = tracker.state.account;
+  if (!account || !tracker.clockedIn || !tracker.screenshotsAllowed) {
+    shots.reset();
+    return;
+  }
+  const settings = tracker.state.settings;
+  const now = tracker.now();
+  if (!shots.due(now, settings.screenshot_interval_minutes ?? 10)) return;
+  shots.done(now);
+  if (tracker.state.activeIdleId !== null) return; // away from the computer: nothing to show
+  void shots
+    .capture({
+      userId: account.userId,
+      orgId: account.orgId,
+      sessionId: tracker.state.currentSessionId,
+      takenAt: new Date(now).toISOString(),
+      app: tracker.appTrackingAllowed ? tracker.currentApp : null,
+      blurred: !!settings.blur_screenshots,
+    })
+    .then((ok) => ok && shots.upload(api, account.userId, account.orgId))
+    .catch(() => undefined);
+}
+
+/** Screenshots apply when the company has them on and is on Pro. Workers are told before any is taken. */
+function applyScreenshots() {
+  if (!billing) return; // plan unknown yet: keep what we knew
+  const before = tracker.needsScreenshotConsent;
+  tracker.setScreenshotsOn(!!tracker.state.settings.screenshots_enabled && billing.tier === "pro");
+  if (tracker.needsScreenshotConsent && !before && !tracker.needsBaseConsent) {
+    notify("Screenshots", "Your company switched on screenshots. Open the app to see what that means before any is taken.");
+    showWindow();
+  }
 }
 
 async function heartbeat() {
@@ -280,6 +331,7 @@ async function heartbeat() {
     }
     tracker.setSettings(res.settings);
     applyBilling(res.billing);
+    applyScreenshots();
     void checkNotifications();
     unreadChat = await api.unreadMessages().catch(() => unreadChat);
   } catch (e) {
@@ -292,7 +344,7 @@ async function heartbeat() {
 let checkingNotifications = false;
 const shownNotes: Notification[] = []; // keep references so click handlers survive garbage collection
 async function checkNotifications() {
-  if (!tracker.state.account || tracker.needsConsent || checkingNotifications) return;
+  if (!tracker.state.account || tracker.needsBaseConsent || checkingNotifications) return;
   checkingNotifications = true;
   try {
     // First run on this computer: start from now instead of replaying old notifications.
@@ -347,6 +399,8 @@ async function sync() {
         throw e;
       }
     }
+    const acc = tracker.state.account;
+    if (acc) await shots.upload(api, acc.userId, acc.orgId);
   } catch (e) {
     await handleApiError(e);
   } finally {
@@ -386,7 +440,10 @@ async function blockAccess(message: string, keepData = false) {
   await api.signOut();
   store.clear();
   if (keepData) tracker.setAccount(null);
-  else tracker.reset();
+  else {
+    tracker.reset();
+    shots.clear();
+  }
   loginMessage = message;
   push();
 }
@@ -398,7 +455,10 @@ async function refreshDevice() {
   const user = await api.currentUser();
   if (!user) throw new ApiError("Please log in.", "auth");
   // Saved data from a different person can never be uploaded by this one.
-  if (tracker.state.dataOwner && tracker.state.dataOwner !== user.id) tracker.reset();
+  if (tracker.state.dataOwner && tracker.state.dataOwner !== user.id) {
+    tracker.reset();
+    shots.clear();
+  }
   const osName = process.platform === "win32" ? "Windows" : process.platform === "darwin" ? "macOS" : process.platform;
   const info = await api.registerDevice(
     tracker.state.installId,
@@ -419,6 +479,7 @@ async function refreshDevice() {
     deviceId: info.device_id,
     timezone: info.timezone,
   });
+  applyScreenshots();
 }
 
 async function login(email: string, password: string) {
@@ -472,6 +533,7 @@ async function logout() {
   await api.signOut();
   store.clear();
   tracker.reset();
+  shots.clear();
   push();
 }
 
@@ -649,6 +711,7 @@ ipcMain.handle("open-dashboard", (_e, page: string) => {
     "/dashboard/tasks",
     "/dashboard/notifications",
     "/dashboard/chat",
+    "/dashboard/screenshots",
     "/forgot-password",
     "/signup",
     "/what-we-track",

@@ -1,10 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 import type { SecureStore } from "./storage";
+import type { ShotMeta } from "./screenshots";
 import type { Payload, Settings, TaskItem } from "./tracker";
 
 /** The company's plan, as it affects this person (agent 0.4+). */
-export type AgentBilling = { tier: "free" | "trial" | "standard"; can_track: boolean; message: string | null };
+export type AgentBilling = { tier: "free" | "trial" | "standard" | "pro"; can_track: boolean; message: string | null };
 
 export type DeviceInfo = {
   device_id: string;
@@ -28,7 +29,7 @@ export type HeartbeatResult = {
 
 export type AgentNotification = {
   id: string;
-  kind: "task_assigned" | "task_comment" | "task_done" | "task_due";
+  kind: string; // task_*, chat_direct, mention, announcement, leave_*, billing
   title: string;
   body: string | null;
   link: string | null;
@@ -150,6 +151,32 @@ export class Api {
     return ((data ?? []) as Array<{ unread: number; archived: boolean }>)
       .filter((c) => !c.archived)
       .reduce((s, c) => s + (c.unread ?? 0), 0);
+  }
+
+  /**
+   * Upload one screenshot, then record it. "retry" = offline, try later; "refused" = the server
+   * said no for good (e.g. screenshots were switched off), so the file is dropped.
+   */
+  async uploadScreenshot(meta: ShotMeta, jpeg: Buffer): Promise<"ok" | "retry" | "refused"> {
+    const path = `${meta.orgId}/${meta.userId}/${meta.id}.jpg`;
+    const { error: upErr } = await this.supabase.storage
+      .from("screenshots")
+      .upload(path, jpeg, { contentType: "image/jpeg", upsert: false });
+    if (upErr && !/already exists|duplicate/i.test(upErr.message)) {
+      return ["offline", "auth"].includes(classify(upErr).kind) ? "retry" : "refused";
+    }
+    const { error } = await this.supabase.rpc("add_screenshot", {
+      p_id: meta.id,
+      p_path: path,
+      p_taken_at: meta.takenAt,
+      p_session_id: meta.sessionId,
+      p_app: meta.app,
+      p_blurred: meta.blurred,
+      p_width: meta.width,
+      p_height: meta.height,
+    });
+    if (error) return ["offline", "auth"].includes(classify(error).kind) ? "retry" : "refused";
+    return "ok";
   }
 
   async ingest(payload: Payload): Promise<{ server_time: string }> {

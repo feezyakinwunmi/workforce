@@ -24,7 +24,7 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - **Weeks 2–6 core done:**
   - Electron desktop agent (`apps/agent`): login, consent, clock in/out, idle detection + prompt, app/window tracking, offline queue, heartbeat, tray
   - dashboard: live "who is working now" (Overview), per-person day view (`/dashboard/activity`), weekly timesheets + CSV
-- **Distribution is live:** Windows installer published per tag `agent-v<version>` → GitHub release in public `feezyakinwunmi/workforce-releases` (v0.1.0 … v0.5.0 released; v0.6.0 = new name + notification app id fix, waiting for its tag), shown on https://phantomire-workforce.vercel.app/download. Installed apps auto-update from that repo (only while clocked out). Release = bump `apps/agent/package.json` version, commit, push tag `agent-v<version>`.
+- **Distribution is live:** Windows installer published per tag `agent-v<version>` → GitHub release in public `feezyakinwunmi/workforce-releases` (v0.1.0 … v0.5.0 released; v0.6.0 = new name + notification app id fix and v0.7.0 = Pro screenshots, waiting for their tags), shown on https://phantomire-workforce.vercel.app/download. Installed apps auto-update from that repo (only while clocked out). Release = bump `apps/agent/package.json` version, commit, push tag `agent-v<version>`.
 - **Dashboard live on Vercel** (https://phantomire-workforce.vercel.app); the installed v0.1.0 app works end to end on Femi's PC.
 - **Week 7, tasks & projects (released, agent v0.2.0):**
   - DB: migration 0006 `tasks` (applied live): `projects`, `tasks`, `task_comments`, `task_time`, `daily_reports`, trigger `private.guard_task`, RPCs `my_open_tasks`, `task_time_totals`; `ingest_batch` also takes `task_time` and `reports` (older agents still work)
@@ -49,11 +49,16 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
   - DB: migration 0010 `leave` (applied live): `leave_types` (defaults Annual 20 / Sick 10 / Unpaid per company via trigger; admins edit), `holidays` (admins add/remove), `leave_requests` (trigger `prepare_leave_request` sets user, company, status and `days` = weekdays minus holidays via `private.leave_days`; no overlaps). RPCs `decide_leave` (manager/admin who can see the person; never their own unless owner), `cancel_leave` (pending, or approved before it starts), `leave_balances(user, year)`. Notifications `leave_requested` (owner/admins + team manager) and `leave_decided`. 0011 `fk_indexes`.
   - dashboard: `/dashboard/leave` (balances, request form with live day count, my requests, approvals, who's off in 30 days, holidays), `/dashboard/leave/settings` (admins: leave types, holidays, Nigerian presets 2026/2027 in `lib/leave.ts` with Eid/Maulud marked estimated). Timesheets mark approved leave and holidays; CSV adds "Leave days"; Overview shows "On leave"; nav badge for pending approvals.
 - **Payroll (Standard plan, owner/admin):** migration 0012 `payroll` (applied live): `member_pay` (one rate per person: hourly/monthly, NGN/USD, minor units; owner/admin read+write, each person reads own; changes audited by trigger). `lib/payroll.ts` `buildPayroll`: hourly = (hours + paid leave days × expected hours/day) × rate; monthly = salary − unpaid leave share of working days; "no time" days shown, never auto-deducted. `/dashboard/payroll` (+ `/export` CSV).
-- Plans now: leave is in every plan; payroll is Standard; Pro = screenshots (coming).
+- Plans now: leave is in every plan; payroll is Standard; Pro = screenshots.
 - **Chat files and @mentions:** migrations 0015 `chat_mention_kind` (enum `mention`), 0016 `chat_files_and_mentions`, 0017 `chat_file_removal` (all applied live). `messages.attachments` (jsonb array ≤ 5: path, name, size, type) and `messages.mentions` (uuid[] ≤ 20); text or a file required (`messages_content_check`). Private Storage bucket `chat-files` (10 MB, images/PDF/Office/text/CSV/zip, no SVG/HTML), path `<org>/<channel>/<uuid>/<name>`; `private.chat_file_channel(name)` parses it; storage policies reuse `can_read_channel` (download) / `can_post_channel` (upload); delete = uploader or org admin who can read the chat. `guard_message` only accepts files the author uploaded to that chat and takes size/type from Storage; keeps only mentions of active members who can read the chat; files and mentions are fixed after sending and cleared on delete. `after_message` sends `mention` notifications in public/private groups (not DMs or announcements). UI (`chat/[id]/room.tsx`): 📎 button, drag/drop and paste, image previews and file chips via 1-hour signed URLs, @ autocomplete (arrow keys, Enter/Tab), mentions highlighted (yours in amber); deleting a message also removes its files. Test: scratchpad test10 (23 checks).
+- **Pro plan and screenshots (agent v0.7.0):** migrations 0018 `pro_plan` and 0019 `screenshots` (applied live; scratchpad test11, 28 checks).
+  - Billing: `payments.plan` (`standard`/`pro`), kind `upgrade`; prices in `private.plan_price_kobo(plan)`: Standard ₦2,500, **Pro ₦4,000** per person per month. `org_billing` tier = `pro` while a successful Pro payment covers now; seats exclude `upgrade` rows. `start_payment(kind, seats, months, plan)` (the old 3-arg call = Standard); `upgrade` = Standard → Pro for the paid people and the days left (pays the difference); `add_seats` uses the current plan. `my_billing` adds `pro_price_kobo`. Dashboard billing: plan choice, "Upgrade to Pro now", Pro card; receipts show the plan.
+  - Screenshots: off by default; `private.guard_screenshot_settings` (trigger on `organizations.settings`) refuses switching on without Pro, clamps the interval to 5/10/15/20/30/60 min, stamps `settings.screenshots_changed_at` (the version workers agree to), audits, and notifies every active member (`announcement`, link `/dashboard/screenshots`). Table `screenshots` (id from the agent; select = `visible_member_ids`), private bucket `screenshots` (JPEG ≤ 3 MB, path `<org>/<user>/<id>.jpg`, `private.screenshot_owner`): upload only own folder while `private.screenshots_on(org)`; RPCs `add_screenshot` (file must exist, time within 3 days) and `delete_my_screenshot` (workers delete their own; the row stays as "deleted"). Retention 90 days: Vercel cron `/api/cron/screenshot-cleanup` (02:15 UTC, `CRON_SECRET`, service role removes files and rows).
+  - Dashboard: Company settings → Screenshots section (on/off, blur, interval; Pro badge), `/dashboard/screenshots` (person + day, grouped by hour, signed URLs, delete own), nav item when on Pro. Homepage, /what-we-track, /privacy and /download describe screenshots.
+  - Agent: `src/screenshots.ts` (one per interval window at a random moment; the screen under the mouse via `desktopCapturer`, max 1600 px, JPEG; blur = shrink ×28 and scale back, on the computer; queue in `<userData>/screenshots`, ≤ 200 files / 3 days, uploads during sync). On only when `settings.screenshots_enabled` and `billing.tier === "pro"`; the consent screen asks again whenever `screenshots_changed_at` changes (time tracking keeps running meanwhile, but clock-in waits for consent); skipped while away (idle period open). Main screen shows "📷 Screenshots on" + "See yours".
 - **Plan reminders and receipts:** migrations 0013 `billing_reminder_kind` (enum value `billing`, its own migration because a new enum value must be committed before use) and 0014 `billing_reminders` (applied live): `notifications.emailed_at`; unique index `notifications_billing_once`; `private.billing_reminders()` notifies owner/admins 7 days and 1 day before the paid plan or trial ends (pg_cron `billing-reminders`, 07:00 UTC); `claim_billing_emails()` (service_role only) returns unsent ones and marks them emailed. Vercel cron (`apps/web/vercel.json`, 07:30 UTC) → `/api/cron/billing-reminders` (needs env `CRON_SECRET`, checks `Authorization: Bearer`; doesn't claim when SMTP is unset) → `sendEmail` in `lib/email.ts`. Receipts: `/dashboard/billing/receipt/[id]` (admins, successful payments, print/PDF; "no VAT charged"). Dashboard sidebar and banners hide when printing.
 - **Public homepage** (`app/page.tsx` + `app/_landing/timeline.tsx`): hero = the product's own day timeline for a team across time zones (one load animation, reduced-motion safe), set-up steps, features, privacy ("it never records"), naira pricing from `lib/billing.ts`, FAQ. Font: Bricolage Grotesque (next/font) on this page only. Logged-in visitors get "Open dashboard". Update the privacy list if screenshots ever ship.
-- **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0010–0017 are live too. 0004, 0007, 0008 and 0014 schedule pg_cron jobs.
+- **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0010–0019 are live too. 0004, 0007, 0008 and 0014 schedule pg_cron jobs.
 - **Manual Supabase settings (not possible via MCP):**
   - Site URL `http://localhost:3000`, Redirect URL `http://localhost:3000/**`
   - "Confirm email" off during development
@@ -70,6 +75,7 @@ apps/agent/               Electron desktop app (TypeScript, no native modules)
   src/storage.ts          login session encrypted with Electron safeStorage
   src/config.ts           Supabase URL/anon key, dashboard URL, timings
   src/updater.ts          electron-updater (installs only while clocked out)
+  src/screenshots.ts      Pro screenshots: schedule, capture (+ blur), on-disk queue, upload
   renderer/               plain HTML/JS/CSS window (login, consent, main screen, idle prompt)
 apps/web/                 Next.js 16 (App Router) dashboard
   src/proxy.ts            Next 16 proxy (formerly middleware): refreshes the Supabase session, guards /dashboard and /onboarding
@@ -79,7 +85,7 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/app/(auth)          login, signup (server actions + useActionState)
   src/app/onboarding      create company / accept pending invites
   src/app/invite/[token]  invite landing page
-  src/app/dashboard       overview (live), chat (+ [id], new), leave (+ settings), payroll (+ export), notifications, billing (+ callback, receipt/[id]), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
+  src/app/dashboard       overview (live), chat (+ [id], new), screenshots, leave (+ settings), payroll (+ export), notifications, billing (+ callback, receipt/[id]), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
   src/lib/tracking.ts     visibility rule (mirrors DB), live status, day stats loaders
   src/lib/time.ts         time-zone helpers (zonedMidnight, localDateIn, mondayOf)
   src/lib/tasks.ts        task/project types, labels, taskPermissions (mirrors guard_task), loadTaskTime
@@ -93,7 +99,7 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/lib/payroll.ts      monthly pay calculation (hours, leave, holidays, rates)
   src/lib/leave.ts        leave types/labels, countLeaveDays (mirrors private.leave_days), Nigerian holiday presets
   src/app/(legal)         public what-we-track, privacy, terms pages
-supabase/migrations/      SQL migrations, in order (applied: 0001–0017)
+supabase/migrations/      SQL migrations, in order (applied: 0001–0019)
 docs/SPEC.md              product spec and roadmap
 ```
 
@@ -128,7 +134,7 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 - Membership rules are enforced by a trigger (`private.guard_membership_update`): nobody changes their own role or status; only the owner touches owner access; role, status and team changes are written to `audit_logs`.
 - One active company per user in the MVP (`memberships_one_company_per_user` index).
 - Store every timestamp in UTC. A "work day" is defined in the worker's own time zone.
-- Privacy: track only while clocked in, never keystroke content, no webcam or microphone, workers can see their own data.
+- Privacy: track only while clocked in, never keystroke content, no webcam or microphone, workers can see their own data. Screenshots only on Pro, switched on by an admin, after each worker agrees to the current rules.
 
 ## Web app conventions
 
@@ -152,9 +158,9 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 
 ## Next steps
 
-1. Femi: push tag `agent-v0.6.0` (name change + pop-up fix); Paystack test setup (docs/DEPLOY.md §8), email (§7) and `CRON_SECRET` (§9) if not done.
+1. Femi: push tag `agent-v0.7.0` (includes 0.6.0's name change); Paystack test setup (docs/DEPLOY.md §8), email (§7) and `CRON_SECRET` (§9) if not done. Try Pro end to end: pay Pro with the test card, switch screenshots on, agree in the app.
 2. Chat extras when pilots ask: message search, typing indicators, reactions/threads.
-3. Pro plan screenshots (off by default, optional blur, workers told first); Mac build (Apple Developer account).
+3. Mac build (Apple Developer account; macOS needs Screen Recording permission for screenshots); per-company screenshot retention; deduct time for deleted screenshots if customers ask.
 
 ## Known gaps / backlog
 

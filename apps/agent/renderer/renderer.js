@@ -72,12 +72,20 @@ function loginScreen() {
 
 function consentScreen() {
   const s = view.settings;
+  const shots = view.screenshots || {};
   const item = (ok, text) => `<li><span class="${ok ? "yes" : "no"}">${ok ? "✓" : "✕"}</span><span>${text}</span></li>`;
+  const shotText = `A screenshot of the screen you are using, at a random moment about every ${shots.interval} minutes${
+    shots.blur ? ", <strong>blurred on this computer</strong> before upload" : ""
+  }. You can see and delete yours in the dashboard; they are deleted after 90 days.`;
   return `
     ${header()}
     <div>
-      <h1>Before you start</h1>
-      <p class="muted m0">${esc(view.account.orgName)} uses this app to record work time. Here is exactly what it collects.</p>
+      <h1>${shots.onlyThisChanged ? "Screenshots are switched on" : "Before you start"}</h1>
+      <p class="muted m0">${
+        shots.onlyThisChanged
+          ? `${esc(view.account.orgName)} changed what this app records. Nothing new is taken until you agree.`
+          : `${esc(view.account.orgName)} uses this app to record work time. Here is exactly what it collects.`
+      }</p>
     </div>
     <div class="card">
       <h2>Only while you are clocked in</h2>
@@ -85,7 +93,8 @@ function consentScreen() {
         ${item(true, "When you clock in and out")}
         ${item(true, "Whether the keyboard or mouse is in use, never what you type")}
         ${item(s.track_apps, s.track_apps ? "Which app is open and its window title" : "Apps and websites are <strong>not</strong> recorded")}
-        ${item(false, "No screenshots, webcam, microphone or keystrokes")}
+        ${shots.on ? item(true, shotText) : ""}
+        ${item(false, shots.on ? "No webcam, microphone or keystrokes" : "No screenshots, webcam, microphone or keystrokes")}
       </ul>
       <p class="small muted mt10">Nothing is recorded when you are clocked out. Your company admins and your team manager can see this data, and so can you on <em>My activity</em> in the dashboard.</p>
       <button class="link small mt10" data-action="what-we-track">Read exactly what is tracked ↗</button>
@@ -135,6 +144,11 @@ function mainScreen() {
       <div class="card stat"><div class="small muted">Activity</div><div class="value" id="activity">–</div></div>
     </div>
     <div class="small muted truncate" id="current-app"></div>
+    ${
+      v.screenshots && v.screenshots.allowed
+        ? `<div class="small muted row"><span>📷 Screenshots on · about every ${v.screenshots.interval} min${v.screenshots.blur ? " · blurred" : ""}</span><button class="link small" data-action="screenshots">See yours ↗</button></div>`
+        : ""
+    }
     <div class="footer">
       <span id="sync"></span>
       <span class="row-gap">
@@ -216,7 +230,8 @@ function render() {
     view.loginMessage,
     loginError,
     busy,
-    view.screen === "consent" ? view.settings : null,
+    view.screen === "consent" ? [view.settings, view.screenshots] : null,
+    view.screenshots && [view.screenshots.allowed, view.screenshots.interval, view.screenshots.blur],
     view.askClockOut,
     view.canTrack,
     view.planMessage,
@@ -332,6 +347,8 @@ root.addEventListener("click", async (e) => {
       return window.agent.openDashboard("/dashboard/chat");
     case "my-activity":
       return window.agent.openDashboard("/dashboard/activity");
+    case "screenshots":
+      return window.agent.openDashboard("/dashboard/screenshots");
     case "what-we-track":
       return window.agent.openDashboard("/what-we-track");
     case "retry":
