@@ -27,11 +27,8 @@ export function CreateOrganizationForm() {
           <TimezoneSelect id="timezone" />
         </div>
       </div>
-      <p className="text-xs text-slate-500">
-        Each worker can set their own time zone later, so staff abroad see their own working day.
-      </p>
       <FormMessage state={state} />
-      <SubmitButton pendingText="Creating…">Create company</SubmitButton>
+      <SubmitButton className="btn-primary w-full py-2.5" pendingText="Creating…">Create company</SubmitButton>
     </form>
   );
 }

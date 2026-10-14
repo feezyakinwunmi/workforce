@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Icon } from "@/components/icons";
 import type { FormState } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,17 +23,58 @@ export function SubmitButton({
   );
 }
 
+/** Password field with a show/hide button. */
+export function PasswordInput({
+  id,
+  name,
+  autoComplete,
+  minLength,
+  placeholder,
+}: {
+  id: string;
+  name: string;
+  autoComplete: string;
+  minLength?: number;
+  placeholder?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        className="input pr-10"
+        id={id}
+        name={name}
+        type={show ? "text" : "password"}
+        autoComplete={autoComplete}
+        minLength={minLength}
+        placeholder={placeholder}
+        required
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-400 hover:text-slate-700"
+        aria-label={show ? "Hide password" : "Show password"}
+        aria-pressed={show}
+      >
+        <Icon name={show ? "eyeOff" : "eye"} className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 export function FormMessage({ state }: { state: FormState }) {
   if (!state?.error && !state?.success) return null;
   return (
     <p
       role={state.error ? "alert" : "status"}
       className={cn(
-        "rounded-lg px-3 py-2 text-sm",
-        state.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700",
+        "flex items-start gap-2 rounded-lg border px-3 py-2 text-sm",
+        state.error ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-800",
       )}
     >
-      {state.error ?? state.success}
+      <Icon name={state.error ? "alert" : "check"} className="mt-0.5 h-4 w-4" />
+      <span>{state.error ?? state.success}</span>
     </p>
   );
 }
@@ -117,7 +159,7 @@ export function AutoSubmitSelect({
       defaultValue={defaultValue}
       disabled={disabled}
       aria-label={ariaLabel}
-      className="input py-1 text-xs"
+      className="input w-auto py-1.5 pr-8 text-sm"
       onChange={(e) => e.currentTarget.form?.requestSubmit()}
     >
       {options.map((o) => (

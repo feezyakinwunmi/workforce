@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { ConfirmSubmit } from "../../team/forms";
 import { addPresetHolidays, archiveLeaveType, removeHoliday, updateLeaveType } from "../actions";
 import { AddHolidayForm, AddLeaveTypeForm } from "./forms";
+import { Notice, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Leave settings" };
 
@@ -25,18 +26,12 @@ export default async function LeaveSettingsPage({ searchParams }: { searchParams
 
   return (
     <div className="space-y-8">
-      <div>
-        <Link href="/dashboard/leave" className="text-sm text-slate-500 hover:text-slate-800">← Leave</Link>
-      </div>
-      <header>
-        <h1 className="text-2xl font-semibold">Leave types and holidays</h1>
-        <p className="mt-1 text-slate-600">How many days people get each year, and which days nobody works.</p>
-      </header>
+      <PageHeader title="Leave types and holidays" back={{ href: "/dashboard/leave", label: "Leave" }} />
 
-      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <Notice tone="error">{error}</Notice>}
 
       <section className="card overflow-hidden">
-        <h2 className="border-b border-slate-200 px-5 py-3 font-semibold">Leave types</h2>
+        <h2 className="panel-head section-title text-base">Leave types</h2>
         <ul className="divide-y divide-slate-100">
           {types.map((t) => (
             <li key={t.id} className={cn("px-5 py-3", t.archived_at && "bg-slate-50")}>
@@ -81,7 +76,7 @@ export default async function LeaveSettingsPage({ searchParams }: { searchParams
       <section className="card p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-semibold">Public holidays</h2>
+            <h2 className="section-title text-base">Public holidays</h2>
             <p className="text-sm text-slate-500">Nobody needs leave on these days, and timesheets mark them.</p>
           </div>
           {org.country_code === "NG" && presetYears.length > 0 && (

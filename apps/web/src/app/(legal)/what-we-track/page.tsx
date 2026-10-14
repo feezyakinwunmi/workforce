@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon } from "@/components/icons";
 import { APP_NAME, SUPPORT_EMAIL } from "@/lib/config";
 
 export const metadata: Metadata = {
@@ -7,8 +8,16 @@ export const metadata: Metadata = {
   description: `Exactly what the ${APP_NAME} desktop app records, when, and who can see it.`,
 };
 
-const Yes = () => <span aria-label="Recorded" className="mr-2 font-bold text-emerald-600">✓</span>;
-const No = () => <span aria-label="Never recorded" className="mr-2 font-bold text-slate-400">✕</span>;
+const Yes = () => (
+  <span aria-label="Recorded" className="mr-2.5 inline-flex h-5 w-5 shrink-0 translate-y-1 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+    <Icon name="check" className="h-3 w-3" />
+  </span>
+);
+const No = () => (
+  <span aria-label="Never recorded" className="mr-2.5 inline-flex h-5 w-5 shrink-0 translate-y-1 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+    <Icon name="x" className="h-3 w-3" />
+  </span>
+);
 
 export default function WhatWeTrackPage() {
   return (
@@ -23,24 +32,24 @@ export default function WhatWeTrackPage() {
         <section className="card p-5">
           <h2 className="mt-0 text-base">Recorded, only while you are clocked in</h2>
           <ul className="list-none pl-0 text-sm">
-            <li><Yes />When you clock in and out</li>
-            <li><Yes />Whether the keyboard or mouse was used in each 10-second check (yes or no, nothing else)</li>
-            <li><Yes />Time away from the computer, and your answer when asked if it was work</li>
-            <li><Yes />The app in front and its window title, if your company turned this on</li>
-            <li><Yes />The task you picked under &ldquo;Working on&rdquo;</li>
-            <li><Yes />Your end-of-day report, if you write one</li>
-            <li><Yes />Screenshots, only if your company is on the Pro plan, switched them on, and you agreed in the app (see below)</li>
+            <li className="flex"><Yes />When you clock in and out</li>
+            <li className="flex"><Yes />Whether the keyboard or mouse was used in each 10-second check (yes or no, nothing else)</li>
+            <li className="flex"><Yes />Time away from the computer, and your answer when asked if it was work</li>
+            <li className="flex"><Yes />The app in front and its window title, if your company turned this on</li>
+            <li className="flex"><Yes />The task you picked under &ldquo;Working on&rdquo;</li>
+            <li className="flex"><Yes />Your end-of-day report, if you write one</li>
+            <li className="flex"><Yes />Screenshots, only if your company is on the Pro plan, switched them on, and you agreed in the app (see below)</li>
           </ul>
         </section>
         <section className="card p-5">
           <h2 className="mt-0 text-base">Never recorded</h2>
           <ul className="list-none pl-0 text-sm">
-            <li><No />Anything at all while you are clocked out</li>
-            <li><No />What you type: no keystrokes, passwords or messages</li>
-            <li><No />Screen recordings, and no screenshots unless you agreed to them</li>
-            <li><No />Your webcam or microphone</li>
-            <li><No />Your files, emails or browsing history</li>
-            <li><No />Your location</li>
+            <li className="flex"><No />Anything at all while you are clocked out</li>
+            <li className="flex"><No />What you type: no keystrokes, passwords or messages</li>
+            <li className="flex"><No />Screen recordings, and no screenshots unless you agreed to them</li>
+            <li className="flex"><No />Your webcam or microphone</li>
+            <li className="flex"><No />Your files, emails or browsing history</li>
+            <li className="flex"><No />Your location</li>
           </ul>
         </section>
       </div>

@@ -37,12 +37,14 @@ export function StackedColumns({
   format,
   height = 180,
   caption,
+  dense = false,
 }: {
   columns: Column[];
   series: string[];
   format: (v: number) => string;
   height?: number;
   caption: string;
+  dense?: boolean; // many thin columns (e.g. every 10 minutes): labels may spill into empty neighbours
 }) {
   const max = Math.max(1, ...columns.map((c) => c.values.reduce((a, b) => a + b, 0)));
   const ticks = niceTicks(max);
@@ -50,7 +52,7 @@ export function StackedColumns({
   return (
     <figure className="space-y-3">
       {series.length > 1 && <Legend items={series.map((s, i) => ({ label: s, color: SERIES_BG[i] }))} />}
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-3">
         <div className="relative w-9 shrink-0 text-right text-[11px] text-slate-400 tabular-nums" style={{ height }} aria-hidden>
           {ticks.map((t) => (
             <span key={t} className="absolute right-0 -translate-y-1/2" style={{ bottom: `${(t / top) * 100}%` }}>
@@ -63,7 +65,7 @@ export function StackedColumns({
             {ticks.map((t) => (
               <div key={t} className="absolute inset-x-0 border-t border-chart-grid" style={{ bottom: `${(t / top) * 100}%` }} aria-hidden />
             ))}
-            <div className="absolute inset-0 flex items-end">
+            <div className={cn("absolute inset-0 flex items-end", dense ? "gap-[2px]" : "")}>
               {columns.map((c) => {
                 const total = c.values.reduce((a, b) => a + b, 0);
                 return (
@@ -88,11 +90,15 @@ export function StackedColumns({
               })}
             </div>
           </div>
-          <div className="mt-2 flex">
+          <div className={cn("mt-2 flex", dense && "gap-[2px]")}>
             {columns.map((c) => (
               <span
                 key={c.key}
-                className={cn("flex-1 truncate text-center text-[11px]", c.highlight ? "font-semibold text-slate-900" : "text-slate-400")}
+                className={cn(
+                  "min-w-0 flex-1 text-[11px]",
+                  dense ? "overflow-visible whitespace-nowrap" : "truncate text-center",
+                  c.highlight ? "font-semibold text-slate-900" : "text-slate-400",
+                )}
               >
                 {c.label}
               </span>
@@ -100,7 +106,8 @@ export function StackedColumns({
           </div>
         </div>
       </div>
-      <table className="sr-only">
+      <div className="sr-only">
+      <table>
         <caption>{caption}</caption>
         <thead>
           <tr>
@@ -121,6 +128,7 @@ export function StackedColumns({
           ))}
         </tbody>
       </table>
+      </div>
     </figure>
   );
 }

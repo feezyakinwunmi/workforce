@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Access paused" };
@@ -11,16 +12,11 @@ export default async function SuspendedPage() {
   if (member.status === "active") redirect("/dashboard");
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="card max-w-sm p-6 text-center">
-        <h1 className="mb-2 text-xl font-semibold">Your access is paused</h1>
-        <p className="text-sm text-slate-600">
-          An admin of your company has suspended your account. Contact them to restore access.
-        </p>
-        <form action="/auth/signout" method="post" className="mt-6">
-          <button className="btn-secondary w-full">Sign out</button>
-        </form>
-      </div>
-    </main>
+    <AuthShell aside={false}>
+      <AuthHeading title="Your access is paused">An admin of your company suspended your account. Ask them to restore it.</AuthHeading>
+      <form action="/auth/signout" method="post">
+        <button className="btn-secondary w-full">Sign out</button>
+      </form>
+    </AuthShell>
   );
 }

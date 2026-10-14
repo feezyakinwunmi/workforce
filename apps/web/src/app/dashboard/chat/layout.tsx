@@ -3,13 +3,14 @@ import Link from "next/link";
 import { channelTitle, KIND_ICON, type ChannelRow } from "@/lib/chat";
 import { requireMember } from "@/lib/session";
 import { loadPeople } from "@/lib/tracking";
-import { initials } from "@/lib/utils";
+import { Icon } from "@/components/icons";
+import { Avatar } from "@/components/ui";
 import { ChatSidebarLink, LiveRefresh } from "./live";
 
 export const metadata: Metadata = { title: "Chat" };
 
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {
-  const { supabase, member: me } = await requireMember();
+  const { supabase } = await requireMember();
   const [{ data }, { profiles }, { data: online }] = await Promise.all([
     supabase.rpc("my_channels"),
     loadPeople(supabase, { includeRemoved: true }),
@@ -24,22 +25,25 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
     <div className="grid gap-4 md:grid-cols-[230px_1fr]">
       <LiveRefresh />
       <aside className="card h-fit p-3 md:sticky md:top-8">
-        <div className="mb-2 flex items-center justify-between px-2">
-          <h1 className="font-semibold">Chat</h1>
-          <Link href="/dashboard/chat/new" className="btn-secondary btn-sm" title="New message or group">+ New</Link>
+        <div className="mb-3 flex items-center justify-between px-2 pt-1">
+          <h1 className="section-title">Chat</h1>
+          <Link href="/dashboard/chat/new" className="btn-primary btn-sm" title="New message or group">
+            <Icon name="plus" className="h-3.5 w-3.5" />
+            New
+          </Link>
         </div>
-        <p className="px-2 pt-2 text-xs font-medium uppercase tracking-wide text-slate-400">Channels</p>
+        <p className="px-2 pt-2 text-xs font-medium text-slate-400">Groups</p>
         <ul className="mt-1 space-y-0.5">
           {groups.map((c) => (
             <li key={c.id}>
               <ChatSidebarLink href={`/dashboard/chat/${c.id}`} unread={c.unread}>
-                <span className="w-4 shrink-0 text-center text-slate-400" aria-hidden>{KIND_ICON[c.kind]}</span>
+                <Icon name={KIND_ICON[c.kind]} className="h-4 w-4 text-slate-400" />
                 <span className="truncate">{channelTitle(c, profiles)}</span>
               </ChatSidebarLink>
             </li>
           ))}
         </ul>
-        <p className="px-2 pt-4 text-xs font-medium uppercase tracking-wide text-slate-400">Direct messages</p>
+        <p className="px-2 pt-4 text-xs font-medium text-slate-400">Direct messages</p>
         <ul className="mt-1 space-y-0.5">
           {directs.length === 0 && (
             <li className="px-2 py-1 text-xs text-slate-400">
@@ -51,21 +55,13 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
             return (
               <li key={c.id}>
                 <ChatSidebarLink href={`/dashboard/chat/${c.id}`} unread={c.unread}>
-                  <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-semibold text-slate-700">
-                    {initials(p?.full_name ?? "", p?.email ?? "")}
-                    {c.other_user_id && onlineIds.has(c.other_user_id) && (
-                      <span className="absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-full border border-surface bg-emerald-500" aria-label="Working now" />
-                    )}
-                  </span>
+                  <Avatar name={p?.full_name} email={p?.email} size="sm" status={c.other_user_id && onlineIds.has(c.other_user_id) ? "working" : undefined} />
                   <span className="truncate">{channelTitle(c, profiles)}</span>
                 </ChatSidebarLink>
               </li>
             );
           })}
         </ul>
-        <p className="mt-4 px-2 text-[11px] leading-4 text-slate-400">
-          {me.role === "worker" ? "" : "Admins can't read direct messages or groups they're not in. "}Green dot = working now.
-        </p>
       </aside>
       <section className="min-w-0">{children}</section>
     </div>

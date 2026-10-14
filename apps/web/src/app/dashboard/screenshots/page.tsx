@@ -6,6 +6,9 @@ import { requireMember } from "@/lib/session";
 import { addDays, formatClock, formatDay, isValidDate, localDateIn, zonedMidnight } from "@/lib/time";
 import { displayName, loadPeople, visibleMembers } from "@/lib/tracking";
 import { isAdminRole } from "@/lib/types";
+import { DayNav } from "@/components/day-nav";
+import { Icon } from "@/components/icons";
+import { EmptyState, Notice, PageHeader } from "@/components/ui";
 import { ConfirmSubmit } from "../team/forms";
 import { deleteScreenshot } from "./actions";
 
@@ -69,91 +72,91 @@ export default async function ScreenshotsPage({
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Screenshots{isMe ? "" : ` · ${displayName(profiles.get(target.user_id))}`}</h1>
-          <p className="mt-1 text-slate-600">
-            {formatDay(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {tz.replaceAll("_", " ")} time
-          </p>
-        </div>
-        <form className="flex flex-wrap items-center gap-2" action="/dashboard/screenshots">
-          {visible.length > 1 ? (
-            <select name="user" defaultValue={target.user_id} className="input w-auto" aria-label="Member">
-              {visible.map((m) => (
-                <option key={m.user_id} value={m.user_id}>
-                  {displayName(profiles.get(m.user_id))}
-                  {m.user_id === me.user_id ? " (you)" : ""}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input type="hidden" name="user" value={target.user_id} />
-          )}
-          <input type="date" name="date" defaultValue={date} max={today} className="input w-auto" aria-label="Date" />
-          <button className="btn-secondary">Show</button>
-          <Link className="btn-secondary" href={`/dashboard/screenshots?user=${target.user_id}&date=${addDays(date, -1)}`} aria-label="Previous day">←</Link>
-          {date < today && (
-            <Link className="btn-secondary" href={`/dashboard/screenshots?user=${target.user_id}&date=${addDays(date, 1)}`} aria-label="Next day">→</Link>
-          )}
-        </form>
-      </header>
+      <PageHeader
+        title={isMe ? "My screenshots" : `Screenshots · ${displayName(profiles.get(target.user_id))}`}
+        meta={`${formatDay(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · ${tz.replaceAll("_", " ")}`}
+        actions={
+          <DayNav
+            action="/dashboard/screenshots"
+            people={visible.map((m) => ({ id: m.user_id, name: `${displayName(profiles.get(m.user_id))}${m.user_id === me.user_id ? " (you)" : ""}` }))}
+            user={target.user_id}
+            date={date}
+            max={today}
+            prevHref={`/dashboard/screenshots?user=${target.user_id}&date=${addDays(date, -1)}`}
+            nextHref={date < today ? `/dashboard/screenshots?user=${target.user_id}&date=${addDays(date, 1)}` : null}
+          />
+        }
+      />
 
-      <p className={`rounded-lg px-4 py-3 text-sm ${on ? "bg-brand-50 text-brand-900" : "bg-slate-50 text-slate-600"}`}>
-        {on
-          ? `Screenshots are on: one at a random moment about every ${s.screenshot_interval_minutes} minutes while clocked in${s.blur_screenshots ? ", blurred before upload" : ""}. Kept for 90 days.`
-          : "Screenshots are off. Nothing new is being taken."}{" "}
-        {isMe && "You can delete any of yours; your company sees that one was deleted."}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className={`badge px-2.5 py-1 ${on ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${on ? "bg-emerald-500" : "bg-slate-400"}`} aria-hidden />
+          {on ? `On · about every ${s.screenshot_interval_minutes} min${s.blur_screenshots ? " · blurred" : ""}` : "Off"}
+        </span>
+        <span className="text-slate-500">Kept 90 days.</span>
+        {isMe && <span className="text-slate-500">You can delete yours; your company sees that one was deleted.</span>}
         {!on && isAdminRole(me.role) && (
-          <> <Link href={hasPro(billing) ? "/dashboard/settings" : "/dashboard/billing"} className="font-medium text-brand-700 hover:underline">
-            {hasPro(billing) ? "Company settings" : "Pro plan"}
-          </Link></>
+          <Link href={hasPro(billing) ? "/dashboard/settings" : "/dashboard/billing"} className="font-medium text-brand-700 hover:underline">
+            {hasPro(billing) ? "Switch on in settings" : "Available on Pro"}
+          </Link>
         )}
-      </p>
+      </div>
 
-      {params.error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{params.error}</p>}
+      {params.error && <Notice tone="error">{params.error}</Notice>}
 
       {shots.length === 0 ? (
-        <div className="card p-8 text-center text-sm text-slate-500">No screenshots on this day.</div>
+        <div className="card"><EmptyState icon="camera" title="No screenshots on this day." /></div>
       ) : (
-        [...hours.entries()].map(([hour, list]) => (
-          <section key={hour}>
-            <h2 className="mb-2 text-sm font-semibold text-slate-500">{hour}</h2>
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {list.map((shot) => (
-                <li key={shot.id} className="card overflow-hidden">
-                  {shot.deleted_at ? (
-                    <div className="flex aspect-video items-center justify-center bg-slate-100 px-3 text-center text-xs text-slate-500">
-                      Deleted by {isMe ? "you" : displayName(profiles.get(shot.user_id))}
-                    </div>
-                  ) : (
-                    <a href={url.get(shot.path)} target="_blank" rel="noreferrer" className="block aspect-video bg-slate-100">
-                      {url.get(shot.path) && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={url.get(shot.path)} alt={`Screenshot at ${formatClock(shot.taken_at, tz)}`} className="h-full w-full object-cover" loading="lazy" />
-                      )}
-                    </a>
-                  )}
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
-                    <span className="min-w-0 truncate">
-                      <span className="font-medium text-slate-800">{formatClock(shot.taken_at, tz)}</span>
-                      {shot.app && <span className="text-slate-500"> · {shot.app}</span>}
-                      {shot.blurred && !shot.deleted_at && <span className="text-slate-400"> · blurred</span>}
-                    </span>
-                    {isMe && !shot.deleted_at && (
-                      <form action={deleteScreenshot}>
-                        <input type="hidden" name="id" value={shot.id} />
-                        <input type="hidden" name="back" value={here} />
-                        <ConfirmSubmit message="Delete this screenshot? Your company will see that one was deleted." className="text-slate-400 hover:text-red-600">
-                          Delete
-                        </ConfirmSubmit>
-                      </form>
+        <div className="space-y-6">
+          {[...hours.entries()].map(([hour, list]) => (
+            <section key={hour} className="grid gap-3 sm:grid-cols-[4rem_minmax(0,1fr)]">
+              <h2 className="pt-1 text-sm font-semibold text-slate-500 tabular-nums">{hour}</h2>
+              <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                {list.map((shot) => (
+                  <li key={shot.id} className="group overflow-hidden rounded-xl border border-slate-200 bg-surface">
+                    {shot.deleted_at ? (
+                      <div className="flex aspect-video flex-col items-center justify-center gap-1.5 bg-slate-50 px-3 text-center text-xs text-slate-500">
+                        <Icon name="trash" className="h-4 w-4" />
+                        Deleted by {isMe ? "you" : displayName(profiles.get(shot.user_id)).split(" ")[0]}
+                      </div>
+                    ) : (
+                      <a href={url.get(shot.path)} target="_blank" rel="noreferrer" className="relative block aspect-video overflow-hidden bg-slate-100">
+                        {url.get(shot.path) && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={url.get(shot.path)}
+                            alt={`Screenshot at ${formatClock(shot.taken_at, tz)}`}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                            loading="lazy"
+                          />
+                        )}
+                        {shot.blurred && (
+                          <span className="absolute top-2 left-2 rounded-md bg-slate-950/60 px-1.5 py-0.5 text-[10px] font-medium text-white dark:bg-black/60">Blurred</span>
+                        )}
+                      </a>
                     )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+                      <span className="min-w-0 truncate">
+                        <span className="font-semibold text-slate-900 tabular-nums">{formatClock(shot.taken_at, tz)}</span>
+                        {shot.app && <span className="text-slate-500"> · {shot.app}</span>}
+                      </span>
+                      {isMe && !shot.deleted_at && (
+                        <form action={deleteScreenshot}>
+                          <input type="hidden" name="id" value={shot.id} />
+                          <input type="hidden" name="back" value={here} />
+                          <ConfirmSubmit message="Delete this screenshot? Your company will see that one was deleted." className="text-slate-400 hover:text-red-600">
+                            <Icon name="trash" className="h-3.5 w-3.5" />
+                            <span className="sr-only">Delete</span>
+                          </ConfirmSubmit>
+                        </form>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );

@@ -6,6 +6,8 @@ import { isManagerOrAdmin, PROJECT_DOT, type ProjectColor } from "@/lib/tasks";
 import { addDays, formatDay, localDateIn } from "@/lib/time";
 import { displayName, loadPeople } from "@/lib/tracking";
 import { isAdminRole } from "@/lib/types";
+import { Icon } from "@/components/icons";
+import { Avatar, EmptyState, Notice, PageHeader, Panel } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { cancelLeave, decideLeave } from "./actions";
 import { RequestLeaveForm } from "./forms";
@@ -53,33 +55,37 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Leave</h1>
-          <p className="mt-1 text-slate-600">Days off in {year}. Weekends and public holidays never count.</p>
-        </div>
-        {isAdminRole(me.role) && <Link href="/dashboard/leave/settings" className="btn-secondary">Leave types and holidays</Link>}
-      </header>
+      <PageHeader
+        title="Leave"
+        meta={`Your days off in ${year}`}
+        actions={isAdminRole(me.role) ? <Link href="/dashboard/leave/settings" className="btn-secondary"><Icon name="settings" className="h-4 w-4" />Types and holidays</Link> : undefined}
+      />
 
-      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <Notice tone="error">{error}</Notice>}
 
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {balances.map((b) => {
           const left = b.allowance === null ? null : Number(b.allowance) - Number(b.used);
+          const share = b.allowance ? Math.min(1, Number(b.used) / Number(b.allowance)) : 0;
           return (
-            <div key={b.leave_type_id} className="card p-4">
-              <p className="flex items-center gap-2 text-sm text-slate-500">
-                <span className={cn("h-2 w-2 rounded-full", PROJECT_DOT[(b.color as ProjectColor)] ?? "bg-slate-400")} aria-hidden />
+            <div key={b.leave_type_id} className="card p-5">
+              <p className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                <span className={cn("h-2.5 w-2.5 rounded-full", PROJECT_DOT[(b.color as ProjectColor)] ?? "bg-slate-400")} aria-hidden />
                 {b.name}
+                {!b.paid && <span className="badge bg-slate-100 text-slate-500">Unpaid</span>}
               </p>
-              <p className="mt-1 text-2xl font-semibold">
-                {left === null ? daysLabel(Number(b.used)) : daysLabel(left)}
-                <span className="text-sm font-normal text-slate-500"> {left === null ? "taken" : "left"}</span>
+              <p className="mt-3 flex items-baseline gap-1.5">
+                <span className="stat-value text-3xl">{left === null ? Number(b.used) : left}</span>
+                <span className="text-sm text-slate-500">{left === null ? `${Number(b.used) === 1 ? "day" : "days"} taken` : `${left === 1 ? "day" : "days"} left`}</span>
               </p>
-              <p className="text-xs text-slate-500">
+              {b.allowance !== null && (
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+                  <div className="h-full rounded-full bg-chart-1" style={{ width: `${share * 100}%` }} />
+                </div>
+              )}
+              <p className="mt-2 text-xs text-slate-500">
                 {b.allowance === null ? "No yearly limit" : `${Number(b.used)} of ${Number(b.allowance)} used`}
                 {Number(b.pending) > 0 && ` · ${Number(b.pending)} waiting`}
-                {!b.paid && " · unpaid"}
               </p>
             </div>
           );
@@ -88,23 +94,28 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
 
       {manager && waiting.length > 0 && (
         <section className="card overflow-hidden border-amber-200">
-          <h2 className="border-b border-slate-200 bg-amber-50 px-5 py-3 font-semibold text-amber-900">
-            Waiting for your decision ({waiting.length})
+          <h2 className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900">
+            <Icon name="clock" className="h-4 w-4" />
+            Waiting for your decision
+            <span className="rounded-full bg-amber-100 px-2 text-xs tabular-nums">{waiting.length}</span>
           </h2>
           <ul className="divide-y divide-slate-100">
             {waiting.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm">
-                <div className="min-w-0">
-                  <p className="font-medium">
-                    {name(r.user_id)} · {typeById.get(r.leave_type_id)?.name ?? "Leave"}
-                  </p>
-                  <p className="text-slate-600">{range(r)} · {daysLabel(r.days)}</p>
-                  {r.reason && <p className="mt-1 text-slate-500">“{r.reason}”</p>}
+                <div className="flex min-w-0 items-start gap-3">
+                  <Avatar name={name(r.user_id)} />
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-900">
+                      {name(r.user_id)} <span className="font-normal text-slate-500">· {typeById.get(r.leave_type_id)?.name ?? "Leave"}</span>
+                    </p>
+                    <p className="text-slate-600">{range(r)} · {daysLabel(r.days)}</p>
+                    {r.reason && <p className="mt-1 text-slate-500">“{r.reason}”</p>}
+                  </div>
                 </div>
                 <form action={decideLeave} className="flex flex-wrap items-center gap-2">
                   <input type="hidden" name="id" value={r.id} />
                   <input className="input w-48 py-1.5" name="note" maxLength={300} placeholder="Note (optional)" aria-label="Note" />
-                  <button name="decision" value="approve" className="btn-primary btn-sm">Approve</button>
+                  <button name="decision" value="approve" className="btn-primary btn-sm"><Icon name="check" className="h-3.5 w-3.5" />Approve</button>
                   <button name="decision" value="reject" className="btn-secondary btn-sm">Decline</button>
                 </form>
               </li>
@@ -114,9 +125,9 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
       )}
 
       <section className="card p-5">
-        <h2 className="mb-4 font-semibold">Request time off</h2>
+        <h2 className="section-title mb-4">Request time off</h2>
         {types.filter((t) => !t.archived_at).length === 0 ? (
-          <p className="text-sm text-slate-500">Your company hasn&apos;t set up any leave types yet.</p>
+          <p className="text-sm text-slate-500">No leave types yet.</p>
         ) : (
           <RequestLeaveForm
             types={types.filter((t) => !t.archived_at).map((t) => ({ id: t.id, name: t.name }))}
@@ -127,9 +138,9 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <section className="card overflow-hidden">
-          <h2 className="border-b border-slate-200 px-5 py-3 font-semibold">My requests</h2>
+          <h2 className="panel-head section-title text-base">My requests</h2>
           {myRequests.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-slate-500">No leave requested yet.</p>
+            <EmptyState icon="leave" title="No leave requested yet." />
           ) : (
             <ul className="divide-y divide-slate-100">
               {myRequests.map((r) => {
@@ -162,15 +173,18 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
         <aside className="space-y-6">
           {manager && (
             <section className="card p-5">
-              <h2 className="mb-3 font-semibold">Off in the next 30 days</h2>
+              <h2 className="section-title mb-3 text-base">Off in the next 30 days</h2>
               {off.length === 0 ? (
-                <p className="text-sm text-slate-500">Nobody on your team.</p>
+                <p className="text-sm text-slate-500">Nobody.</p>
               ) : (
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-3 text-sm">
                   {off.map((r) => (
-                    <li key={r.id}>
-                      <span className="font-medium">{name(r.user_id)}</span>
-                      <span className="block text-slate-500">{range(r)}</span>
+                    <li key={r.id} className="flex items-center gap-3">
+                      <Avatar name={name(r.user_id)} size="sm" />
+                      <span>
+                        <span className="block font-medium text-slate-900">{name(r.user_id)}</span>
+                        <span className="block text-xs text-slate-500">{range(r)}</span>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -178,7 +192,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
             </section>
           )}
           <section className="card p-5">
-            <h2 className="mb-3 font-semibold">Public holidays</h2>
+            <h2 className="section-title mb-3 text-base">Public holidays</h2>
             {upcomingHolidays.length === 0 ? (
               <p className="text-sm text-slate-500">
                 None added yet.{isAdminRole(me.role) && <> <Link className="text-brand-700 hover:underline" href="/dashboard/leave/settings">Add holidays</Link></>}

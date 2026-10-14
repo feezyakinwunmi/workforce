@@ -25,6 +25,8 @@ import { cn, initials } from "@/lib/utils";
 import { ConfirmSubmit } from "../../team/forms";
 import { deleteComment, deleteTask, setTaskStatus } from "../actions";
 import { CommentForm, TaskForm } from "../forms";
+import { Icon } from "@/components/icons";
+import { Notice } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -79,15 +81,16 @@ export default async function TaskPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/dashboard/tasks" className="text-sm text-slate-500 hover:text-slate-800">← All tasks</Link>
-      </div>
+      <Link href="/dashboard/tasks" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900">
+        <Icon name="chevronLeft" className="h-4 w-4" />
+        Tasks
+      </Link>
 
-      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <Notice tone="error">{error}</Notice>}
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold break-words">{task.title}</h1>
+          <h1 className="page-title break-words">{task.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
             <span className={cn("badge", STATUS_STYLE[task.status])}>{STATUS_LABEL[task.status]}</span>
             <span className={cn("badge", PRIORITY_STYLE[task.priority])}>{PRIORITY_LABEL[task.priority]} priority</span>
@@ -139,7 +142,7 @@ export default async function TaskPage({
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
         <div className="space-y-6">
           <section className="card p-5">
-            <h2 className="mb-2 font-semibold">Details</h2>
+            <h2 className="section-title mb-2 text-base">Details</h2>
             {task.description ? (
               <p className="whitespace-pre-wrap text-sm text-slate-700">{task.description}</p>
             ) : (
@@ -148,7 +151,7 @@ export default async function TaskPage({
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 font-semibold">Comments</h2>
+            <h2 className="section-title mb-3 text-base">Comments</h2>
             {comments.length === 0 ? (
               <p className="mb-4 text-sm text-slate-500">No comments yet.</p>
             ) : (
@@ -187,7 +190,7 @@ export default async function TaskPage({
 
           {can.editAll && (
             <section className="card p-5">
-              <h2 className="mb-3 font-semibold">Edit task</h2>
+              <h2 className="section-title mb-3 text-base">Edit task</h2>
               <TaskForm task={task} projects={projectOptions} people={people} />
             </section>
           )}
@@ -195,7 +198,7 @@ export default async function TaskPage({
 
         <aside className="space-y-6">
           <section className="card p-5">
-            <h2 className="mb-3 font-semibold">Time by person</h2>
+            <h2 className="section-title mb-3 text-base">Time by person</h2>
             {perPerson.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No time yet. Time is logged when someone picks this task in the desktop app while clocked in.

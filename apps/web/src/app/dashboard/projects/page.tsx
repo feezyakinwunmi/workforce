@@ -7,6 +7,7 @@ import { formatHours } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { setProjectArchived } from "./actions";
 import { ProjectForm } from "./forms";
+import { Notice, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Projects" };
 
@@ -37,24 +38,18 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/dashboard/tasks" className="text-sm text-slate-500 hover:text-slate-800">← Tasks</Link>
-      </div>
-      <header>
-        <h1 className="text-2xl font-semibold">Projects</h1>
-        <p className="mt-1 text-slate-600">Group tasks by client or piece of work, and see the time spent on each.</p>
-      </header>
+      <PageHeader title="Projects" back={{ href: "/dashboard/tasks", label: "Tasks" }} />
 
-      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <Notice tone="error">{error}</Notice>}
 
       <section className="card p-5">
-        <h2 className="mb-3 font-semibold">New project</h2>
+        <h2 className="section-title mb-3 text-base">New project</h2>
         <ProjectForm />
       </section>
 
       <section className="card overflow-hidden">
         <div className="border-b border-slate-200 px-5 py-3">
-          <h2 className="font-semibold">Active projects</h2>
+          <h2 className="section-title text-base">Active projects</h2>
         </div>
         {current.length === 0 ? (
           <p className="px-5 py-6 text-sm text-slate-500">No projects yet. Tasks work fine without one.</p>

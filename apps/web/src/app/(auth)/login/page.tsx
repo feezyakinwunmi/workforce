@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Notice } from "@/components/ui";
 import { safeNext } from "@/lib/utils";
 import { LoginForm } from "../forms";
 
@@ -13,9 +14,7 @@ export default async function LoginPage({
   return (
     <>
       {error && (
-        <p role="alert" className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <Notice tone="error" className="mb-6">{error}</Notice>
       )}
       <LoginForm next={safeNext(next)} email={email} />
     </>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon } from "@/components/icons";
+import { PageHeader } from "@/components/ui";
 import { daysLeft, FREE_HISTORY_DAYS, FREE_SEATS, isPaid, naira, paymentLabel, proPriceKobo, TIER_LABEL } from "@/lib/billing";
 import { getBilling } from "@/lib/billing-server";
 import { paystackConfigured } from "@/lib/paystack";
@@ -57,10 +59,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Plan and billing</h1>
-        <p className="mt-1 text-slate-600">{org.name} · prices per person per month</p>
-      </header>
+      <PageHeader title="Plan and billing" meta={org.name} />
 
       {msg && (
         <p role="status" className={cn("rounded-lg px-3 py-2 text-sm", msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
@@ -120,7 +119,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </section>
 
       <section className="card p-5">
-        <h2 className="mb-1 font-semibold">
+        <h2 className="section-title mb-1 text-base">
           {paid ? "Renew or extend your plan" : "Choose a plan"}
         </h2>
         <p className="mb-4 text-sm text-slate-600">
@@ -144,7 +143,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
       {billing.tier === "standard" && ready && (
         <section className="card border-brand-200 p-5">
-          <h2 className="mb-1 font-semibold">Upgrade to Pro now</h2>
+          <h2 className="section-title mb-1 text-base">Upgrade to Pro now</h2>
           <p className="mb-4 text-sm text-slate-600">
             Pay only the difference ({naira(proKobo - billing.seat_price_kobo)} per person per month) for the days left. Screenshots stay off until
             you switch them on in Company settings.
@@ -155,20 +154,20 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
       {paid && ready && (
         <section className="card p-5">
-          <h2 className="mb-1 font-semibold">Add people to your current plan</h2>
+          <h2 className="section-title mb-1 text-base">Add people to your current plan</h2>
           <p className="mb-4 text-sm text-slate-600">For new hires. You only pay for the days left in your plan.</p>
           <AddSeatsForm priceKobo={currentKobo} daysLeft={paidDays} />
         </section>
       )}
 
       <section className="card overflow-hidden">
-        <h2 className="border-b border-slate-200 px-5 py-3 font-semibold">Payments</h2>
+        <h2 className="panel-head section-title text-base">Payments</h2>
         {payments.length === 0 ? (
           <p className="px-5 py-6 text-sm text-slate-500">No payments yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="table-head">
                 <tr>
                   <th className="px-5 py-2.5 font-medium">Date</th>
                   <th className="px-5 py-2.5 font-medium">What</th>
@@ -193,7 +192,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                     <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.reference}</td>
                     <td className="px-5 py-3 text-right">
                       {p.status === "success" && (
-                        <Link href={`/dashboard/billing/receipt/${p.id}`} className="text-brand-700 hover:underline">Receipt</Link>
+                        <Link href={`/dashboard/billing/receipt/${p.id}`} className="inline-flex items-center gap-1 text-brand-700 hover:underline"><Icon name="receipt" className="h-3.5 w-3.5" />Receipt</Link>
                       )}
                     </td>
                   </tr>

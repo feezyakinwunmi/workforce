@@ -1,14 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { APP_NAME } from "@/lib/config";
 
-const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
+// Self-hosted (no request to Google at build or page load). Both are variable fonts, OFL licensed.
+const inter = localFont({ src: "./fonts/inter.woff2", weight: "100 900", display: "swap", variable: "--font-inter" });
+const bricolage = localFont({
+  src: "./fonts/bricolage-grotesque.woff2",
+  weight: "200 800",
   display: "swap",
   variable: "--font-bricolage",
-  weight: ["500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {

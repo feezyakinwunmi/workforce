@@ -47,22 +47,23 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
   return (
     <section
       className={cn(
-        "card grid divide-slate-200 overflow-hidden max-sm:divide-y sm:grid-cols-2 sm:divide-x",
-        stats.length >= 4 ? "lg:grid-cols-4" : stats.length === 3 ? "lg:grid-cols-3" : "",
+        "card grid grid-cols-2 gap-px overflow-hidden bg-slate-200",
+        stats.length === 3 ? "lg:grid-cols-3" : stats.length >= 4 ? "lg:grid-cols-4" : "",
         stats.length === 5 && "xl:grid-cols-5",
+        stats.length % 2 === 1 && "[&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1",
         className,
       )}
     >
       {stats.map((s) => (
-        <div key={s.label} className="flex items-start gap-3 p-4 sm:p-5">
+        <div key={s.label} className="flex items-start gap-3 bg-surface p-4 sm:p-5">
           {s.icon && (
-            <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", TONE[s.tone ?? "brand"])}>
+            <span className={cn("hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:flex", TONE[s.tone ?? "brand"])}>
               <Icon name={s.icon} className="h-[1.1rem] w-[1.1rem]" />
             </span>
           )}
           <div className="min-w-0">
-            <p className="text-sm text-slate-500">{s.label}</p>
-            <p className="stat-value mt-0.5">{s.value}</p>
+            <p className="truncate text-sm text-slate-500">{s.label}</p>
+            <p className="stat-value mt-0.5 truncate">{s.value}</p>
             {s.hint && <p className="mt-0.5 text-xs text-slate-500">{s.hint}</p>}
           </div>
         </div>
@@ -173,5 +174,25 @@ export function Panel({
       )}
       <div className={bodyClassName}>{children}</div>
     </section>
+  );
+}
+
+/** A small "i" that shows a short explanation on hover or keyboard focus. */
+export function InfoTip({ children, label = "More information", align = "left" }: { children: React.ReactNode; label?: string; align?: "left" | "right" }) {
+  return (
+    <span className="group/tip relative inline-flex align-middle">
+      <button type="button" className="rounded-full text-slate-400 hover:text-slate-700 focus-visible:text-slate-700" aria-label={label}>
+        <Icon name="info" className="h-4 w-4" />
+      </button>
+      <span
+        role="tooltip"
+        className={cn(
+          "pointer-events-none invisible absolute top-full z-30 mt-2 w-72 rounded-xl border border-slate-200 bg-raised p-3 text-left text-xs leading-5 font-normal text-slate-600 opacity-0 shadow-xl transition group-focus-within/tip:visible group-focus-within/tip:opacity-100 group-hover/tip:visible group-hover/tip:opacity-100",
+          align === "right" ? "right-0" : "left-0",
+        )}
+      >
+        {children}
+      </span>
+    </span>
   );
 }

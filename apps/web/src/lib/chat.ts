@@ -66,9 +66,9 @@ export function channelTitle(c: Pick<ChannelRow, "kind" | "name" | "other_user_i
   return c.name ?? "Channel";
 }
 
-export const KIND_ICON: Record<ChannelKind, string> = {
-  public: "#",
-  private: "🔒",
-  announcements: "📣",
-  direct: "",
+export const KIND_ICON: Record<ChannelKind, "chat" | "lock" | "bell" | "user"> = {
+  public: "chat",
+  private: "lock",
+  announcements: "bell",
+  direct: "user",
 };

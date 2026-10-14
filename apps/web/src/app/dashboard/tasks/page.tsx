@@ -19,6 +19,8 @@ import {
 } from "@/lib/tasks";
 import { formatDay, formatHours, localDateIn } from "@/lib/time";
 import { displayName, loadPeople } from "@/lib/tracking";
+import { Icon } from "@/components/icons";
+import { Avatar, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { setTaskStatus } from "./actions";
 import { TaskForm } from "./forms";
@@ -80,6 +82,12 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         }))
       : [{ status: null, label: status === "all" ? "All tasks" : (STATUS_LABEL[status as TaskStatus] ?? "Tasks"), tasks }];
 
+  const STATUS_DOT: Record<TaskStatus, string> = {
+    todo: "bg-slate-400",
+    in_progress: "bg-blue-500",
+    review: "bg-amber-500",
+    done: "bg-emerald-500",
+  };
   const tabs = [
     { key: "mine", label: "My tasks" },
     { key: "all", label: "All tasks" },
@@ -88,24 +96,22 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Tasks</h1>
-          <p className="mt-1 text-slate-600">
-            Pick a task in the desktop app while you work and the time is logged to it automatically.
-          </p>
-        </div>
-        {manager && <Link href="/dashboard/projects" className="btn-secondary">Projects</Link>}
-      </header>
+      <PageHeader
+        title="Tasks"
+        meta={`${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`}
+        actions={manager ? <Link href="/dashboard/projects" className="btn-secondary"><Icon name="folder" className="h-4 w-4" />Projects</Link> : undefined}
+      />
 
-      {params.error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{params.error}</p>}
+      {params.error && <Notice tone="error">{params.error}</Notice>}
 
-      <details className="card group p-5" open={tasks.length === 0 && view !== "created"}>
-        <summary className="cursor-pointer list-none font-semibold">
-          <span className="text-brand-700">+ New task</span>
-          {!manager && <span className="ml-2 text-sm font-normal text-slate-500">for yourself (managers assign tasks to others)</span>}
+      <details className="card group overflow-hidden" open={tasks.length === 0 && view !== "created"}>
+        <summary className="flex cursor-pointer list-none items-center gap-2.5 px-5 py-3.5 font-medium text-slate-700 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-600 text-white">
+            <Icon name="plus" className="h-3.5 w-3.5 transition group-open:rotate-45" />
+          </span>
+          {manager ? "New task" : "New task for yourself"}
         </summary>
-        <div className="mt-4">
+        <div className="border-t border-slate-200 p-5">
           <TaskForm
             projects={projectOptions}
             people={people}
@@ -116,7 +122,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       </details>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm" aria-label="Which tasks">
+        <nav className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm" aria-label="Which tasks" data-tour="task-tabs">
           {tabs.map((t) => (
             <Link
               key={t.key}
@@ -166,17 +172,20 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       </div>
 
       {tasks.length === 0 ? (
-        <div className="card p-8 text-center text-sm text-slate-500">
-          {view === "mine" ? "No tasks assigned to you here." : "No tasks match these filters."}
+        <div className="card">
+          <EmptyState icon="tasks" title={view === "mine" ? "No tasks assigned to you here." : "No tasks match these filters."} />
         </div>
       ) : (
         groups
           .filter((g) => g.tasks.length > 0)
           .map((g) => (
             <section key={g.label} className="card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-                <h2 className="font-semibold">{g.label}</h2>
-                <span className="text-xs text-slate-400">{g.tasks.length}</span>
+              <div className="panel-head">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <span className={cn("h-2 w-2 rounded-full", g.status ? STATUS_DOT[g.status] : "bg-slate-400")} aria-hidden />
+                  {g.label}
+                </h2>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 tabular-nums">{g.tasks.length}</span>
               </div>
               <ul className="divide-y divide-slate-100">
                 {g.tasks.map((t) => {
@@ -186,7 +195,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
                   return (
                     <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 text-sm hover:bg-slate-50">
                       <div className="min-w-0 flex-1 basis-64">
-                        <Link href={`/dashboard/tasks/${t.id}`} className="font-medium hover:text-brand-700">
+                        <Link href={`/dashboard/tasks/${t.id}`} className="font-medium text-slate-900 hover:text-brand-700">
                           {t.title}
                         </Link>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
@@ -206,10 +215,17 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
                           {logged > 0 && <span>{formatHours(logged)} logged</span>}
                         </div>
                       </div>
-                      <span className="w-36 truncate text-slate-600">
-                        {t.assignee_id ? displayName(profiles.get(t.assignee_id)) : <span className="text-slate-400">Unassigned</span>}
+                      <span className="flex w-44 items-center gap-2 truncate text-slate-600">
+                        {t.assignee_id ? (
+                          <>
+                            <Avatar name={profiles.get(t.assignee_id)?.full_name} email={profiles.get(t.assignee_id)?.email} size="sm" />
+                            <span className="truncate">{displayName(profiles.get(t.assignee_id))}</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">Unassigned</span>
+                        )}
                       </span>
-                      <div className="w-32">
+                      <div className="w-36">
                         {can.changeStatus ? (
                           <form action={setTaskStatus}>
                             <input type="hidden" name="id" value={t.id} />

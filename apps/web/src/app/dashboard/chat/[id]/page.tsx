@@ -6,6 +6,7 @@ import { isManagerOrAdmin } from "@/lib/tasks";
 import { displayName, loadPeople } from "@/lib/tracking";
 import { isAdminRole } from "@/lib/types";
 import { initials } from "@/lib/utils";
+import { Icon } from "@/components/icons";
 import { ConfirmSubmit } from "../../team/forms";
 import { addMembers, archiveChannel, removeMember } from "../actions";
 import { ChatRoom, type Person } from "./room";
@@ -73,13 +74,13 @@ export default async function ChannelPage({
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 truncate font-semibold">
-            {channel.kind !== "direct" && <span className="text-slate-400" aria-hidden>{KIND_ICON[channel.kind]}</span>}
+            {channel.kind !== "direct" && <Icon name={KIND_ICON[channel.kind]} className="h-4 w-4 text-slate-400" />}
             {title}
             {otherId && onlineIds.has(otherId) && <span className="badge bg-emerald-100 text-emerald-800">Working now</span>}
             {channel.archived_at && <span className="badge bg-slate-100 text-slate-500">Archived</span>}
           </h2>
           {channel.description && <p className="truncate text-xs text-slate-500">{channel.description}</p>}
-          {channel.kind === "direct" && <p className="text-xs text-slate-500">Private: only the two of you can read this.</p>}
+          {channel.kind === "direct" && <p className="flex items-center gap-1 text-xs text-slate-500"><Icon name="lock" className="h-3 w-3" />Only the two of you can read this</p>}
         </div>
         {(channel.kind === "private" || (manager && channel.kind !== "direct" && channel.kind !== "announcements")) && (
           <details className="relative">

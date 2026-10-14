@@ -16,6 +16,8 @@ import {
   type Attachment,
   type ChatMessage,
 } from "@/lib/chat";
+import { Icon } from "@/components/icons";
+import { Avatar } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -325,7 +327,7 @@ export function ChatRoom({
               href={url ? `${url}&download=${encodeURIComponent(a.name)}` : undefined}
               className="flex max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-surface px-3 py-2 text-sm hover:border-brand-300"
             >
-              <span aria-hidden>📄</span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:text-brand-700"><Icon name="receipt" className="h-4 w-4" /></span>
               <span className="min-w-0">
                 <span className="block truncate font-medium text-slate-800">{a.name}</span>
                 <span className="block text-xs text-slate-500">{fileSize(a.size)} · Download</span>
@@ -375,9 +377,7 @@ export function ChatRoom({
                 <div className={cn("group flex gap-3 rounded-lg px-2 py-0.5 hover:bg-slate-50", !grouped && "mt-2", mentionsMe && !m.deleted_at && "bg-amber-50/60")}>
                   <div className="w-8 shrink-0">
                     {!grouped && (
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
-                        {who?.initials ?? "?"}
-                      </span>
+                      <Avatar name={who?.name ?? "?"} size="sm" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -453,7 +453,7 @@ export function ChatRoom({
               <ul className="mb-2 flex flex-wrap gap-2">
                 {files.map((f, i) => (
                   <li key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs">
-                    <span aria-hidden>{f.type.startsWith("image/") ? "🖼️" : "📄"}</span>
+                    <Icon name={f.type.startsWith("image/") ? "camera" : "receipt"} className="h-3.5 w-3.5 text-slate-500" />
                     <span className="max-w-[180px] truncate">{f.name}</span>
                     <span className="text-slate-400">{fileSize(f.size)}</span>
                     <button
@@ -511,7 +511,7 @@ export function ChatRoom({
                 aria-label="Attach files"
                 onClick={() => fileRef.current?.click()}
               >
-                📎
+                <Icon name="paperclip" className="h-4 w-4" />
               </button>
               <label htmlFor="chat-box" className="sr-only">Message</label>
               <textarea
@@ -554,8 +554,9 @@ export function ChatRoom({
                   }
                 }}
               />
-              <button className="btn-primary" disabled={sending || (!draft.trim() && !files.length)}>
-                {sending ? (files.length ? "Uploading…" : "Sending…") : "Send"}
+              <button className="btn-primary h-10 px-3.5" disabled={sending || (!draft.trim() && !files.length)} aria-label="Send">
+                <Icon name="send" className="h-4 w-4" />
+                <span className="hidden sm:inline">{sending ? (files.length ? "Uploading…" : "Sending…") : "Send"}</span>
               </button>
             </form>
           </>
@@ -564,7 +565,7 @@ export function ChatRoom({
         )}
         {canPost && (
           <p className="mt-1 px-1 text-[11px] text-slate-400">
-            Enter to send · Shift + Enter for a new line{mentionable.length > 0 && " · @ to mention someone"} · drop or paste files to attach
+            Enter to send · Shift + Enter for a new line{mentionable.length > 0 && " · @ to mention"}
           </p>
         )}
       </div>

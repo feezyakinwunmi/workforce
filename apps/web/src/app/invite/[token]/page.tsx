@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { ROLE_LABELS, type MemberRole } from "@/lib/types";
-import { APP_NAME } from "@/lib/config";
+import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { AcceptInvitationForm } from "@/app/onboarding/forms";
 
 export const metadata: Metadata = { title: "Invitation" };
@@ -45,7 +45,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           You have been invited to join <strong>{invite.organization_name}</strong> as{" "}
           {ROLE_LABELS[invite.role].toLowerCase()}. Create an account with <strong>{invite.email}</strong> to accept.
         </p>
-        <div className="mt-6 flex flex-col gap-2">
+        <div className="mt-6 flex flex-col gap-2.5">
           <Link className="btn-primary" href={`/signup?next=${encodeURIComponent(here)}&email=${encodeURIComponent(invite.email)}`}>
             Create account
           </Link>
@@ -88,14 +88,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="card w-full max-w-sm p-6">
-        <p className="mb-4 text-sm font-semibold text-slate-500">{APP_NAME}</p>
-        <h1 className="mb-3 text-xl font-semibold">
-          {invite?.status === "pending" ? `Join ${invite.organization_name}` : "Invitation"}
-        </h1>
-        {body}
-      </div>
-    </main>
+    <AuthShell>
+      <AuthHeading title={invite?.status === "pending" ? `Join ${invite.organization_name}` : "Invitation"} />
+      {body}
+    </AuthShell>
   );
 }

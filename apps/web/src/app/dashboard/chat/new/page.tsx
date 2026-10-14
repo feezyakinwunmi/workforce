@@ -6,6 +6,7 @@ import { ROLE_LABELS } from "@/lib/types";
 import { initials } from "@/lib/utils";
 import { openDirect } from "../actions";
 import { NewGroupForm } from "./forms";
+import { Notice } from "@/components/ui";
 
 export const metadata: Metadata = { title: "New message" };
 
@@ -21,9 +22,9 @@ export default async function NewChatPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-6">
-      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <Notice tone="error">{error}</Notice>}
       <section className="card p-5">
-        <h2 className="mb-3 font-semibold">Message someone</h2>
+        <h2 className="section-title mb-3 text-base">Message someone</h2>
         {others.length === 0 ? (
           <p className="text-sm text-slate-500">Nobody else is in your company yet.</p>
         ) : (
@@ -51,7 +52,7 @@ export default async function NewChatPage({ searchParams }: { searchParams: Prom
 
       {isManagerOrAdmin(me) ? (
         <section className="card p-5">
-          <h2 className="mb-3 font-semibold">New group</h2>
+          <h2 className="section-title mb-3 text-base">New group</h2>
           <NewGroupForm people={others.map(({ m, name }) => ({ id: m.user_id, name }))} />
         </section>
       ) : (

@@ -11,7 +11,9 @@ import {
   type Profile,
   type Team,
 } from "@/lib/types";
-import { cn, formatDate, initials, siteUrl } from "@/lib/utils";
+import { Icon } from "@/components/icons";
+import { Avatar, InfoTip, Notice, PageHeader } from "@/components/ui";
+import { cn, formatDate, siteUrl } from "@/lib/utils";
 import { deleteTeam, revokeInvitation, setTeamManager, transferOwnership, updateMember } from "./actions";
 import { ConfirmSubmit, CreateTeamForm, InviteForm } from "./forms";
 
@@ -81,42 +83,31 @@ export default async function TeamPage({
   const transferTargets = members.filter((m) => m.status === "active" && m.user_id !== me.user_id);
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Team</h1>
-        <p className="mt-1 text-slate-600">
-          {members.filter((m) => m.status === "active").length} active members in {org.name}
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader title="Team" meta={`${members.filter((m) => m.status === "active").length} active people`} />
 
       {welcome && admin && (
-        <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-          <strong>{org.name} is ready.</strong> Invite your first workers below. Each person gets a link
-          to create their account and join your company.
-        </div>
+        <Notice tone="success"><strong>{org.name} is ready.</strong> Invite your first people below.</Notice>
       )}
-      {transferred && (
-        <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Ownership transferred. You are now an admin.
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
+      {transferred && <Notice tone="success">Ownership transferred. You are now an admin.</Notice>}
+      {error && <Notice tone="error">{error}</Notice>}
 
       {admin && (
         <section className="card p-5">
-          <h2 className="mb-4 font-semibold">Invite people</h2>
+          <h2 className="section-title mb-4 flex items-center gap-2 text-base">
+            <Icon name="mail" className="h-4 w-4 text-brand-600 dark:text-brand-700" />
+            Invite people
+          </h2>
           <InviteForm teams={teams} />
         </section>
       )}
 
-      <section className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+      <section className="card">
+        <div className="overflow-x-auto lg:overflow-visible">
+          <table className="w-full text-left text-sm [&_thead_th:first-child]:rounded-tl-2xl [&_thead_th:last-child]:rounded-tr-2xl">
+            <thead className="table-head border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 font-medium">Member</th>
+                <th className="px-4 py-3 font-medium">Person</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Team</th>
                 <th className="px-4 py-3 font-medium">Time zone · hours</th>
@@ -136,11 +127,9 @@ export default async function TeamPage({
                   <tr key={m.id} className={cn(m.status === "suspended" && "bg-amber-50/50")}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
-                          {initials(p?.full_name ?? "", p?.email ?? "")}
-                        </div>
+                        <Avatar name={p?.full_name} email={p?.email} />
                         <div className="min-w-0">
-                          <p className="truncate font-medium">
+                          <p className="truncate font-medium text-slate-900">
                             {admin ? (
                               <Link className="hover:text-brand-700" href={`/dashboard/activity?user=${m.user_id}`}>
                                 {p?.full_name || p?.email}
@@ -189,9 +178,12 @@ export default async function TeamPage({
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-start justify-end gap-2">
                         {detailsEditable && (
-                          <details>
-                            <summary className="btn-secondary btn-sm cursor-pointer list-none">Edit</summary>
-                            <form action={updateMember} className="mt-2 w-72 space-y-3 rounded-xl border border-slate-200 bg-surface p-4 text-left shadow-sm">
+                          <details className="relative">
+                            <summary className="btn-ghost cursor-pointer list-none px-2 [&::-webkit-details-marker]:hidden" title="Edit details">
+                              <Icon name="pencil" className="h-4 w-4" />
+                              <span className="sr-only">Edit {p?.full_name || p?.email}</span>
+                            </summary>
+                            <form action={updateMember} className="fixed inset-x-4 top-24 z-40 space-y-3 rounded-xl border border-slate-200 bg-raised p-4 text-left shadow-2xl sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-72">
                               <input type="hidden" name="membership_id" value={m.id} />
                               <div>
                                 <label className="label" htmlFor={`title-${m.id}`}>Job title</label>
@@ -204,26 +196,27 @@ export default async function TeamPage({
                               <div>
                                 <label className="label" htmlFor={`tz-${m.id}`}>Time zone</label>
                                 <TimezoneSelect id={`tz-${m.id}`} defaultValue={m.timezone} />
-                                <p className="mt-1 text-xs text-slate-500">Their work day and timesheets follow this.</p>
                               </div>
                               <button className="btn-primary w-full">Save</button>
                             </form>
                           </details>
                         )}
                         {editable && (
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1">
                             <form action={updateMember}>
                               <input type="hidden" name="membership_id" value={m.id} />
                               <input type="hidden" name="status" value={m.status === "suspended" ? "active" : "suspended"} />
-                              <button className="btn-secondary btn-sm">
-                                {m.status === "suspended" ? "Reactivate" : "Suspend"}
+                              <button className="btn-ghost px-2" title={m.status === "suspended" ? "Reactivate" : "Suspend"}>
+                                <Icon name={m.status === "suspended" ? "play" : "lock"} className="h-4 w-4" />
+                                <span className="sr-only">{m.status === "suspended" ? "Reactivate" : "Suspend"} {p?.full_name || p?.email}</span>
                               </button>
                             </form>
                             <form action={updateMember}>
                               <input type="hidden" name="membership_id" value={m.id} />
                               <input type="hidden" name="status" value="removed" />
-                              <ConfirmSubmit message={`Remove ${p?.full_name || p?.email} from ${org.name}? They lose access immediately.`}>
-                                Remove
+                              <ConfirmSubmit message={`Remove ${p?.full_name || p?.email} from ${org.name}? They lose access immediately.`} className="btn-ghost px-2 hover:text-red-600">
+                                <Icon name="trash" className="h-4 w-4" />
+                                <span className="sr-only">Remove {p?.full_name || p?.email}</span>
                               </ConfirmSubmit>
                             </form>
                           </div>
@@ -241,14 +234,14 @@ export default async function TeamPage({
 
       {admin && invites.length > 0 && (
         <section className="card">
-          <h2 className="border-b border-slate-200 px-5 py-3 font-semibold">Pending invitations</h2>
+          <h2 className="panel-head section-title text-base">Waiting to join</h2>
           <ul className="divide-y divide-slate-100">
             {invites.map((inv) => {
               const link = `${siteUrl()}/invite/${inv.token}`;
               return (
                 <li key={inv.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                   <div>
-                    <p className="font-medium">{inv.email}</p>
+                    <p className="font-medium text-slate-900">{inv.email}</p>
                     <p className="text-xs text-slate-500">
                       {ROLE_LABELS[inv.role]}
                       {inv.team_id && ` · ${teamName.get(inv.team_id) ?? ""}`} · expires {formatDate(inv.expires_at, org.timezone)}
@@ -269,13 +262,15 @@ export default async function TeamPage({
       )}
 
       <section className="card p-5">
-        <h2 className="mb-1 font-semibold">Teams</h2>
-        <p className="mb-4 text-sm text-slate-600">Group people by department or client. A manager sees the time, activity and reports of their own team and of the teams they manage. Only people with the Manager or Admin role can manage a team.</p>
+        <h2 className="section-title mb-4 flex items-center gap-2 text-base">
+          Teams
+          <InfoTip>A manager sees the time, activity and reports of their own team and of the teams they manage. Only Managers and Admins can manage a team.</InfoTip>
+        </h2>
         {teams.length > 0 && (
           <ul className="mb-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
             {teams.map((t) => (
               <li key={t.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
-                <span className="min-w-0 flex-1 font-medium">
+                <span className="min-w-0 flex-1 font-medium text-slate-900">
                   {t.name}{" "}
                   <span className="text-xs font-normal text-slate-400">
                     {members.filter((m) => m.team_id === t.id).length} members
@@ -293,8 +288,9 @@ export default async function TeamPage({
                 {admin && (
                   <form action={deleteTeam}>
                     <input type="hidden" name="id" value={t.id} />
-                    <ConfirmSubmit message={`Delete the team "${t.name}"? Members stay in the company.`} className="rounded px-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-600">
-                      ×
+                    <ConfirmSubmit message={`Delete the team "${t.name}"? Members stay in the company.`} className="btn-ghost px-2 hover:text-red-600">
+                      <Icon name="trash" className="h-4 w-4" />
+                      <span className="sr-only">Delete {t.name}</span>
                     </ConfirmSubmit>
                   </form>
                 )}
@@ -307,10 +303,8 @@ export default async function TeamPage({
 
       {me.role === "owner" && transferTargets.length > 0 && (
         <section className="card border-red-200 p-5">
-          <h2 className="mb-1 font-semibold">Transfer ownership</h2>
-          <p className="mb-4 text-sm text-slate-600">
-            Make someone else the owner of {org.name}. You become an admin and can&apos;t undo this yourself.
-          </p>
+          <h2 className="section-title text-base">Transfer ownership</h2>
+          <p className="mt-1 mb-4 text-sm text-slate-500">You become an admin and can&apos;t undo this yourself.</p>
           <form action={transferOwnership} className="flex flex-wrap items-center gap-2">
             <select name="user_id" className="input w-auto" defaultValue="" required aria-label="New owner">
               <option value="" disabled>Choose the new owner…</option>
