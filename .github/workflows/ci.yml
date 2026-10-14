@@ -25,5 +25,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type-check desktop app
         run: npm run typecheck --workspace agent
+      - name: Type-check dashboard
+        run: npm run typecheck --workspace web
       - name: Build dashboard
         run: npm run build --workspace web
