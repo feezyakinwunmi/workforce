@@ -7,6 +7,9 @@ let view = null;
 let layoutKey = "";
 let busy = false;
 let loginError = "";
+// The clock-out report survives a layout rebuild (e.g. a notice appearing while typing).
+let reportDraft = "";
+let markDoneDraft = false;
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -24,6 +27,11 @@ function hms(seconds) {
 }
 
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const day = (ymd) => new Date(`${ymd}T12:00:00`).toLocaleDateString([], { day: "numeric", month: "short" });
+
+function currentTask() {
+  return (view.tasks || []).find((t) => t.id === view.currentTaskId) || null;
+}
 
 function ago(ms) {
   if (!ms) return "not yet";
@@ -110,10 +118,13 @@ function mainScreen() {
         <span class="small muted">Hi, ${esc(v.account.name.split(" ")[0])}</span>
       </div>
       <div class="timer" id="timer">00:00:00</div>
+      ${v.askClockOut ? clockOutPanel() : taskPicker()}
       ${
-        v.clockedIn
-          ? `<button class="clock-out full" data-action="clock-out">Clock out</button>`
-          : `<button class="clock-in full" data-action="clock-in">Clock in</button>`
+        v.askClockOut
+          ? ""
+          : v.clockedIn
+            ? `<button class="clock-out full" data-action="clock-out">Clock out</button>`
+            : `<button class="clock-in full" data-action="clock-in">Clock in</button>`
       }
     </div>
     <div class="stats">
@@ -125,6 +136,65 @@ function mainScreen() {
       <span id="sync"></span>
       <button class="link small" data-action="my-activity">My activity ↗</button>
     </div>`;
+}
+
+function taskPicker() {
+  return `
+    <div class="field">
+      <div class="row"><label for="task">Working on</label><button class="link small" data-action="refresh-tasks">Refresh</button></div>
+      <select id="task"></select>
+      <div class="small muted mt4 truncate" id="task-hint"></div>
+    </div>`;
+}
+
+function clockOutPanel() {
+  const task = currentTask();
+  return `
+    <div class="field">
+      <label for="report">What did you get done?</label>
+      <textarea id="report" rows="4" maxlength="5000" placeholder="E.g. finished the invoice page, fixed two bugs, call with the client">${esc(reportDraft)}</textarea>
+      <div class="small muted mt4">Optional. Your manager sees it with your activity for today.</div>
+    </div>
+    ${
+      task
+        ? `<label class="check"><input type="checkbox" id="mark-done" ${markDoneDraft ? "checked" : ""} /><span>Mark “${esc(task.title)}” as done</span></label>`
+        : ""
+    }
+    <div class="buttons">
+      <button class="clock-out" data-action="confirm-clock-out">Clock out</button>
+      <button class="secondary" data-action="cancel-clock-out">Cancel</button>
+    </div>`;
+}
+
+/** Fill the task list without rebuilding the screen (and never while it is open). */
+function renderTasks() {
+  const sel = document.getElementById("task");
+  if (!sel) return;
+  const tasks = view.tasks || [];
+  const sig = JSON.stringify([tasks, view.currentTaskId]);
+  if (sel.dataset.sig === sig || document.activeElement === sel) return;
+  sel.dataset.sig = sig;
+  sel.innerHTML =
+    `<option value="">${tasks.length ? "No task selected" : "No open tasks"}</option>` +
+    tasks
+      .map(
+        (t) =>
+          `<option value="${esc(t.id)}" ${t.id === view.currentTaskId ? "selected" : ""}>${esc(t.title)}${
+            t.project_name ? ` · ${esc(t.project_name)}` : ""
+          }</option>`,
+      )
+      .join("");
+  const task = currentTask();
+  const hint = document.getElementById("task-hint");
+  if (hint) {
+    hint.textContent = task
+      ? [task.status === "in_progress" ? "In progress" : task.status === "review" ? "In review" : "To do", task.due_date ? `due ${day(task.due_date)}` : ""]
+          .filter(Boolean)
+          .join(" · ")
+      : tasks.length
+        ? "Pick the task you're working on to log time to it."
+        : "Tasks your manager assigns you appear here.";
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -141,6 +211,8 @@ function render() {
     loginError,
     busy,
     view.screen === "consent" ? view.settings : null,
+    view.askClockOut,
+    view.askClockOut ? view.currentTaskId : null,
   ]);
   if (key !== layoutKey) {
     layoutKey = key;
@@ -148,7 +220,10 @@ function render() {
       view.screen === "login" ? loginScreen() : view.screen === "consent" ? consentScreen() : mainScreen();
     const email = document.getElementById("email");
     if (email) email.focus();
+    const report = document.getElementById("report");
+    if (report) report.focus();
   }
+  renderTasks();
   updateLive();
 }
 
@@ -223,8 +298,19 @@ root.addEventListener("click", async (e) => {
     case "clock-in":
       return window.agent.clockIn();
     case "clock-out":
+      return window.agent.askClockOut();
+    case "confirm-clock-out": {
       el.disabled = true;
-      return window.agent.clockOut();
+      const summary = (document.getElementById("report") || {}).value || "";
+      const markDone = Boolean((document.getElementById("mark-done") || {}).checked);
+      reportDraft = "";
+      markDoneDraft = false;
+      return window.agent.clockOut(summary, markDone);
+    }
+    case "cancel-clock-out":
+      return window.agent.cancelClockOut();
+    case "refresh-tasks":
+      return window.agent.refreshTasks();
     case "keep-idle": {
       const reason = (document.getElementById("idle-reason") || {}).value || null;
       return window.agent.answerIdle(el.dataset.id, true, reason);
@@ -238,6 +324,20 @@ root.addEventListener("click", async (e) => {
     case "retry":
       return window.agent.retrySync();
   }
+});
+
+root.addEventListener("change", (e) => {
+  if (e.target.id === "task") {
+    const value = e.target.value || null;
+    e.target.blur();
+    window.agent.setTask(value);
+  } else if (e.target.id === "mark-done") {
+    markDoneDraft = e.target.checked;
+  }
+});
+
+root.addEventListener("input", (e) => {
+  if (e.target.id === "report") reportDraft = e.target.value;
 });
 
 window.agent.onView((v) => {

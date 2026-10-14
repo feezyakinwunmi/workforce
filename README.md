@@ -19,6 +19,7 @@ workforce/
 - Desktop app: clock in/out, idle detection with "were you working?", app tracking, offline queue
 - Dashboard: who is working now, per-person activity day view, weekly timesheets with CSV export
 - Distribution: one-click Windows installer, auto-update, public /download page
+- Tasks: projects, tasks with assignee, priority, due date and comments; the worker picks the current task in the desktop app so time is logged per task; a "what I got done" report at clock-out
 
 ## 1. Database
 
@@ -64,6 +65,12 @@ If `npm run agent` says "Electron failed to install correctly" (happens on Node 
 5. Turn off Wi-Fi for a few minutes while clocked in: the app says *Offline* and uploads everything when you reconnect.
 6. As owner: **Activity → Computers → Disconnect** stops that computer's app.
 
+**Tasks**
+1. As owner or manager: **Projects** → create a project. **Tasks → + New task** → assign it to a worker.
+2. In the desktop app (as that worker): **Working on** → pick the task. It moves to *In progress*.
+3. Work a few minutes, then **Clock out**: write what you got done, tick *Mark as done* if it's finished.
+4. In the dashboard: the task shows the time logged, **Activity** shows the tasks worked and the report, **Overview** counts tasks done today.
+
 The window closes to the system tray. **Quit** from the tray menu clocks you out.
 
 ## How tracking works
@@ -85,7 +92,7 @@ The window closes to the system tray. **Quit** from the tray menu clocks you out
 - The desktop app can only write through `register_device`, `heartbeat` and `ingest_batch`. These check the signed-in user, the computer (admins can disconnect it) and session ownership.
 - Nobody can change their own role, and only the owner can touch owner access. Changes are written to `audit_logs`.
 
-Tested on a local Postgres simulating Supabase (73 checks), with a simulated workday through the agent's tracking logic, and with spot checks on the live database.
+Tested on a local Postgres simulating Supabase (100 checks), with a simulated workday through the agent's tracking logic, and with spot checks on the live database.
 
 ## Going live
 
@@ -93,4 +100,4 @@ See **docs/DEPLOY.md**: deploy the dashboard to Vercel, update the Supabase URLs
 
 ## Next
 
-Week 7 per the roadmap: projects and tasks, time per task, daily work report. Then code signing for the installer and the Mac version. See `CLAUDE.md`.
+Team manager picker and expected hours, notifications, leave requests, then chat. Code signing for the installer and the Mac version before paying customers. See `CLAUDE.md`.

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 import type { SecureStore } from "./storage";
-import type { Payload, Settings } from "./tracker";
+import type { Payload, Settings, TaskItem } from "./tracker";
 
 export type DeviceInfo = {
   device_id: string;
@@ -100,6 +100,20 @@ export class Api {
     });
     if (error) throw classify(error);
     return data as HeartbeatResult;
+  }
+
+  /** Open tasks assigned to the signed-in worker. */
+  async myOpenTasks(): Promise<TaskItem[]> {
+    const { data, error } = await this.supabase.rpc("my_open_tasks");
+    if (error) throw classify(error);
+    return (data ?? []) as TaskItem[];
+  }
+
+  /** Assignees may change the status of their own tasks (enforced in the database). */
+  async setTaskStatus(taskId: string, status: "todo" | "in_progress" | "review" | "done") {
+    const { data, error } = await this.supabase.from("tasks").update({ status }).eq("id", taskId).select("id");
+    if (error) throw classify(error);
+    if (!data?.length) throw new ApiError("This task is no longer assigned to you.", "other");
   }
 
   async ingest(payload: Payload): Promise<{ server_time: string }> {

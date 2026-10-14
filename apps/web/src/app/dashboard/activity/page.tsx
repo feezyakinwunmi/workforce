@@ -12,6 +12,7 @@ import {
   zonedMidnight,
 } from "@/lib/time";
 import { displayName, loadPeople, visibleMembers } from "@/lib/tracking";
+import { STATUS_LABEL as TASK_STATUS_LABEL, type TaskStatus } from "@/lib/tasks";
 import { isAdminRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ConfirmSubmit } from "../team/forms";
@@ -65,7 +66,7 @@ export default async function ActivityPage({
   const isMe = target.user_id === me.user_id;
   const person = profiles.get(target.user_id);
 
-  const [blocksRes, sessionsRes, idleRes, appsRes, titlesRes, devicesRes] = await Promise.all([
+  const [blocksRes, sessionsRes, idleRes, appsRes, titlesRes, devicesRes, taskTimeRes, reportsRes, doneRes] = await Promise.all([
     supabase
       .from("activity_blocks")
       .select("block_start, active_seconds, idle_seconds, excluded_seconds")
@@ -100,6 +101,25 @@ export default async function ActivityPage({
       .select("id, name, os, agent_version, last_seen_at, revoked_at, clock_offset_seconds")
       .eq("user_id", target.user_id)
       .order("last_seen_at", { ascending: false }),
+    supabase
+      .from("task_time")
+      .select("task_id, seconds")
+      .eq("user_id", target.user_id)
+      .gte("block_start", from)
+      .lt("block_start", to)
+      .limit(5000),
+    supabase
+      .from("daily_reports")
+      .select("id, summary, created_at")
+      .eq("user_id", target.user_id)
+      .eq("work_date", date)
+      .order("created_at"),
+    supabase
+      .from("tasks")
+      .select("id")
+      .eq("assignee_id", target.user_id)
+      .gte("completed_at", from)
+      .lt("completed_at", to),
   ]);
 
   const blocks = (blocksRes.data ?? []) as Block[];
@@ -110,6 +130,22 @@ export default async function ActivityPage({
     seconds: Number(a.seconds),
   }));
   const devices = (devicesRes.data ?? []) as Device[];
+  const reports = (reportsRes.data ?? []) as Array<{ id: string; summary: string; created_at: string }>;
+
+  // Tasks worked on this day: time from the desktop app, plus tasks finished today.
+  const taskSeconds = new Map<string, number>();
+  for (const r of (taskTimeRes.data ?? []) as Array<{ task_id: string; seconds: number }>) {
+    taskSeconds.set(r.task_id, (taskSeconds.get(r.task_id) ?? 0) + r.seconds);
+  }
+  const doneIds = new Set(((doneRes.data ?? []) as Array<{ id: string }>).map((t) => t.id));
+  const taskIds = [...new Set([...taskSeconds.keys(), ...doneIds])];
+  const { data: taskInfo } = taskIds.length
+    ? await supabase.from("tasks").select("id, title, status").in("id", taskIds)
+    : { data: [] };
+  const tasksWorked = ((taskInfo ?? []) as Array<{ id: string; title: string; status: TaskStatus }>)
+    .map((t) => ({ ...t, seconds: taskSeconds.get(t.id) ?? 0, finishedToday: doneIds.has(t.id) }))
+    .sort((a, b) => b.seconds - a.seconds);
+  const taskTotal = tasksWorked.reduce((s, t) => s + t.seconds, 0);
 
   const tracked = blocks.reduce((s, b) => s + b.active_seconds + b.idle_seconds, 0);
   const active = blocks.reduce((s, b) => s + b.active_seconds, 0);
@@ -191,6 +227,54 @@ export default async function ActivityPage({
           </div>
         ))}
       </section>
+
+      {(tasksWorked.length > 0 || reports.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="card p-5">
+            <h2 className="mb-3 font-semibold">Tasks worked on</h2>
+            {tasksWorked.length === 0 ? (
+              <p className="text-sm text-slate-500">No task was picked in the desktop app on this day.</p>
+            ) : (
+              <>
+                <ul className="divide-y divide-slate-100 text-sm">
+                  {tasksWorked.map((t) => (
+                    <li key={t.id} className="flex items-center justify-between gap-3 py-2">
+                      <span className="min-w-0">
+                        <Link href={`/dashboard/tasks/${t.id}`} className="block truncate font-medium hover:text-brand-700">{t.title}</Link>
+                        {t.finishedToday ? (
+                          <span className="text-xs text-emerald-700">Finished this day</span>
+                        ) : (
+                          <span className="text-xs text-slate-400">{TASK_STATUS_LABEL[t.status]}</span>
+                        )}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-slate-600">{t.seconds ? formatHours(t.seconds) : "–"}</span>
+                    </li>
+                  ))}
+                </ul>
+                {tracked > taskTotal + 600 && (
+                  <p className="mt-2 text-xs text-slate-500">{formatHours(tracked - taskTotal)} of the day had no task picked.</p>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className="card p-5">
+            <h2 className="mb-3 font-semibold">{isMe ? "What I got done" : "What they got done"}</h2>
+            {reports.length === 0 ? (
+              <p className="text-sm text-slate-500">No end-of-day report. It&apos;s written in the desktop app when clocking out.</p>
+            ) : (
+              <ul className="space-y-3 text-sm">
+                {reports.map((r) => (
+                  <li key={r.id}>
+                    <p className="text-xs text-slate-400">At clock-out, {formatClock(r.created_at, tz)}</p>
+                    <p className="mt-0.5 whitespace-pre-wrap break-words text-slate-700">{r.summary}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      )}
 
       <section className="card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

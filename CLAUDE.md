@@ -14,7 +14,7 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - MVP = modules 1–4: core accounts, time tracking, activity monitoring, tasks. Screenshots, chat, billing, mobile, leave and payroll come later.
 - Product name not decided: the UI name lives in `apps/web/src/lib/config.ts` (`APP_NAME`).
 
-## Current status (14 Oct 2026)
+## Current status (14 Oct 2026, Week 7)
 
 - **Week 1 done and confirmed working by Femi:**
   - sign-up/login, forgot/reset/change password
@@ -23,10 +23,13 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - **Weeks 2–6 core done:**
   - Electron desktop agent (`apps/agent`): login, consent, clock in/out, idle detection + prompt, app/window tracking, offline queue, heartbeat, tray
   - dashboard: live "who is working now" (Overview), per-person day view (`/dashboard/activity`), weekly timesheets + CSV
-- **Distribution (prepared, not yet published):** electron-builder one-click NSIS installer + electron-updater (`src/updater.ts`, installs only while clocked out), GitHub Actions release on tag `agent-v<version>` → public repo `feezyakinwunmi/workforce-releases`, public `/download` page, CI on every push. Steps Femi must do once: docs/DEPLOY.md.
-- **Agent ran on Femi's Windows PC from source** (after the Node 26 Electron unzip issue; fix: `npm run fix:electron`).
-- **Migrations applied to Supabase:** 0001–0005, all live. 0004 schedules pg_cron jobs.
-- **Not yet run on a real machine:** the desktop agent was built where Electron could not be installed. The tracking logic was tested with a simulated workday, and its upload format against the real `ingest_batch`. First job in a new session: `npm install`, `npm run agent`, then fix any startup or type errors.
+- **Distribution is live:** v0.1.0 Windows installer published (tag `agent-v0.1.0` → GitHub release `v0.1.0` in public `feezyakinwunmi/workforce-releases`), shown on https://phantomire-workforce.vercel.app/download. Installed apps auto-update from that repo (only while clocked out). Release = bump `apps/agent/package.json` version, commit, push tag `agent-v<version>`.
+- **Dashboard live on Vercel** (https://phantomire-workforce.vercel.app); the installed v0.1.0 app works end to end on Femi's PC.
+- **Week 7, tasks & projects (built, release as agent v0.2.0):**
+  - DB: migration 0006 `tasks` (applied live): `projects`, `tasks`, `task_comments`, `task_time`, `daily_reports`, trigger `private.guard_task`, RPCs `my_open_tasks`, `task_time_totals`; `ingest_batch` also takes `task_time` and `reports` (older agents still work)
+  - agent: "Working on" task picker (picking a To-do task sets it In progress), time per task in each 10-min block, clock-out panel "What did you get done?" + "Mark task as done"; tray "Clock out…" opens that panel
+  - dashboard: `/dashboard/tasks` (filters, create, inline status), `/dashboard/tasks/[id]` (edit, comments, time by person, delete), `/dashboard/projects` (managers/admins: create, edit, colour, archive), Activity shows tasks worked + the clock-out report, Overview shows tasks done today
+- **Migrations applied to Supabase:** 0001–0006, all live. 0004 schedules pg_cron jobs.
 - **Manual Supabase settings (not possible via MCP):**
   - Site URL `http://localhost:3000`, Redirect URL `http://localhost:3000/**`
   - "Confirm email" off during development
@@ -42,6 +45,7 @@ apps/agent/               Electron desktop app (TypeScript, no native modules)
   src/api.ts              supabase-js client + register_device / heartbeat / ingest_batch wrappers
   src/storage.ts          login session encrypted with Electron safeStorage
   src/config.ts           Supabase URL/anon key, dashboard URL, timings
+  src/updater.ts          electron-updater (installs only while clocked out)
   renderer/               plain HTML/JS/CSS window (login, consent, main screen, idle prompt)
 apps/web/                 Next.js 16 (App Router) dashboard
   src/proxy.ts            Next 16 proxy (formerly middleware): refreshes the Supabase session, guards /dashboard and /onboarding
@@ -51,10 +55,11 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/app/(auth)          login, signup (server actions + useActionState)
   src/app/onboarding      create company / accept pending invites
   src/app/invite/[token]  invite landing page
-  src/app/dashboard       overview (live), activity (day view), timesheets (+ /export CSV), team, settings (admin), profile
+  src/app/dashboard       overview (live), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
   src/lib/tracking.ts     visibility rule (mirrors DB), live status, day stats loaders
   src/lib/time.ts         time-zone helpers (zonedMidnight, localDateIn, mondayOf)
-supabase/migrations/      SQL migrations, in order (applied: 0001–0005)
+  src/lib/tasks.ts        task/project types, labels, taskPermissions (mirrors guard_task), loadTaskTime
+supabase/migrations/      SQL migrations, in order (applied: 0001–0006)
 docs/SPEC.md              product spec and roadmap
 ```
 
@@ -81,6 +86,7 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 
 - Every tenant table has `organization_id` and RLS enabled. Policies use `(select private.current_org_id())` and `(select private.is_org_admin())`. These are SECURITY DEFINER helpers in the `private` schema, which is not exposed to the API.
 - Privileges: `revoke all ... from anon, authenticated`, then grant only the needed columns (column-level `update`/`insert`).
+- Task rules are enforced by the trigger `private.guard_task`: managers/admins/owner change anything; a worker creates tasks only for themselves; the creator edits their task (may only assign themselves); the assignee may only change the status. `completed_at` is set by the trigger.
 - Sensitive operations go through `SECURITY DEFINER` functions with `set search_path = ''` and their own `auth.uid()` checks: `create_organization`, `accept_invitation`, `get_invitation` (anon, token-gated), `my_pending_invitations`, `update_my_timezone`.
 - Membership rules are enforced by a trigger (`private.guard_membership_update`): nobody changes their own role or status; only the owner touches owner access; role, status and team changes are written to `audit_logs`.
 - One active company per user in the MVP (`memberships_one_company_per_user` index).
@@ -104,19 +110,20 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 - Blocks are aligned to 10 minutes. The agent always sends running totals, so uploads are idempotent; `batch_id` dedupes exact repeats.
 - The agent corrects its clock with `server_time` from every response. A sleep or freeze gap over 60 s is not tracked.
 - Visibility: worker = self; manager = same team or teams they manage (`teams.manager_id`); owner/admin = all. DB: `private.visible_member_ids()`. UI mirror: `visibleMembers()` in `lib/tracking.ts`.
+- Tasks: the worker picks a current task in the agent; every tracked second (active or idle) also goes to `blocks.tasks[taskId]`, uploaded as `task_time` (running totals per block, max 600 s). Discarding idle trims app and task seconds proportionally. The open-task list is cached on the computer (refresh on login, clock-in, window focus, every 5 min). The clock-out report is a `daily_reports` row (id from the agent, `work_date` = worker's local date).
 - Live status: an open session with a heartbeat under 3 min old = working/idle; older = "App not reporting". The pg_cron job closes sessions after 30 min without a heartbeat (`agent_lost`); `ingest_batch` reopens them if data arrives.
 
 ## Next steps
 
-1. Follow docs/DEPLOY.md: Vercel deploy, Supabase URLs, RELEASES_TOKEN + DASHBOARD_URL, first tag `agent-v0.1.0`; check the CI run is green.
-2. Week 7: projects + tasks (assign, status, due date, comments), the worker picks the current task in the agent (add `task_id` to blocks or a `time_entries` table), and a daily work report at clock-out.
-3. Code signing (Azure Trusted Signing) before paying customers; Mac build later.
-5. Admin UI to set a team's manager (`teams.manager_id`) and a member's expected hours.
+1. Release Week 7: commit + push (Vercel redeploys the dashboard), then tag `agent-v0.2.0`. Test: create a project and a task for a worker → pick it in the app → clock out with a report → check Tasks, Activity and Overview.
+2. Optional: bump GitHub Actions to `actions/checkout@v5` / `actions/setup-node@v5` (Node 20 deprecation warning). Workflow files can't be written remotely; give Femi the text.
+3. Admin UI to set a team's manager (`teams.manager_id`) and a member's expected hours.
+4. Week 8+: notifications (task assigned, due soon), leave requests, then chat. Code signing (Azure Trusted Signing) before paying customers; Mac build later.
 
 ## Known gaps / backlog
 
+- Task notifications (email/WhatsApp) not built; no task attachments; no recurring tasks.
 - Ownership transfer; admin editing of a member's time zone or expected hours; team manager picker.
-- App seconds are not reduced when idle time is discarded (top-apps can slightly exceed worked time).
 - macOS agent gets the app name only (window titles need Accessibility permission work).
 - Supabase "leaked password protection" is off (a paid-plan setting).
 - Custom SMTP (e.g. Resend) before real users; turn "Confirm email" back on.

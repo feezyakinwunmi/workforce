@@ -35,6 +35,10 @@ let loginMessage: string | null = null;
 let lastPendingIdleCount = 0;
 let lastState: "active" | "idle" = "active";
 let updater: ReturnType<typeof startAutoUpdates>;
+let askClockOut = false; // the window shows the "what did you get done?" panel
+let lastTaskFetch = 0;
+
+const TASK_REFRESH_SECONDS = 5 * 60;
 
 const assets = path.join(__dirname, "..", "assets");
 const startHidden = process.argv.includes("--hidden");
@@ -67,6 +71,7 @@ async function start() {
       tracker.setAccount(null);
     } else {
       await refreshDevice().catch(handleApiError);
+      void refreshTasks(true);
     }
   }
   push();
@@ -74,6 +79,7 @@ async function start() {
   setInterval(() => void tick(), TICK_SECONDS * 1000);
   setInterval(() => void heartbeat(), HEARTBEAT_SECONDS * 1000);
   setInterval(() => void sync(), SYNC_SECONDS * 1000);
+  setInterval(() => void refreshTasks(true), TASK_REFRESH_SECONDS * 1000);
   void heartbeat();
   void sync();
 
@@ -97,7 +103,7 @@ async function start() {
 function createWindow() {
   win = new BrowserWindow({
     width: 380,
-    height: 600,
+    height: 660,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
@@ -121,6 +127,8 @@ function createWindow() {
     }
   });
   win.webContents.on("did-finish-load", push);
+  // Pick up tasks a manager just assigned when the worker opens the window.
+  win.on("focus", () => void refreshTasks());
   // Links open in the normal browser, never inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http")) void shell.openExternal(url);
@@ -161,7 +169,7 @@ function updateTray() {
       ...(tracker.state.account && !tracker.needsConsent
         ? [
             working
-              ? { label: "Clock out", click: () => void clockOut() }
+              ? { label: "Clock out…", click: () => requestClockOut() }
               : { label: "Clock in", click: () => clockIn() },
           ]
         : []),
@@ -207,6 +215,9 @@ function view() {
     sync: { online, pending: tracker.pendingCount(), lastSyncAt: s.lastSyncAt, error: lastError },
     notice: s.notice,
     loginMessage,
+    tasks: s.taskCache ?? [],
+    currentTaskId: tracker.currentTask?.id ?? null,
+    askClockOut: askClockOut && tracker.clockedIn,
   };
 }
 
@@ -384,6 +395,7 @@ async function login(email: string, password: string) {
     if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true, args: ["--hidden"] });
     push();
     void heartbeat();
+    void refreshTasks(true);
     return { ok: true };
   } catch (e) {
     const message =
@@ -424,13 +436,75 @@ function clockIn() {
   push();
   void sync();
   void heartbeat();
+  void refreshTasks(true);
 }
 
-async function clockOut() {
+/** Tray "Clock out…": open the window so the worker can say what they got done. */
+function requestClockOut() {
+  if (!tracker.clockedIn) return;
+  askClockOut = true;
+  showWindow();
+  push();
+}
+
+async function clockOut(summary = "", markDone = false) {
+  askClockOut = false;
+  if (!tracker.clockedIn) {
+    push();
+    return;
+  }
+  const task = tracker.currentTask;
+  tracker.addReport(summary); // before clockOut: the report belongs to this session
   tracker.clockOut("clock_out");
   push();
+  if (markDone && task) await setTaskStatus(task.id, "done");
   await sync();
   updater?.installWhenPossible(); // a waiting update installs now, between work sessions
+}
+
+// ---------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------
+/** Reload the worker's open tasks (kept on this computer so the picker works offline). */
+async function refreshTasks(force = false) {
+  if (!tracker.state.account || tracker.needsConsent) return;
+  if (!force && Date.now() - lastTaskFetch < 30_000) return;
+  lastTaskFetch = Date.now();
+  try {
+    tracker.setTaskCache(await api.myOpenTasks());
+    online = true;
+  } catch (e) {
+    await handleApiError(e);
+  }
+  push();
+}
+
+async function setTaskStatus(taskId: string, status: "in_progress" | "done") {
+  try {
+    await api.setTaskStatus(taskId, status);
+    const tasks = tracker.state.taskCache ?? [];
+    tracker.setTaskCache(
+      status === "done" ? tasks.filter((t) => t.id !== taskId) : tasks.map((t) => (t.id === taskId ? { ...t, status } : t)),
+    );
+  } catch (e) {
+    if (status === "done") {
+      tracker.state.notice =
+        e instanceof ApiError && e.kind === "offline"
+          ? "You're offline, so the task wasn't marked as done. Mark it on the dashboard later."
+          : `The task wasn't marked as done: ${e instanceof Error ? e.message : String(e)}`;
+      tracker.save();
+    }
+    if (e instanceof ApiError && e.kind !== "offline" && e.kind !== "other") await handleApiError(e);
+  }
+  push();
+}
+
+async function chooseTask(taskId: string | null) {
+  tracker.setCurrentTask(taskId);
+  push();
+  const task = tracker.currentTask;
+  // Starting work on a "to do" task moves it to "in progress" for the manager.
+  if (task && task.status === "todo") await setTaskStatus(task.id, "in_progress");
 }
 
 async function quit() {
@@ -481,7 +555,16 @@ ipcMain.handle("consent", () => {
 });
 ipcMain.handle("decline-consent", () => logout());
 ipcMain.handle("clock-in", () => clockIn());
-ipcMain.handle("clock-out", () => clockOut());
+ipcMain.handle("clock-out", (_e, summary: unknown, markDone: unknown) =>
+  clockOut(typeof summary === "string" ? summary : "", markDone === true),
+);
+ipcMain.handle("ask-clock-out", () => requestClockOut());
+ipcMain.handle("cancel-clock-out", () => {
+  askClockOut = false;
+  push();
+});
+ipcMain.handle("set-task", (_e, taskId: unknown) => chooseTask(typeof taskId === "string" && taskId ? taskId : null));
+ipcMain.handle("refresh-tasks", () => refreshTasks(true));
 ipcMain.handle("answer-idle", (_e, id: string, keep: boolean, reason: string | null) => {
   tracker.decideIdle(String(id), Boolean(keep), reason ? String(reason) : null);
   lastPendingIdleCount = tracker.pendingIdle().length;
@@ -494,7 +577,7 @@ ipcMain.handle("dismiss-notice", () => {
   push();
 });
 ipcMain.handle("open-dashboard", (_e, page: string) => {
-  const safe = ["/dashboard", "/dashboard/activity", "/dashboard/timesheets", "/forgot-password", "/signup"].includes(page) ? page : "/dashboard";
+  const safe = ["/dashboard", "/dashboard/activity", "/dashboard/timesheets", "/dashboard/tasks", "/forgot-password", "/signup"].includes(page) ? page : "/dashboard";
   void shell.openExternal(`${DASHBOARD_URL}${safe}`);
 });
 ipcMain.handle("retry-sync", () => sync());

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { requireMember } from "@/lib/session";
-import { formatClock, formatHours, percent } from "@/lib/time";
+import { formatClock, formatHours, localDateIn, percent } from "@/lib/time";
 import {
   displayName,
   liveStatus,
@@ -46,7 +46,25 @@ export default async function OverviewPage({
   ]);
 
   const people = visibleMembers(me, members.filter((m) => m.status === "active"), teams);
-  const today = await loadToday(supabase, people);
+  const [today, { data: doneRows }] = await Promise.all([
+    loadToday(supabase, people),
+    // Finished in the last 36 h; counted below per person's own "today".
+    supabase
+      .from("tasks")
+      .select("assignee_id, completed_at")
+      .eq("status", "done")
+      .gte("completed_at", new Date(Date.now() - 36 * 3600_000).toISOString())
+      .not("assignee_id", "is", null)
+      .limit(2000),
+  ]);
+  const tz = new Map(people.map((m) => [m.user_id, m.timezone]));
+  const doneToday = new Map<string, number>();
+  for (const t of (doneRows ?? []) as Array<{ assignee_id: string; completed_at: string }>) {
+    const zone = tz.get(t.assignee_id);
+    if (zone && localDateIn(zone, new Date(t.completed_at)) === localDateIn(zone)) {
+      doneToday.set(t.assignee_id, (doneToday.get(t.assignee_id) ?? 0) + 1);
+    }
+  }
 
   const rows = people
     .map((m) => {
@@ -61,6 +79,7 @@ export default async function OverviewPage({
     total: rows.length,
     tracked: rows.reduce((s, r) => s + (r.stat?.tracked_seconds ?? 0), 0),
     active: rows.reduce((s, r) => s + (r.stat?.active_seconds ?? 0), 0),
+    done: rows.reduce((s, r) => s + (doneToday.get(r.m.user_id) ?? 0), 0),
   };
   const firstName = profile?.full_name?.split(" ")[0];
   const memberCount = members.filter((m) => m.status === "active").length;
@@ -89,19 +108,21 @@ export default async function OverviewPage({
         </p>
       )}
 
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {(admin || me.role === "manager"
           ? [
               { label: "Working now", value: `${counts.working} of ${counts.total}` },
               { label: "Idle now", value: counts.idle },
               { label: "Hours today", value: formatHours(counts.tracked) },
               { label: "Activity today", value: percent(counts.active, counts.tracked) },
+              { label: "Tasks done today", value: counts.done },
             ]
           : [
               { label: "Status", value: STATUS_LABEL[rows[0]?.status ?? "not_working"] },
               { label: "Hours today", value: formatHours(counts.tracked) },
               { label: "Activity today", value: percent(counts.active, counts.tracked) },
               { label: "Clocked in at", value: rows[0]?.session ? formatClock(rows[0].session.started_at, me.timezone) : "–" },
+              { label: "Tasks done today", value: counts.done },
             ]
         ).map((s) => (
           <div key={s.label} className="card p-4">
@@ -165,6 +186,7 @@ export default async function OverviewPage({
                   <th className="px-5 py-2.5 font-medium">Since</th>
                   <th className="px-5 py-2.5 font-medium">Today</th>
                   <th className="px-5 py-2.5 font-medium">Activity</th>
+                  <th className="px-5 py-2.5 font-medium">Tasks done</th>
                   <th className="px-5 py-2.5 font-medium">Now using</th>
                 </tr>
               </thead>
@@ -191,6 +213,7 @@ export default async function OverviewPage({
                       <td className="px-5 py-3">
                         <ActivityMeter active={stat?.active_seconds ?? 0} tracked={stat?.tracked_seconds ?? 0} />
                       </td>
+                      <td className="px-5 py-3 tabular-nums text-slate-600">{doneToday.get(m.user_id) || "–"}</td>
                       <td className="max-w-48 truncate px-5 py-3 text-slate-600">
                         {status === "working" || status === "idle" ? (session?.current_app ?? "–") : "–"}
                       </td>

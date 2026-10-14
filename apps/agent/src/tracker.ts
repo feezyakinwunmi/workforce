@@ -35,7 +35,19 @@ type BlockRec = Versioned & {
   idle: number;
   discarded: number;
   apps: Record<string, number>; // "app\u0000title" -> seconds
+  tasks?: Record<string, number>; // task id -> seconds (agent 0.2+)
 };
+type ReportRec = Versioned & { id: string; session_id: string; work_date: string; summary: string };
+
+export type TaskItem = {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  project_name: string | null;
+  due_date: string | null;
+};
+
 type IdleRec = Versioned & {
   id: string;
   session_id: string;
@@ -63,6 +75,9 @@ export type TrackerState = {
   clockOffsetMs: number;
   lastSyncAt: number | null;
   notice: string | null;
+  currentTaskId?: string | null; // task being worked on (agent 0.2+)
+  taskCache?: TaskItem[]; // the worker's open tasks, kept for offline use
+  reports?: Record<string, ReportRec>; // end-of-session reports waiting to upload
 };
 
 export type Payload = {
@@ -80,9 +95,16 @@ export type Payload = {
     decision: string;
     reason: string | null;
   }>;
+  task_time: Array<{ session_id: string; block_start: string; task_id: string; seconds: number }>;
+  reports: Array<{ id: string; session_id: string; work_date: string; summary: string }>;
 };
 
-type Snapshot = { sessions: Record<string, number>; blocks: Record<string, number>; idle: Record<string, number> };
+type Snapshot = {
+  sessions: Record<string, number>;
+  blocks: Record<string, number>;
+  idle: Record<string, number>;
+  reports: Record<string, number>;
+};
 
 const DEFAULT_SETTINGS: Settings = { idle_timeout_minutes: 5, track_apps: true, track_urls: false };
 const MAX_APPS_PER_BLOCK = 30;
@@ -262,6 +284,7 @@ export class Tracker {
         const b = this.block(session.id, seg.start);
         b.active += seg.seconds;
         this.addApp(b, window, seg.seconds);
+        this.addTask(b, seg.seconds);
         b.v++;
       }
       this.state.today.active += elapsed;
@@ -272,6 +295,7 @@ export class Tracker {
         const b = this.block(session.id, seg.start);
         b.idle += seg.seconds;
         if (!this.state.activeIdleId) this.addApp(b, window, seg.seconds);
+        this.addTask(b, seg.seconds); // removed again if the worker discards this idle time
         b.v++;
       }
       this.state.today.tracked += elapsed;
@@ -315,6 +339,46 @@ export class Tracker {
   }
 
   // ------------------------------------------------------------------
+  // Tasks and end-of-session reports
+  // ------------------------------------------------------------------
+
+  setTaskCache(tasks: TaskItem[]) {
+    this.state.taskCache = tasks;
+    // The task was finished or reassigned elsewhere: stop counting time on it.
+    if (this.state.currentTaskId && !tasks.some((t) => t.id === this.state.currentTaskId)) {
+      this.state.currentTaskId = null;
+    }
+    this.save();
+  }
+
+  setCurrentTask(taskId: string | null) {
+    this.state.currentTaskId = taskId && (this.state.taskCache ?? []).some((t) => t.id === taskId) ? taskId : null;
+    this.save();
+  }
+
+  get currentTask(): TaskItem | null {
+    const id = this.state.currentTaskId;
+    return id ? ((this.state.taskCache ?? []).find((t) => t.id === id) ?? null) : null;
+  }
+
+  /** "What I got done" for the session that is ending; uploaded with the next batch. */
+  addReport(summary: string) {
+    const session = this.session;
+    const text = summary.trim().slice(0, 5000);
+    if (!session || !text) return;
+    const id = uuid();
+    (this.state.reports ??= {})[id] = {
+      id,
+      session_id: session.id,
+      work_date: localDate(this.now()),
+      summary: text,
+      v: 1,
+      sent: 0,
+    };
+    this.save();
+  }
+
+  // ------------------------------------------------------------------
   // Idle periods
   // ------------------------------------------------------------------
 
@@ -349,6 +413,8 @@ export class Tracker {
         const m = Math.min(secs, b.idle);
         b.idle -= m;
         b.discarded += m;
+        trimProportionally(b.apps, m);
+        if (b.tasks) trimProportionally(b.tasks, m);
         b.v++;
         moved += m;
       }
@@ -368,7 +434,8 @@ export class Tracker {
     return (
       Object.values(this.state.sessions).some(dirty) ||
       Object.values(this.state.blocks).some(dirty) ||
-      Object.values(this.state.idle).some(dirty)
+      Object.values(this.state.idle).some(dirty) ||
+      Object.values(this.state.reports ?? {}).some(dirty)
     );
   }
 
@@ -377,14 +444,15 @@ export class Tracker {
     return (
       Object.values(this.state.sessions).filter(dirty).length +
       Object.values(this.state.blocks).filter(dirty).length +
-      Object.values(this.state.idle).filter(dirty).length
+      Object.values(this.state.idle).filter(dirty).length +
+      Object.values(this.state.reports ?? {}).filter(dirty).length
     );
   }
 
   /** Everything changed since the last successful upload. */
   buildPayload(deviceId: string): { payload: Payload; snapshot: Snapshot } | null {
     if (!this.hasUnsent()) return null;
-    const snapshot: Snapshot = { sessions: {}, blocks: {}, idle: {} };
+    const snapshot: Snapshot = { sessions: {}, blocks: {}, idle: {}, reports: {} };
     const payload: Payload = {
       batch_id: uuid(),
       device_id: deviceId,
@@ -393,6 +461,8 @@ export class Tracker {
       blocks: [],
       apps: [],
       idle_periods: [],
+      task_time: [],
+      reports: [],
     };
 
     const changedBlocks = Object.entries(this.state.blocks).filter(([, b]) => b.v > b.sent);
@@ -412,10 +482,20 @@ export class Tracker {
       if (this.appTrackingAllowed) {
         for (const a of topApps(b.apps)) payload.apps.push({ session_id: b.session_id, block_start: b.block_start, ...a });
       }
+      for (const [taskId, secs] of Object.entries(b.tasks ?? {})) {
+        if (secs >= 1) payload.task_time.push({ session_id: b.session_id, block_start: b.block_start, task_id: taskId, seconds: clamp(secs) });
+      }
     }
 
     const changedIdle = Object.values(this.state.idle).filter((r) => r.v > r.sent);
     for (const r of changedIdle) sessionIds.add(r.session_id);
+
+    const changedReports = Object.values(this.state.reports ?? {}).filter((r) => r.v > r.sent);
+    for (const r of changedReports) {
+      snapshot.reports[r.id] = r.v;
+      sessionIds.add(r.session_id);
+      payload.reports.push({ id: r.id, session_id: r.session_id, work_date: r.work_date, summary: r.summary });
+    }
 
     for (const s of Object.values(this.state.sessions)) {
       if (s.v > s.sent || sessionIds.has(s.id)) {
@@ -453,6 +533,10 @@ export class Tracker {
       const r = this.state.idle[id];
       if (r) r.sent = Math.max(r.sent, v);
     }
+    for (const [id, v] of Object.entries(snapshot.reports)) {
+      const r = this.state.reports?.[id];
+      if (r) r.sent = Math.max(r.sent, v);
+    }
     this.state.lastSyncAt = Date.now();
     this.prune();
     this.save();
@@ -464,9 +548,11 @@ export class Tracker {
       if (s.ended_at === null || !done(s)) continue;
       const blocksLeft = Object.values(this.state.blocks).some((b) => b.session_id === id && !done(b));
       const idleLeft = Object.values(this.state.idle).some((r) => r.session_id === id && !done(r));
-      if (blocksLeft || idleLeft) continue;
+      const reportLeft = Object.values(this.state.reports ?? {}).some((r) => r.session_id === id && !done(r));
+      if (blocksLeft || idleLeft || reportLeft) continue;
       for (const [k, b] of Object.entries(this.state.blocks)) if (b.session_id === id) delete this.state.blocks[k];
       for (const [k, r] of Object.entries(this.state.idle)) if (r.session_id === id) delete this.state.idle[k];
+      for (const [k, r] of Object.entries(this.state.reports ?? {})) if (r.session_id === id) delete this.state.reports![k];
       delete this.state.sessions[id];
     }
   }
@@ -491,6 +577,9 @@ export class Tracker {
       clockOffsetMs: this.state.clockOffsetMs,
       lastSyncAt: null,
       notice: null,
+      currentTaskId: null,
+      taskCache: [],
+      reports: {},
     };
     this.save();
   }
@@ -508,9 +597,17 @@ export class Tracker {
       idle: 0,
       discarded: 0,
       apps: {},
+      tasks: {},
       v: 0,
       sent: 0,
     });
+  }
+
+  private addTask(b: BlockRec, seconds: number) {
+    const taskId = this.state.currentTaskId;
+    if (!taskId) return;
+    b.tasks ??= {};
+    b.tasks[taskId] = (b.tasks[taskId] ?? 0) + seconds;
   }
 
   private addApp(b: BlockRec, window: ActiveWindow | null, seconds: number) {
@@ -556,4 +653,15 @@ function topApps(apps: Record<string, number>) {
   const rest = rows.slice(MAX_APPS_PER_BLOCK).reduce((s, r) => s + r.seconds, 0);
   if (rest > 0) top.push({ app: "Other apps", title: "\u2026", seconds: clamp(rest) });
   return top.filter((r) => r.seconds > 0);
+}
+
+/** Remove `seconds` from a breakdown (apps or tasks), shared out by size. */
+function trimProportionally(parts: Record<string, number>, seconds: number) {
+  const total = Object.values(parts).reduce((a, b) => a + b, 0);
+  if (total <= 0 || seconds <= 0) return;
+  const keep = Math.max(0, total - seconds) / total;
+  for (const key of Object.keys(parts)) {
+    parts[key] = parts[key] * keep;
+    if (parts[key] < 0.5) delete parts[key];
+  }
 }

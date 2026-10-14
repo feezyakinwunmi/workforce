@@ -37,7 +37,7 @@ Nigeria and Africa come first, then foreign companies. Nigerian companies with s
 | 1 | Core and accounts: sign-up, workspace, invites, roles, teams, profiles, time zones | MVP (done: Week 1) |
 | 2 | Time tracking: desktop clock in/out, sessions, breaks, timesheets, manual time requests | MVP |
 | 3 | Activity monitoring: active vs idle, activity % per 10-minute block, idle prompt, apps and websites | MVP |
-| 4 | Tasks and projects: tasks, assignees, status, comments, time per task, daily work report | MVP |
+| 4 | Tasks and projects: tasks, assignees, status, comments, time per task, daily work report | MVP (done: Week 7) |
 | 5 | Screenshots: random every 10–20 min, blur, per-company on/off, retention by plan | Phase 2 |
 | 6 | Chat and groups, announcements, online status, notifications | Phase 2 |
 | 7 | Productivity insights: app labels per role, reports, output vs activity, digests | Phase 2 |
@@ -50,13 +50,13 @@ Nigeria and Africa come first, then foreign companies. Nigerian companies with s
 The MVP answers one question for a manager: "Who worked today, for how long, how actively, and on what?"
 
 - Company sign-up, invites, roles, teams, worker profiles with time zone and expected hours ✅
-- Desktop agent (Windows and macOS): login, clock in/out ✅ (current task: Week 7)
+- Desktop agent (Windows and macOS): login, clock in/out, current task ✅
 - Idle detection with a "were you working?" prompt, and activity % per 10-minute block ✅
 - App and window-title tracking ✅
 - Offline queue that syncs when the internet returns ✅
 - Dashboard: who is online now, today's hours, activity %, top apps ✅
 - Timesheets by day and week, CSV export ✅
-- Projects and tasks, time per task, daily work report at clock-out
+- Projects and tasks, time per task, daily work report at clock-out ✅
 - Company tracking settings ✅, consent screen in the agent ✅, and a worker "My activity" page ✅
 
 Left out of the MVP: screenshots, chat (pilots use WhatsApp), billing (manual invoicing), mobile app, Linux agent, leave, payroll.
@@ -93,11 +93,12 @@ Every table carries `organization_id` with RLS; timestamps are in UTC.
 | audit_logs | Who changed what | ✅ |
 | devices | One per installed agent; revocable | ✅ |
 | work_sessions | Clock-in to clock-out | ✅ |
-| time_entries | A session split by task | Week 7 |
+| task_time | Seconds per task inside each 10-minute block (replaces the planned time_entries) | ✅ |
 | activity_blocks | 10-minute blocks: active, idle and removed seconds (never keystrokes) | ✅ |
 | app_usage | App, domain, title, seconds | ✅ |
 | idle_periods | Away-from-computer stretches and the worker's keep/remove answer | ✅ |
-| projects, tasks, task_comments, daily_reports, manual_time_requests | Tasks and reports | Week 7 |
+| projects, tasks, task_comments, daily_reports | Tasks and reports | ✅ |
+| manual_time_requests | Worker asks to add time the app missed | Later |
 
 ## Desktop agent design
 

@@ -33,7 +33,14 @@ label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; colo
 input[type=email], input[type=password], input[type=text] {
   width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background: #fff;
 }
-input:focus { outline: 2px solid #ddd6fe; border-color: var(--brand); }
+select, textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; background: #fff; color: var(--ink);
+}
+textarea { resize: none; }
+input:focus, select:focus, textarea:focus { outline: 2px solid #ddd6fe; border-color: var(--brand); }
+.check { display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 0 0 4px; }
+.check span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt4 { margin-top: 4px; }
 .field { margin-bottom: 12px; }
 button {
   font: inherit; border: 0; border-radius: 9px; padding: 10px 14px; cursor: pointer; font-weight: 600;
