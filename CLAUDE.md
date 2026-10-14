@@ -44,7 +44,7 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
   - privacy: admins/owner cannot read direct messages or private groups they are not in; only managers/admins post announcements; org admins may delete (not edit) messages in channels they can read.
   - dashboard: `/dashboard/chat` (sidebar with unread + green "working now" dots, live refresh), `/dashboard/chat/[id]` (Realtime room: send, edit, delete, load older, members/add/leave/archive), `/dashboard/chat/new` (message someone, new group). Browser Supabase client `lib/supabase/client.ts` (anon key; RLS applies). Chat unread badge in the nav.
   - agent: unread chat count on the main screen + tray "Open chat"; DM/announcement pop-ups come from notifications.
-- **Migrations applied to Supabase:** 0001–0009, all live. 0004, 0007 and 0008 schedule pg_cron jobs.
+- **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0004, 0007 and 0008 schedule pg_cron jobs.
 - **Manual Supabase settings (not possible via MCP):**
   - Site URL `http://localhost:3000`, Redirect URL `http://localhost:3000/**`
   - "Confirm email" off during development
