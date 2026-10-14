@@ -10,7 +10,7 @@ type Notification = {
   id: string;
   kind:
     | "task_assigned" | "task_comment" | "task_done" | "task_due"
-    | "chat_direct" | "announcement" | "leave_requested" | "leave_decided" | "billing";
+    | "chat_direct" | "announcement" | "leave_requested" | "leave_decided" | "billing" | "mention";
   title: string;
   body: string | null;
   link: string | null;
@@ -28,6 +28,7 @@ const ICON: Record<Notification["kind"], string> = {
   leave_requested: "🌴",
   leave_decided: "🌴",
   billing: "💳",
+  mention: "@",
 };
 
 export default async function NotificationsPage() {
@@ -54,7 +55,7 @@ export default async function NotificationsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Notifications</h1>
           <p className="mt-1 text-slate-600">
-            Tasks, messages, announcements, leave and plan reminders. The desktop app shows them as pop-ups too.
+            Tasks, messages, mentions, announcements, leave and plan reminders. The desktop app shows them as pop-ups too.
           </p>
         </div>
         {unread > 0 && (

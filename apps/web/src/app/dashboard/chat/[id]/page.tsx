@@ -23,7 +23,7 @@ export default async function ChannelPage({
 }) {
   const [{ id }, { error }] = await Promise.all([params, searchParams]);
   if (!UUID.test(id)) notFound();
-  const { supabase, member: me } = await requireMember();
+  const { supabase, member: me, org } = await requireMember();
 
   const { data: channelRow } = await supabase
     .from("channels")
@@ -59,6 +59,14 @@ export default async function ChannelPage({
   for (const [pid, p] of profiles) people[pid] = { name: displayName(p), initials: initials(p.full_name ?? "", p.email ?? "") };
   const active = members.filter((m) => m.status === "active");
   const addable = active.filter((m) => !memberIds.has(m.user_id));
+  // Who can be @mentioned: active people who can read this chat (not in direct messages).
+  const mentionable =
+    channel.kind === "direct"
+      ? []
+      : active
+          .filter((m) => m.user_id !== me.user_id && (channel.kind !== "private" || memberIds.has(m.user_id)))
+          .map((m) => ({ id: m.user_id, name: people[m.user_id]?.name ?? "Unknown" }))
+          .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="card flex h-[calc(100vh-8rem)] min-h-[480px] flex-col overflow-hidden">
@@ -139,7 +147,9 @@ export default async function ChannelPage({
       <ChatRoom
         key={id}
         channelId={id}
+        orgId={org.id}
         meId={me.user_id}
+        mentionable={mentionable}
         initial={messages}
         hasMore={messages.length === PAGE_SIZE}
         people={people}

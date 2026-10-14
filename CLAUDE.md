@@ -50,9 +50,10 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
   - dashboard: `/dashboard/leave` (balances, request form with live day count, my requests, approvals, who's off in 30 days, holidays), `/dashboard/leave/settings` (admins: leave types, holidays, Nigerian presets 2026/2027 in `lib/leave.ts` with Eid/Maulud marked estimated). Timesheets mark approved leave and holidays; CSV adds "Leave days"; Overview shows "On leave"; nav badge for pending approvals.
 - **Payroll (Standard plan, owner/admin):** migration 0012 `payroll` (applied live): `member_pay` (one rate per person: hourly/monthly, NGN/USD, minor units; owner/admin read+write, each person reads own; changes audited by trigger). `lib/payroll.ts` `buildPayroll`: hourly = (hours + paid leave days × expected hours/day) × rate; monthly = salary − unpaid leave share of working days; "no time" days shown, never auto-deducted. `/dashboard/payroll` (+ `/export` CSV).
 - Plans now: leave is in every plan; payroll is Standard; Pro = screenshots (coming).
+- **Chat files and @mentions:** migrations 0015 `chat_mention_kind` (enum `mention`), 0016 `chat_files_and_mentions`, 0017 `chat_file_removal` (all applied live). `messages.attachments` (jsonb array ≤ 5: path, name, size, type) and `messages.mentions` (uuid[] ≤ 20); text or a file required (`messages_content_check`). Private Storage bucket `chat-files` (10 MB, images/PDF/Office/text/CSV/zip, no SVG/HTML), path `<org>/<channel>/<uuid>/<name>`; `private.chat_file_channel(name)` parses it; storage policies reuse `can_read_channel` (download) / `can_post_channel` (upload); delete = uploader or org admin who can read the chat. `guard_message` only accepts files the author uploaded to that chat and takes size/type from Storage; keeps only mentions of active members who can read the chat; files and mentions are fixed after sending and cleared on delete. `after_message` sends `mention` notifications in public/private groups (not DMs or announcements). UI (`chat/[id]/room.tsx`): 📎 button, drag/drop and paste, image previews and file chips via 1-hour signed URLs, @ autocomplete (arrow keys, Enter/Tab), mentions highlighted (yours in amber); deleting a message also removes its files. Test: scratchpad test10 (23 checks).
 - **Plan reminders and receipts:** migrations 0013 `billing_reminder_kind` (enum value `billing`, its own migration because a new enum value must be committed before use) and 0014 `billing_reminders` (applied live): `notifications.emailed_at`; unique index `notifications_billing_once`; `private.billing_reminders()` notifies owner/admins 7 days and 1 day before the paid plan or trial ends (pg_cron `billing-reminders`, 07:00 UTC); `claim_billing_emails()` (service_role only) returns unsent ones and marks them emailed. Vercel cron (`apps/web/vercel.json`, 07:30 UTC) → `/api/cron/billing-reminders` (needs env `CRON_SECRET`, checks `Authorization: Bearer`; doesn't claim when SMTP is unset) → `sendEmail` in `lib/email.ts`. Receipts: `/dashboard/billing/receipt/[id]` (admins, successful payments, print/PDF; "no VAT charged"). Dashboard sidebar and banners hide when printing.
 - **Public homepage** (`app/page.tsx` + `app/_landing/timeline.tsx`): hero = the product's own day timeline for a team across time zones (one load animation, reduced-motion safe), set-up steps, features, privacy ("it never records"), naira pricing from `lib/billing.ts`, FAQ. Font: Bricolage Grotesque (next/font) on this page only. Logged-in visitors get "Open dashboard". Update the privacy list if screenshots ever ship.
-- **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0010–0014 are live too. 0004, 0007, 0008 and 0014 schedule pg_cron jobs.
+- **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0010–0017 are live too. 0004, 0007, 0008 and 0014 schedule pg_cron jobs.
 - **Manual Supabase settings (not possible via MCP):**
   - Site URL `http://localhost:3000`, Redirect URL `http://localhost:3000/**`
   - "Confirm email" off during development
@@ -88,11 +89,11 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/lib/paystack.ts     Paystack initialize/verify/webhook signature, recordSuccess (service role)
   src/lib/supabase/admin.ts  service-role client (server only, payments confirmation only)
   src/lib/supabase/client.ts browser client (chat Realtime + sending messages; anon key)
-  src/lib/chat.ts         chat types and helpers
+  src/lib/chat.ts         chat types and helpers (attachments, file limits, storage names)
   src/lib/payroll.ts      monthly pay calculation (hours, leave, holidays, rates)
   src/lib/leave.ts        leave types/labels, countLeaveDays (mirrors private.leave_days), Nigerian holiday presets
   src/app/(legal)         public what-we-track, privacy, terms pages
-supabase/migrations/      SQL migrations, in order (applied: 0001–0014)
+supabase/migrations/      SQL migrations, in order (applied: 0001–0017)
 docs/SPEC.md              product spec and roadmap
 ```
 
@@ -152,13 +153,13 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 ## Next steps
 
 1. Femi: push tag `agent-v0.6.0` (name change + pop-up fix); Paystack test setup (docs/DEPLOY.md §8), email (§7) and `CRON_SECRET` (§9) if not done.
-2. Chat extras when pilots ask: file/image attachments (Supabase Storage), @mentions with notifications, message search, typing indicators.
+2. Chat extras when pilots ask: message search, typing indicators, reactions/threads.
 3. Pro plan screenshots (off by default, optional blur, workers told first); Mac build (Apple Developer account).
 
 ## Known gaps / backlog
 
 - Billing: no automatic renewals (prepaid only), no VAT invoices (receipts only), no USD checkout; seat limit is enforced by the desktop app (server still accepts uploads).
-- Chat: text only (no files, reactions, threads, mentions or search yet); the desktop app shows unread counts and pop-ups but chatting happens in the dashboard.
+- Chat: no reactions, threads or search yet; files left behind by a failed removal stay in Storage (unreachable without the path); the desktop app shows unread counts and pop-ups but chatting happens in the dashboard.
 - No task attachments or recurring tasks; no per-user email opt-out yet; due-tomorrow reminders are in-app/desktop only (no email).
 - Agent pop-ups only appear while the desktop app is running and logged in.
 - macOS agent gets the app name only (window titles need Accessibility permission work).

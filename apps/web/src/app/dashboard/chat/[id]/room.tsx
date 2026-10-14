@@ -1,12 +1,26 @@
 "use client";
 
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { MESSAGE_COLUMNS, PAGE_SIZE, type ChatMessage } from "@/lib/chat";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  ALLOWED_FILE_TYPES,
+  CHAT_BUCKET,
+  FILE_ACCEPT,
+  fileSize,
+  isImage,
+  MAX_FILE_BYTES,
+  MAX_FILES,
+  MESSAGE_COLUMNS,
+  PAGE_SIZE,
+  storageName,
+  type Attachment,
+  type ChatMessage,
+} from "@/lib/chat";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 export type Person = { name: string; initials: string };
+type Mentionable = { id: string; name: string };
 
 const dayKey = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
@@ -20,11 +34,17 @@ const dayLabel = (iso: string, timeZone: string) => {
   if (key === yesterday) return "Yesterday";
   return new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone }).format(new Date(iso));
 };
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Messages of one channel, live (Supabase Realtime), with a box to write. */
+/** Rows from Realtime may miss the new columns for a moment; fill them in. */
+const normalize = (m: ChatMessage): ChatMessage => ({ ...m, attachments: m.attachments ?? [], mentions: m.mentions ?? [] });
+
+/** Messages of one channel, live (Supabase Realtime), with a box to write, files and @mentions. */
 export function ChatRoom({
   channelId,
+  orgId,
   meId,
+  mentionable,
   initial,
   hasMore: initialHasMore,
   people,
@@ -35,7 +55,9 @@ export function ChatRoom({
   cannotPostReason,
 }: {
   channelId: string;
+  orgId: string;
   meId: string;
+  mentionable: Mentionable[];
   initial: ChatMessage[];
   hasMore: boolean;
   people: Record<string, Person>;
@@ -45,17 +67,25 @@ export function ChatRoom({
   placeholder: string;
   cannotPostReason: string;
 }) {
-  const [messages, setMessages] = useState(initial);
+  const [messages, setMessages] = useState(() => initial.map(normalize));
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [draft, setDraft] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [picked, setPicked] = useState<Mentionable[]>([]); // people chosen from the @ list
+  const [suggest, setSuggest] = useState<{ query: string; start: number; index: number } | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
+  const [urls, setUrls] = useState<Record<string, string>>({});
   const listRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const stick = useRef(true); // keep scrolled to the bottom unless the reader scrolled up
   const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const asked = useRef(new Set<string>());
 
-  const upsert = useCallback((m: ChatMessage) => {
+  const upsert = useCallback((raw: ChatMessage) => {
+    const m = normalize(raw);
     setMessages((prev) => {
       const i = prev.findIndex((x) => x.id === m.id);
       if (i >= 0) {
@@ -76,7 +106,7 @@ export function ChatRoom({
 
   // Live updates for this channel.
   useEffect(() => {
-    setMessages(initial);
+    setMessages(initial.map(normalize));
     const supabase = createClient();
     const sub = supabase
       .channel(`room-${channelId}`)
@@ -98,6 +128,24 @@ export function ChatRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
+  // Short-lived download links for files in view (Storage checks you can read the chat).
+  useEffect(() => {
+    const missing = [...new Set(messages.flatMap((m) => m.attachments.map((a) => a.path)))].filter((p) => !asked.current.has(p));
+    if (!missing.length) return;
+    missing.forEach((p) => asked.current.add(p));
+    void createClient()
+      .storage.from(CHAT_BUCKET)
+      .createSignedUrls(missing, 60 * 60)
+      .then(({ data }) => {
+        if (!data) return;
+        setUrls((prev) => {
+          const next = { ...prev };
+          for (const d of data) if (d.path && d.signedUrl) next[d.path] = d.signedUrl;
+          return next;
+        });
+      });
+  }, [messages]);
+
   useLayoutEffect(() => {
     const el = listRef.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
@@ -115,7 +163,7 @@ export function ChatRoom({
       .lt("created_at", oldest.created_at)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
-    const older = ((data ?? []) as ChatMessage[]).reverse();
+    const older = ((data ?? []) as ChatMessage[]).map(normalize).reverse();
     setHasMore(older.length === PAGE_SIZE);
     stick.current = false;
     setMessages((prev) => [...older.filter((o) => !prev.some((p) => p.id === o.id)), ...prev]);
@@ -124,30 +172,56 @@ export function ChatRoom({
     });
   }
 
+  function addFiles(list: FileList | File[]) {
+    const incoming = Array.from(list);
+    const bad = incoming.find((f) => !ALLOWED_FILE_TYPES.includes(f.type));
+    const big = incoming.find((f) => f.size > MAX_FILE_BYTES);
+    if (bad) return setError(`${bad.name}: this kind of file can't be shared. Use images, PDF, Office, text, CSV or zip files.`);
+    if (big) return setError(`${big.name} is larger than ${fileSize(MAX_FILE_BYTES)}.`);
+    setError(files.length + incoming.length > MAX_FILES ? `Up to ${MAX_FILES} files per message.` : null);
+    setFiles((prev) => [...prev, ...incoming].slice(0, MAX_FILES));
+  }
+
   async function send() {
     const body = draft.trim();
-    if (!body || sending) return;
+    if ((!body && !files.length) || sending) return;
     setSending(true);
     setError(null);
-    const { data, error: err } = await createClient()
-      .from("messages")
-      .insert({ channel_id: channelId, body })
-      .select(MESSAGE_COLUMNS)
-      .single();
-    setSending(false);
-    if (err) {
-      setError(/row-level security/i.test(err.message) ? cannotPostReason : err.message);
-      return;
+    const supabase = createClient();
+    const uploaded: Array<{ path: string; name: string }> = [];
+    try {
+      for (const f of files) {
+        const path = `${orgId}/${channelId}/${crypto.randomUUID()}/${storageName(f.name)}`;
+        const { error: upErr } = await supabase.storage.from(CHAT_BUCKET).upload(path, f, { contentType: f.type, upsert: false });
+        if (upErr) throw new Error(/row-level security|unauthori[sz]ed/i.test(upErr.message) ? cannotPostReason : `${f.name}: ${upErr.message}`);
+        uploaded.push({ path, name: f.name });
+      }
+      const mentions = picked.filter((p) => body.includes(`@${p.name}`)).map((p) => p.id);
+      const { data, error: err } = await supabase
+        .from("messages")
+        .insert({ channel_id: channelId, body, attachments: uploaded, mentions })
+        .select(MESSAGE_COLUMNS)
+        .single();
+      if (err) throw new Error(/row-level security/i.test(err.message) ? cannotPostReason : err.message);
+      setDraft("");
+      setFiles([]);
+      setPicked([]);
+      setSuggest(null);
+      stick.current = true;
+      upsert(data as ChatMessage);
+    } catch (e) {
+      if (uploaded.length) void supabase.storage.from(CHAT_BUCKET).remove(uploaded.map((u) => u.path));
+      setError(e instanceof Error ? e.message : "Could not send the message.");
+    } finally {
+      setSending(false);
     }
-    setDraft("");
-    stick.current = true;
-    upsert(data as ChatMessage);
   }
 
   async function saveEdit() {
     if (!editing) return;
     const body = editing.body.trim();
-    if (!body) return;
+    const original = messages.find((m) => m.id === editing.id);
+    if (!body && !original?.attachments.length) return;
     const { data, error: err } = await createClient()
       .from("messages")
       .update({ body })
@@ -159,16 +233,108 @@ export function ChatRoom({
     upsert(data as ChatMessage);
   }
 
-  async function remove(id: string) {
+  async function remove(m: ChatMessage) {
     if (!window.confirm("Delete this message? This can't be undone.")) return;
-    const { data, error: err } = await createClient()
+    const supabase = createClient();
+    const { data, error: err } = await supabase
       .from("messages")
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id)
+      .eq("id", m.id)
       .select(MESSAGE_COLUMNS)
       .single();
     if (err) return setError(err.message);
     upsert(data as ChatMessage);
+    // The files go too (uploader or company admin; anything left is harmless and unreachable).
+    if (m.attachments.length) void supabase.storage.from(CHAT_BUCKET).remove(m.attachments.map((a) => a.path));
+  }
+
+  // ---- @mentions -------------------------------------------------------
+  const matches = useMemo(() => {
+    if (!suggest) return [];
+    const q = suggest.query.toLowerCase();
+    return mentionable
+      .filter((p) => p.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)) || p.name.toLowerCase().startsWith(q))
+      .slice(0, 6);
+  }, [suggest, mentionable]);
+
+  function onDraftChange(value: string, caret: number) {
+    setDraft(value);
+    if (!mentionable.length) return;
+    const before = value.slice(0, caret);
+    const m = /(^|\s)@([^\s@]{0,30})$/.exec(before);
+    setSuggest(m ? { query: m[2], start: caret - m[2].length - 1, index: 0 } : null);
+  }
+
+  function pickMention(p: Mentionable) {
+    if (!suggest) return;
+    const box = boxRef.current;
+    const caret = box?.selectionStart ?? draft.length;
+    const insert = `@${p.name} `;
+    const next = draft.slice(0, suggest.start) + insert + draft.slice(caret);
+    setDraft(next);
+    setPicked((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p]));
+    setSuggest(null);
+    requestAnimationFrame(() => {
+      if (!box) return;
+      box.focus();
+      const pos = suggest.start + insert.length;
+      box.setSelectionRange(pos, pos);
+    });
+  }
+
+  /** Message text with mentions highlighted (yours stronger). */
+  function renderBody(m: ChatMessage) {
+    const named = m.mentions
+      .map((id) => ({ id, name: people[id]?.name }))
+      .filter((x): x is { id: string; name: string } => Boolean(x.name))
+      .sort((a, b) => b.name.length - a.name.length);
+    if (!named.length) return m.body;
+    const re = new RegExp(`(@(?:${named.map((n) => escapeRegExp(n.name)).join("|")}))`, "g");
+    return m.body.split(re).map((part, i) => {
+      const who = part.startsWith("@") ? named.find((n) => `@${n.name}` === part) : undefined;
+      if (!who) return <Fragment key={i}>{part}</Fragment>;
+      return (
+        <span key={i} className={cn("rounded px-0.5 font-medium", who.id === meId ? "bg-amber-100 text-amber-900" : "bg-brand-50 text-brand-700")}>
+          {part}
+        </span>
+      );
+    });
+  }
+
+  function renderFiles(list: Attachment[]) {
+    if (!list.length) return null;
+    return (
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {list.map((a) => {
+          const url = urls[a.path];
+          if (isImage(a)) {
+            return (
+              <a key={a.path} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 bg-slate-50" title={a.name}>
+                {url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={url} alt={a.name} className="max-h-60 max-w-[280px] object-contain" loading="lazy" />
+                ) : (
+                  <span className="flex h-24 w-40 items-center justify-center text-xs text-slate-400">Loading image…</span>
+                )}
+              </a>
+            );
+          }
+          return (
+            <a
+              key={a.path}
+              href={url ? `${url}&download=${encodeURIComponent(a.name)}` : undefined}
+              className="flex max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:border-brand-300"
+            >
+              <span aria-hidden>📄</span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-slate-800">{a.name}</span>
+                <span className="block text-xs text-slate-500">{fileSize(a.size)} · Download</span>
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    );
   }
 
   return (
@@ -196,6 +362,7 @@ export function ChatRoom({
               Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60_000;
             const who = m.author_id ? people[m.author_id] : undefined;
             const mine = m.author_id === meId;
+            const mentionsMe = m.mentions.includes(meId);
             return (
               <li key={m.id}>
                 {newDay && (
@@ -205,7 +372,7 @@ export function ChatRoom({
                     <span className="h-px flex-1 bg-slate-200" />
                   </div>
                 )}
-                <div className={cn("group flex gap-3 rounded-lg px-2 py-0.5 hover:bg-slate-50", !grouped && "mt-2")}>
+                <div className={cn("group flex gap-3 rounded-lg px-2 py-0.5 hover:bg-slate-50", !grouped && "mt-2", mentionsMe && !m.deleted_at && "bg-amber-50/60")}>
                   <div className="w-8 shrink-0">
                     {!grouped && (
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
@@ -244,10 +411,15 @@ export function ChatRoom({
                         </div>
                       </div>
                     ) : (
-                      <p className="whitespace-pre-wrap break-words text-sm text-slate-800">
-                        {m.body}
-                        {m.edited_at && <span className="ml-1 text-xs text-slate-400">(edited)</span>}
-                      </p>
+                      <>
+                        {(m.body || m.edited_at) && (
+                          <p className="whitespace-pre-wrap break-words text-sm text-slate-800">
+                            {renderBody(m)}
+                            {m.edited_at && <span className="ml-1 text-xs text-slate-400">(edited)</span>}
+                          </p>
+                        )}
+                        {renderFiles(m.attachments)}
+                      </>
                     )}
                   </div>
                   {!m.deleted_at && editing?.id !== m.id && (mine || canModerate) && (
@@ -255,7 +427,7 @@ export function ChatRoom({
                       {mine && (
                         <button className="text-xs text-slate-400 hover:text-slate-700" onClick={() => setEditing({ id: m.id, body: m.body })}>Edit</button>
                       )}
-                      <button className="text-xs text-slate-400 hover:text-red-600" onClick={() => void remove(m.id)}>Delete</button>
+                      <button className="text-xs text-slate-400 hover:text-red-600" onClick={() => void remove(m)}>Delete</button>
                     </div>
                   )}
                 </div>
@@ -265,38 +437,136 @@ export function ChatRoom({
         </ol>
       </div>
 
-      <div className="border-t border-slate-200 p-3">
+      <div
+        className="border-t border-slate-200 p-3"
+        onDragOver={(e) => canPost && e.dataTransfer.types.includes("Files") && e.preventDefault()}
+        onDrop={(e) => {
+          if (!canPost || !e.dataTransfer.files.length) return;
+          e.preventDefault();
+          addFiles(e.dataTransfer.files);
+        }}
+      >
         {error && <p role="alert" className="mb-2 rounded-lg bg-red-50 px-3 py-1.5 text-sm text-red-700">{error}</p>}
         {canPost ? (
-          <form
-            className="flex items-end gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
-          >
-            <label htmlFor="chat-box" className="sr-only">Message</label>
-            <textarea
-              id="chat-box"
-              className="input max-h-40 min-h-10 flex-1 resize-none"
-              rows={1}
-              maxLength={4000}
-              placeholder={placeholder}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
+          <>
+            {files.length > 0 && (
+              <ul className="mb-2 flex flex-wrap gap-2">
+                {files.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs">
+                    <span aria-hidden>{f.type.startsWith("image/") ? "🖼️" : "📄"}</span>
+                    <span className="max-w-[180px] truncate">{f.name}</span>
+                    <span className="text-slate-400">{fileSize(f.size)}</span>
+                    <button
+                      type="button"
+                      className="text-slate-400 hover:text-red-600"
+                      aria-label={`Remove ${f.name}`}
+                      onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form
+              className="relative flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void send();
               }}
-            />
-            <button className="btn-primary" disabled={sending || !draft.trim()}>{sending ? "Sending…" : "Send"}</button>
-          </form>
+            >
+              {suggest && matches.length > 0 && (
+                <ul role="listbox" aria-label="People to mention" className="absolute bottom-full left-10 z-20 mb-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg">
+                  {matches.map((p, i) => (
+                    <li key={p.id} role="option" aria-selected={i === suggest.index}>
+                      <button
+                        type="button"
+                        className={cn("block w-full truncate px-3 py-1.5 text-left", i === suggest.index ? "bg-brand-50 text-brand-800" : "hover:bg-slate-50")}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          pickMention(p);
+                        }}
+                      >
+                        @{p.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                accept={FILE_ACCEPT}
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                className="btn-secondary h-10 px-3"
+                title={`Attach files (up to ${MAX_FILES}, ${fileSize(MAX_FILE_BYTES)} each)`}
+                aria-label="Attach files"
+                onClick={() => fileRef.current?.click()}
+              >
+                📎
+              </button>
+              <label htmlFor="chat-box" className="sr-only">Message</label>
+              <textarea
+                ref={boxRef}
+                id="chat-box"
+                className="input max-h-40 min-h-10 flex-1 resize-none"
+                rows={1}
+                maxLength={4000}
+                placeholder={placeholder}
+                value={draft}
+                onChange={(e) => onDraftChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+                onPaste={(e) => {
+                  if (e.clipboardData.files.length) {
+                    e.preventDefault();
+                    addFiles(e.clipboardData.files);
+                  }
+                }}
+                onBlur={() => setTimeout(() => setSuggest(null), 150)}
+                onKeyDown={(e) => {
+                  if (suggest && matches.length) {
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const step = e.key === "ArrowDown" ? 1 : -1;
+                      setSuggest({ ...suggest, index: (suggest.index + step + matches.length) % matches.length });
+                      return;
+                    }
+                    if (e.key === "Enter" || e.key === "Tab") {
+                      e.preventDefault();
+                      pickMention(matches[suggest.index] ?? matches[0]);
+                      return;
+                    }
+                    if (e.key === "Escape") {
+                      setSuggest(null);
+                      return;
+                    }
+                  }
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+              />
+              <button className="btn-primary" disabled={sending || (!draft.trim() && !files.length)}>
+                {sending ? (files.length ? "Uploading…" : "Sending…") : "Send"}
+              </button>
+            </form>
+          </>
         ) : (
           <p className="px-2 py-1 text-sm text-slate-500">{cannotPostReason}</p>
         )}
-        {canPost && <p className="mt-1 px-1 text-[11px] text-slate-400">Enter to send · Shift + Enter for a new line</p>}
+        {canPost && (
+          <p className="mt-1 px-1 text-[11px] text-slate-400">
+            Enter to send · Shift + Enter for a new line{mentionable.length > 0 && " · @ to mention someone"} · drop or paste files to attach
+          </p>
+        )}
       </div>
     </>
   );
