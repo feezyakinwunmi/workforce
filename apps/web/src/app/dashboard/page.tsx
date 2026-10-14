@@ -69,7 +69,7 @@ export default async function OverviewPage({
     { done: true, label: "Create your company", href: null },
     { done: memberCount > 1 || inviteCount > 0, label: "Invite your team", href: "/dashboard/team" },
     { done: memberCount > 1, label: "First worker joins", href: "/dashboard/team" },
-    { done: deviceCount > 0, label: "Someone logs in to the desktop app", href: null },
+    { done: deviceCount > 0, label: "Someone installs the desktop app and logs in", href: "/download" },
   ];
   const showSetup = admin && steps.some((s) => !s.done);
 
@@ -110,6 +110,16 @@ export default async function OverviewPage({
           </div>
         ))}
       </section>
+
+      {!admin && deviceCount === 0 && (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-200 bg-brand-50 p-5">
+          <div>
+            <p className="font-semibold text-brand-900">Install the desktop app to start tracking your time</p>
+            <p className="text-sm text-brand-900/80">Clock in and out from your computer. It takes a minute to set up.</p>
+          </div>
+          <Link href="/download" className="btn-primary">Download the app</Link>
+        </section>
+      )}
 
       {showSetup && (
         <section className="card p-5">

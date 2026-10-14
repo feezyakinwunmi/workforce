@@ -8,6 +8,10 @@
     "dev": "npm run dev --workspace web",
     "agent": "npm run dev --workspace agent",
     "build": "npm run build --workspace web && npm run build --workspace agent",
-    "lint": "npm run lint --workspace web"
+    "typecheck": "npm run typecheck --workspace web && npm run typecheck --workspace agent",
+    "fix:electron": "powershell -NoProfile -ExecutionPolicy Bypass -File apps/agent/scripts/fix-electron.ps1"
+  },
+  "engines": {
+    "node": ">=20 <25"
   }
 }

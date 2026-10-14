@@ -23,6 +23,8 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - **Weeks 2–6 core done:**
   - Electron desktop agent (`apps/agent`): login, consent, clock in/out, idle detection + prompt, app/window tracking, offline queue, heartbeat, tray
   - dashboard: live "who is working now" (Overview), per-person day view (`/dashboard/activity`), weekly timesheets + CSV
+- **Distribution (prepared, not yet published):** electron-builder one-click NSIS installer + electron-updater (`src/updater.ts`, installs only while clocked out), GitHub Actions release on tag `agent-v<version>` → public repo `feezyakinwunmi/workforce-releases`, public `/download` page, CI on every push. Steps Femi must do once: docs/DEPLOY.md.
+- **Agent ran on Femi's Windows PC from source** (after the Node 26 Electron unzip issue; fix: `npm run fix:electron`).
 - **Migrations applied to Supabase:** 0001–0005, all live. 0004 schedules pg_cron jobs.
 - **Not yet run on a real machine:** the desktop agent was built where Electron could not be installed. The tracking logic was tested with a simulated workday, and its upload format against the real `ingest_batch`. First job in a new session: `npm install`, `npm run agent`, then fix any startup or type errors.
 - **Manual Supabase settings (not possible via MCP):**
@@ -56,7 +58,8 @@ supabase/migrations/      SQL migrations, in order (applied: 0001–0005)
 docs/SPEC.md              product spec and roadmap
 ```
 
-Commands (repo root): `npm install`, `npm run dev` (dashboard), `npm run agent` (desktop app), `npm run build`, `npm run typecheck --workspace web`, `npm run typecheck --workspace agent`.
+Commands (repo root): `npm install`, `npm run dev` (dashboard), `npm run agent` (desktop app), `npm run fix:electron` (repair Electron on Windows), `npm run build`, `npm run typecheck`.
+Release the desktop app: bump `apps/agent/package.json` version, commit, `git tag agent-v<version>`, push the tag (see docs/DEPLOY.md). Node 22/24 LTS recommended (`.nvmrc`).
 
 ## Supabase
 
@@ -105,10 +108,9 @@ Commands (repo root): `npm install`, `npm run dev` (dashboard), `npm run agent` 
 
 ## Next steps
 
-1. Run the agent on Windows and fix anything that breaks: tray icon, PowerShell window reader, notifications.
+1. Follow docs/DEPLOY.md: Vercel deploy, Supabase URLs, RELEASES_TOKEN + DASHBOARD_URL, first tag `agent-v0.1.0`; check the CI run is green.
 2. Week 7: projects + tasks (assign, status, due date, comments), the worker picks the current task in the agent (add `task_id` to blocks or a `time_entries` table), and a daily work report at clock-out.
-3. Week 8: package installers with electron-builder (Windows NSIS first), auto-update (electron-updater + GitHub Releases), set the dashboard URL for production, a "Download the app" page, and open the app at login (already wired when packaged).
-4. Deploy the dashboard (Vercel) and update the Supabase Site URL + redirect URLs + agent `DASHBOARD_URL`.
+3. Code signing (Azure Trusted Signing) before paying customers; Mac build later.
 5. Admin UI to set a team's manager (`teams.manager_id`) and a member's expected hours.
 
 ## Known gaps / backlog

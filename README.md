@@ -8,6 +8,8 @@ workforce/
 ├─ apps/agent/                Electron desktop app workers install (clock in/out + tracking)
 ├─ supabase/migrations/       Database schema, security rules and functions
 ├─ docs/SPEC.md               Product spec and roadmap
+├─ docs/DEPLOY.md             Going live: Vercel, Supabase URLs, publishing the Windows installer
+├─ .github/workflows/         CI checks on every push; desktop installer release on tag agent-v*
 └─ CLAUDE.md                  Decisions, conventions and next steps (for Claude Code)
 ```
 
@@ -16,6 +18,7 @@ workforce/
 - Companies: invites by link, roles, teams, suspend or remove, tracking settings
 - Desktop app: clock in/out, idle detection with "were you working?", app tracking, offline queue
 - Dashboard: who is working now, per-person activity day view, weekly timesheets with CSV export
+- Distribution: one-click Windows installer, auto-update, public /download page
 
 ## 1. Database
 
@@ -47,6 +50,8 @@ npm install          # installs the dashboard and the desktop app (downloads Ele
 npm run dev          # dashboard → http://localhost:3000
 npm run agent        # desktop app, in a second terminal
 ```
+
+If `npm run agent` says "Electron failed to install correctly" (happens on Node 26), run `npm run fix:electron`. Node 22 or 24 LTS avoids it.
 
 `apps/web/.env.local` and `apps/agent/src/config.ts` already point at your Supabase project. They hold only the public anon key. Never put the `service_role` key in either app.
 
@@ -82,6 +87,10 @@ The window closes to the system tray. **Quit** from the tray menu clocks you out
 
 Tested on a local Postgres simulating Supabase (73 checks), with a simulated workday through the agent's tracking logic, and with spot checks on the live database.
 
+## Going live
+
+See **docs/DEPLOY.md**: deploy the dashboard to Vercel, update the Supabase URLs, then publish the installer by pushing a tag (`agent-v0.1.0`). Workers download it from `/download`.
+
 ## Next
 
-Week 7 per the roadmap: projects and tasks, time per task, daily work report. Then signed installers and auto-update for the desktop app (Week 8). See `CLAUDE.md`.
+Week 7 per the roadmap: projects and tasks, time per task, daily work report. Then code signing for the installer and the Mac version. See `CLAUDE.md`.

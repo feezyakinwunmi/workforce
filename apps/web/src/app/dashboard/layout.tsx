@@ -16,6 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/tasks", label: "Tasks", soon: true },
     ...(admin ? [{ href: "/dashboard/settings", label: "Company settings" }] : []),
     { href: "/dashboard/profile", label: "My profile" },
+    { href: "/download", label: "Download desktop app" },
   ];
 
   const name = profile?.full_name || user.email || "";

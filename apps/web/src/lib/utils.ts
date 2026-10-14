@@ -5,8 +5,13 @@ export function safeNext(next: unknown, fallback = "/dashboard"): string {
   return next;
 }
 
+/** Public address of the dashboard (used in email and invite links). */
 export function siteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const url =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined) ??
+    "http://localhost:3000";
+  return url.replace(/\/$/, "");
 }
 
 export function formatDate(iso: string, timeZone?: string) {

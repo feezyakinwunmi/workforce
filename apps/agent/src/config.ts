@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 // Public settings for the desktop app. The anon key is safe to ship in the app:
 // every database call is still checked by row-level security and the agent functions.
 // NEVER put the service_role key here.
@@ -8,8 +11,26 @@ export const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ??
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhY2R0ZmJudGt4cnBmaWJibGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NjU3ODAsImV4cCI6MjEwNzU0MTc4MH0.ddnPEbI-QADxQOuBFx_AWWIr7bquliDtQK-O9d4AM2E";
 
-/** Where the web dashboard runs (for "Open dashboard" and "Forgot password"). */
-export const DASHBOARD_URL = (process.env.DASHBOARD_URL ?? "http://localhost:3000").replace(/\/$/, "");
+/**
+ * Settings baked in when the installer is built (GitHub Actions writes
+ * dist/build-info.json). Running from source, they come from environment
+ * variables or fall back to local development values.
+ */
+const buildInfo = readBuildInfo();
+
+/** Where the web dashboard runs (for "Open dashboard", "Forgot password", "My activity"). */
+export const DASHBOARD_URL = (process.env.DASHBOARD_URL ?? buildInfo.dashboardUrl ?? "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
+
+function readBuildInfo(): { dashboardUrl?: string } {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, "build-info.json"), "utf8"));
+  } catch {
+    return {};
+  }
+}
 
 export const APP_NAME = "Workforce";
 

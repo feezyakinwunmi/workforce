@@ -17,6 +17,7 @@ import { Api, ApiError } from "./api";
 import { APP_NAME, DASHBOARD_URL, HEARTBEAT_SECONDS, SYNC_SECONDS, TICK_SECONDS } from "./config";
 import { SecureStore } from "./storage";
 import { Tracker } from "./tracker";
+import { startAutoUpdates } from "./updater";
 import { formatDuration } from "./util";
 
 let win: BrowserWindow | null = null;
@@ -33,6 +34,7 @@ let lastError: string | null = null;
 let loginMessage: string | null = null;
 let lastPendingIdleCount = 0;
 let lastState: "active" | "idle" = "active";
+let updater: ReturnType<typeof startAutoUpdates>;
 
 const assets = path.join(__dirname, "..", "assets");
 const startHidden = process.argv.includes("--hidden");
@@ -77,6 +79,16 @@ async function start() {
 
   powerMonitor.on("resume", () => void tick());
   powerMonitor.on("unlock-screen", () => void tick());
+
+  updater = startAutoUpdates({
+    // Never restart the app in the middle of someone's work.
+    canInstallNow: () => !tracker.clockedIn,
+    beforeInstall: async () => {
+      quitting = true;
+      await Promise.race([sync(), new Promise((r) => setTimeout(r, 5000))]);
+      reader.stop();
+    },
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -418,6 +430,7 @@ async function clockOut() {
   tracker.clockOut("clock_out");
   push();
   await sync();
+  updater?.installWhenPossible(); // a waiting update installs now, between work sessions
 }
 
 async function quit() {
