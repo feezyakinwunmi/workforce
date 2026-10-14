@@ -71,7 +71,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-slate-500">Current plan</p>
-            <p className="mt-1 text-2xl font-semibold">{TIER_LABEL[billing.tier]}</p>
+            <p className="mt-1 font-display text-3xl font-semibold tracking-tight text-slate-900">{TIER_LABEL[billing.tier]}</p>
             <p className="mt-1 text-sm text-slate-600">
               {billing.tier === "trial" &&
                 `All Standard features for everyone until ${formatDate(billing.trial_ends_at, org.timezone)} (${trialDays} ${trialDays === 1 ? "day" : "days"} left). Then the company moves to Free unless you choose a plan.`}
@@ -82,7 +82,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           </div>
           <div className="text-right">
             <p className="text-sm text-slate-500">Active people</p>
-            <p className="mt-1 text-2xl font-semibold">
+            <p className="stat-value mt-1">
               {billing.active_members}
               {billing.seat_limit !== null && <span className="text-base font-normal text-slate-500"> / {billing.seat_limit} covered</span>}
             </p>
@@ -180,16 +180,16 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               <tbody className="divide-y divide-slate-100">
                 {payments.map((p) => (
                   <tr key={p.id}>
-                    <td className="px-5 py-3 text-slate-600">{formatDate(p.paid_at ?? p.created_at, org.timezone)}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">{formatDate(p.paid_at ?? p.created_at, org.timezone)}</td>
                     <td className="px-5 py-3">
                       {paymentLabel(p)}
                       {p.status === "failed" && <span className="badge ml-2 bg-red-100 text-red-700">Failed</span>}
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">
                       {p.period_start && p.period_end ? `${formatDate(p.period_start, org.timezone)} – ${formatDate(p.period_end, org.timezone)}` : "–"}
                     </td>
-                    <td className="px-5 py-3 font-medium">{naira(p.amount_kobo)}</td>
-                    <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.reference}</td>
+                    <td className="px-5 py-3 font-medium whitespace-nowrap text-slate-900 tabular-nums">{naira(p.amount_kobo)}</td>
+                    <td className="max-w-48 truncate px-5 py-3 text-xs text-slate-500" title={p.reference}>{p.reference}</td>
                     <td className="px-5 py-3 text-right">
                       {p.status === "success" && (
                         <Link href={`/dashboard/billing/receipt/${p.id}`} className="inline-flex items-center gap-1 text-brand-700 hover:underline"><Icon name="receipt" className="h-3.5 w-3.5" />Receipt</Link>
@@ -220,7 +220,7 @@ function PlanCard({ name, price, items, current, highlight, muted }: {
         <h3 className="font-semibold">{name}</h3>
         {current && <span className="badge bg-brand-100 text-brand-700">Current</span>}
       </div>
-      <p className="mt-2 text-2xl font-semibold">
+      <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-slate-900">
         {price}
         {price.startsWith("₦") && price !== "₦0" && <span className="text-sm font-normal text-slate-500"> / person / month</span>}
       </p>

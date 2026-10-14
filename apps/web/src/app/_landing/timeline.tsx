@@ -50,7 +50,7 @@ export function HeroProduct() {
                 <p className="truncate text-sm font-semibold text-slate-900">{r.name}</p>
                 <p className="flex items-center gap-1.5 text-xs text-slate-500">
                   {r.city} {r.local}
-                  <span className={`rounded-full px-1.5 text-[10px] leading-4 font-medium ${STATUS[r.status]}`}>{r.status}</span>
+                  <span className={`rounded-full px-1.5 text-[10px] leading-4 font-medium whitespace-nowrap ${STATUS[r.status]}`}>{r.status}</span>
                 </p>
               </div>
               <span className="text-right text-xs font-medium text-slate-700 tabular-nums sm:order-last">{r.hours}</span>
