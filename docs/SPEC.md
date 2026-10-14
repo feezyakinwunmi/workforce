@@ -42,7 +42,7 @@ Nigeria and Africa come first, then foreign companies. Nigerian companies with s
 | 6 | Chat and groups, announcements, online status, notifications | Phase 2 (done: notifications Week 8, chat Week 10; attachments later) |
 | 7 | Productivity insights: app labels per role, reports, output vs activity, digests | Phase 2 |
 | 8 | Billing: per-seat plans, Paystack (NGN), USD checkout, invoices, trials | Phase 2 (NGN prepaid plans + trial done: Week 9) |
-| 9 | Leave and requests: types, balances, approvals, holidays per country | Phase 3 |
+| 9 | Leave and requests: types, balances, approvals, holidays per country | Phase 3 (leave + holidays done) |
 | 10 | Payroll and performance: hours × rate exports, PAYE/pension add-on, KPIs, reviews, API | Phase 4 |
 
 ## MVP scope

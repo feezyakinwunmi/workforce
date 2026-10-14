@@ -10,10 +10,14 @@ import { initials } from "@/lib/utils";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { supabase, org, member, profile, user } = await requireMember();
   const admin = isAdminRole(member.role);
-  const [{ count: unread }, billing, { data: channels }] = await Promise.all([
+  const manager = admin || member.role === "manager";
+  const [{ count: unread }, billing, { data: channels }, { count: leaveWaiting }] = await Promise.all([
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
     getBilling(),
     supabase.rpc("my_channels"),
+    manager
+      ? supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending").neq("user_id", user.id)
+      : Promise.resolve({ count: 0 }),
   ]);
   const unreadChat = ((channels ?? []) as Array<{ unread: number; archived: boolean }>)
     .filter((c) => !c.archived)
@@ -28,6 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/timesheets", label: "Timesheets" },
     { href: "/dashboard/team", label: "Team" },
     { href: "/dashboard/tasks", label: "Tasks" },
+    { href: "/dashboard/leave", label: "Leave", badge: leaveWaiting ?? 0 },
     ...(admin || member.role === "manager" ? [{ href: "/dashboard/projects", label: "Projects" }] : []),
     ...(admin ? [{ href: "/dashboard/settings", label: "Company settings" }] : []),
     ...(admin ? [{ href: "/dashboard/billing", label: "Plan and billing" }] : []),

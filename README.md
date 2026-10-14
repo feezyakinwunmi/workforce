@@ -25,6 +25,7 @@ workforce/
 - Public pages: what we track, privacy policy, terms of service
 - Billing: Free (3 people), 14-day Standard trial, Standard ₦2,500 per person per month prepaid through Paystack
 - Chat: #general, announcements, private groups and direct messages, live, with unread counts and who's working now
+- Leave: requests and approvals, yearly balances, public holidays (Nigerian list built in), shown on timesheets
 
 ## 1. Database
 

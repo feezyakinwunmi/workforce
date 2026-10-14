@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { requireMember } from "@/lib/session";
-import { formatClock, formatHours, localDateIn, percent } from "@/lib/time";
+import { addDays, formatClock, formatHours, localDateIn, percent } from "@/lib/time";
 import {
   displayName,
   liveStatus,
@@ -46,7 +46,8 @@ export default async function OverviewPage({
   ]);
 
   const people = visibleMembers(me, members.filter((m) => m.status === "active"), teams);
-  const [today, { data: doneRows }] = await Promise.all([
+  const utcToday = new Date().toISOString().slice(0, 10);
+  const [today, { data: doneRows }, { data: leaveRows }] = await Promise.all([
     loadToday(supabase, people),
     // Finished in the last 36 h; counted below per person's own "today".
     supabase
@@ -56,7 +57,23 @@ export default async function OverviewPage({
       .gte("completed_at", new Date(Date.now() - 36 * 3600_000).toISOString())
       .not("assignee_id", "is", null)
       .limit(2000),
+    supabase
+      .from("leave_requests")
+      .select("user_id, start_date, end_date")
+      .eq("status", "approved")
+      .lte("start_date", addDays(utcToday, 1))
+      .gte("end_date", addDays(utcToday, -1)),
   ]);
+  // Approved leave covering each person's own "today".
+  const onLeave = new Set(
+    ((leaveRows ?? []) as Array<{ user_id: string; start_date: string; end_date: string }>)
+      .filter((l) => {
+        const zone = people.find((m) => m.user_id === l.user_id)?.timezone;
+        const d = zone ? localDateIn(zone) : utcToday;
+        return l.start_date <= d && l.end_date >= d;
+      })
+      .map((l) => l.user_id),
+  );
   const tz = new Map(people.map((m) => [m.user_id, m.timezone]));
   const doneToday = new Map<string, number>();
   for (const t of (doneRows ?? []) as Array<{ assignee_id: string; completed_at: string }>) {
@@ -204,7 +221,11 @@ export default async function OverviewPage({
                         </Link>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={cn("badge", STATUS_STYLE[status])}>{STATUS_LABEL[status]}</span>
+                        {status === "not_working" && onLeave.has(m.user_id) ? (
+                          <span className="badge bg-sky-50 text-sky-700">On leave</span>
+                        ) : (
+                          <span className={cn("badge", STATUS_STYLE[status])}>{STATUS_LABEL[status]}</span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-slate-600">
                         {session ? `${formatClock(session.started_at, m.timezone)} their time` : "–"}

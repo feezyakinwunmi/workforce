@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Timesheets" };
 export default async function TimesheetsPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const { week: weekParam } = await searchParams;
   const { supabase, member: me } = await requireMember();
-  const { week, days, rows } = await buildTimesheet(supabase, me, weekParam);
+  const { week, days, rows, holidays } = await buildTimesheet(supabase, me, weekParam);
 
   const today = localDateIn(me.timezone);
   const dayTotals = days.map((_, i) => rows.reduce((s, r) => s + r.days[i].tracked, 0));
@@ -62,6 +62,11 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
                 {days.map((d) => (
                   <th key={d} className={cn("px-3 py-3 text-right font-medium", d === today && "text-brand-700")}>
                     {formatDay(d)}
+                    {holidays.has(d) && (
+                      <span className="block text-[10px] font-normal normal-case tracking-normal text-emerald-700" title={holidays.get(d)}>
+                        Holiday
+                      </span>
+                    )}
                   </th>
                 ))}
                 <th className="px-4 py-3 text-right font-medium">Total</th>
@@ -91,6 +96,8 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
                         >
                           {formatHours(c.tracked)}
                         </Link>
+                      ) : c.leave ? (
+                        <span className="badge bg-sky-50 text-sky-700" title={c.leave}>Leave</span>
                       ) : (
                         <span className="text-slate-300">–</span>
                       )}
@@ -120,7 +127,8 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
 
       <p className="text-xs text-slate-500">
         Hours are time clocked in with the desktop app, minus idle time the worker chose to remove. Each person&apos;s
-        days follow their own time zone. Activity is the share of that time with keyboard or mouse use.
+        days follow their own time zone. Activity is the share of that time with keyboard or mouse use. &ldquo;Leave&rdquo;
+        marks approved leave; public holidays are marked in the header.
       </p>
     </div>
   );

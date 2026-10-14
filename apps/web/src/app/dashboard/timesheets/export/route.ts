@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const { week, days, rows } = await buildTimesheet(supabase, member, request.nextUrl.searchParams.get("week") ?? undefined);
 
-  const header = ["Name", "Email", "Time zone", ...days, "Total hours", "Active hours", "Activity %"];
+  const header = ["Name", "Email", "Time zone", ...days, "Total hours", "Active hours", "Activity %", "Leave days"];
   const lines = rows.map((r) =>
     [
       r.name,
@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       hours(r.total),
       hours(r.active),
       r.total ? String(Math.round((r.active / r.total) * 100)) : "",
+      String(r.leaveDays),
     ].map(csvCell).join(","),
   );
   const csv = "﻿" + [header.map(csvCell).join(","), ...lines].join("\r\n");
