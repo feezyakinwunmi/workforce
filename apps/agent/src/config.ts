@@ -32,7 +32,7 @@ function readBuildInfo(): { dashboardUrl?: string } {
   }
 }
 
-export const APP_NAME = "Workforce";
+export const APP_NAME = "Phantomire Workbase";
 
 // Timings
 export const TICK_SECONDS = 10; // how often activity is sampled

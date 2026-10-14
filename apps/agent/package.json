@@ -1,6 +1,6 @@
 {
   "name": "agent",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Desktop time and activity tracker",
   "main": "dist/main.js",
@@ -23,7 +23,7 @@
     "typescript": "^5.9.0"
   },
   "productName": "Workforce",
-  "author": "Workforce",
+  "author": "Phantomire",
   "build": {
     "appId": "com.workforce.agent",
     "productName": "Workforce",

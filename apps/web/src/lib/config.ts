@@ -1,5 +1,5 @@
 /** Product name shown in the UI. Change it here once the name is decided. */
-export const APP_NAME = "Workforce";
+export const APP_NAME = "Phantomire Workbase";
 
 /** Who runs the service (shown on the privacy policy and terms). Change before launch if needed. */
 export const OPERATOR_NAME = "Phantomire";

@@ -1,4 +1,4 @@
-# Workforce — remote team tracking SaaS
+# Phantomire Workbase — remote team tracking SaaS
 
 Companies see whether their remote workers are working: clock in/out, active vs idle time, apps used, timesheets. Every company's data is kept separate by Supabase row-level security.
 

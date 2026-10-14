@@ -1,4 +1,4 @@
-# CLAUDE.md — Workforce (remote team tracking SaaS)
+# CLAUDE.md — Phantomire Workbase (remote team tracking SaaS)
 
 Read this first. It holds the decisions made so far, the current state and the next steps.
 Full product spec: `docs/SPEC.md`.
@@ -12,7 +12,8 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - Market: Nigeria / Africa first, then foreign companies. Nigerian companies often have staff abroad, so **time zones are per worker**.
 - Billing: prepaid per-person plans paid in NGN through Paystack (foreign cards pay the naira price). USD checkout later.
 - MVP = modules 1–4: core accounts, time tracking, activity monitoring, tasks. Screenshots, chat, billing, mobile, leave and payroll come later.
-- Product name not decided: the UI name lives in `apps/web/src/lib/config.ts` (`APP_NAME`).
+- Product name: **Phantomire Workbase** (decided 14 Oct 2026), operator Phantomire. Shown via `APP_NAME` in `apps/web/src/lib/config.ts` and `apps/agent/src/config.ts`. The repo, Vercel project and releases repo keep the old "workforce" names.
+- The desktop installer's identity deliberately stays "Workforce" (`productName`, `shortcutName`, `Workforce-Setup-x.exe`, appId `com.workforce.agent`): changing `productName` moves Electron's userData folder, which would log everyone out and drop unsent time. Rename it only together with a userData migration (e.g. at code-signing time).
 
 ## Current status (14 Oct 2026, Week 10: chat)
 
@@ -23,7 +24,7 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - **Weeks 2–6 core done:**
   - Electron desktop agent (`apps/agent`): login, consent, clock in/out, idle detection + prompt, app/window tracking, offline queue, heartbeat, tray
   - dashboard: live "who is working now" (Overview), per-person day view (`/dashboard/activity`), weekly timesheets + CSV
-- **Distribution is live:** Windows installer published per tag `agent-v<version>` → GitHub release in public `feezyakinwunmi/workforce-releases` (v0.1.0 … v0.5.0), shown on https://phantomire-workforce.vercel.app/download. Installed apps auto-update from that repo (only while clocked out). Release = bump `apps/agent/package.json` version, commit, push tag `agent-v<version>`.
+- **Distribution is live:** Windows installer published per tag `agent-v<version>` → GitHub release in public `feezyakinwunmi/workforce-releases` (v0.1.0 … v0.4.0 released; v0.6.0 = chat + new name, waiting for its tag; the agent-v0.5.0 tag points at an old commit and never released), shown on https://phantomire-workforce.vercel.app/download. Installed apps auto-update from that repo (only while clocked out). Release = bump `apps/agent/package.json` version, commit, push tag `agent-v<version>`.
 - **Dashboard live on Vercel** (https://phantomire-workforce.vercel.app); the installed v0.1.0 app works end to end on Femi's PC.
 - **Week 7, tasks & projects (released, agent v0.2.0):**
   - DB: migration 0006 `tasks` (applied live): `projects`, `tasks`, `task_comments`, `task_time`, `daily_reports`, trigger `private.guard_task`, RPCs `my_open_tasks`, `task_time_totals`; `ingest_batch` also takes `task_time` and `reports` (older agents still work)

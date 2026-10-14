@@ -56,7 +56,8 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 async function start() {
-  if (process.platform === "win32") app.setAppUserModelId(`com.workforce.${APP_NAME.toLowerCase()}`);
+  // Must match the installer's appId (package.json build.appId) so Windows shows our notifications.
+  if (process.platform === "win32") app.setAppUserModelId("com.workforce.agent");
   const userData = app.getPath("userData");
   store = new SecureStore(path.join(userData, "auth.bin"));
   tracker = new Tracker(path.join(userData, "state.json"));

@@ -76,7 +76,7 @@ Supabase's built-in sender only reaches your own Supabase team's addresses. Befo
 
 **A. Create a Gmail app password**
 1. Use a Gmail account for the product (e.g. `info.phantomire@gmail.com`). Turn on **2-Step Verification**: [myaccount.google.com/security](https://myaccount.google.com/security).
-2. Open [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), create one named `Workforce`, copy the 16-letter password.
+2. Open [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), create one named `Workbase`, copy the 16-letter password.
 
 **B. Supabase (password resets and sign-up emails)**
 Supabase dashboard → **Authentication → Emails → SMTP Settings** → enable custom SMTP:
@@ -84,7 +84,7 @@ Supabase dashboard → **Authentication → Emails → SMTP Settings** → enabl
 | Field | Value |
 | --- | --- |
 | Sender email | your Gmail address |
-| Sender name | `Workforce` |
+| Sender name | `Phantomire Workbase` |
 | Host | `smtp.gmail.com` |
 | Port | `465` |
 | Username | your Gmail address |
@@ -101,7 +101,7 @@ Vercel → your project → **Settings → Environment Variables**, add for Prod
 | `SMTP_PORT` | `465` |
 | `SMTP_USER` | your Gmail address |
 | `SMTP_PASS` | the app password |
-| `MAIL_FROM` | `Workforce <your Gmail address>` |
+| `MAIL_FROM` | `Phantomire Workbase <your Gmail address>` |
 
 Then **Deployments → ⋯ → Redeploy**. Without these variables, task emails are simply skipped; in-app and desktop notifications still work.
 

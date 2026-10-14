@@ -1,4 +1,4 @@
-# Remote Workforce SaaS — Product Spec & MVP Roadmap
+# Phantomire Workbase — Product Spec & MVP Roadmap
 
 Last updated 14 Oct 2026. The living version, with diagrams, is the claude.ai doc "Remote Workforce SaaS — Product Spec & MVP Roadmap".
 
