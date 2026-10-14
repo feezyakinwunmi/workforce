@@ -4,7 +4,7 @@ import { Logo } from "@/components/logo";
 import { AppNav, type NavGroup } from "@/components/nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Tour, TourButton, type TourStep } from "@/components/tour";
-import { daysLeft, hasPro, isPaid } from "@/lib/billing";
+import { daysLeft, hasPro, hasStandard, isPaid } from "@/lib/billing";
 import { getBilling } from "@/lib/billing-server";
 import { requireMember } from "@/lib/session";
 import { isAdminRole, ROLE_LABELS } from "@/lib/types";
@@ -58,6 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               { href: "/dashboard/settings", label: "Company settings", icon: "settings" as const, tour: "settings" },
             ]
           : []),
+        ...(hasStandard(billing) ? [{ href: "/dashboard/payslips", label: "My payslips", icon: "receipt" as const }] : []),
         { href: "/dashboard/profile", label: "My profile", icon: "user" },
       ],
     },
@@ -158,7 +159,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
       { target: "tasks", title: "Give out work", body: "Assign tasks with due dates. Time is logged against the task each person picks in the app." },
       { target: "chat", title: "Talk to your team", body: "Groups, direct messages, files and announcements, in one place." },
       { target: "leave", title: "Leave requests", body: "People request time off here and you approve it. Approved leave flows into timesheets and payroll." },
-      { target: "payroll", title: "Monthly payroll", body: "Set each person's rate once; each month's pay is worked out from hours and leave." },
+      { target: "payroll", title: "Monthly payroll", body: "Set each person's rate once. Pay, PAYE, pension and payslips are worked out from hours and leave." },
       { target: "settings", title: "Your rules", body: "Idle time, app tracking and screenshots are set here for the whole company." },
       { target: "help", title: "That's it", body: "Open this tour again from the question mark whenever you need it." },
     ];

@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
 
   const { rows, workingDays } = await buildPayroll(supabase, member, month);
   const header = ["Name", "Email", "Job title", "Rate basis", "Rate", "Currency", "Working days", "Hours worked",
-    "Paid leave days", "Unpaid leave days", "Days with no time", "Pay"];
+    "Paid leave days", "Unpaid leave days", "Days with no time", "Gross pay", "Basic", "Housing", "Transport", "Other allowances",
+    "PAYE", "Pension (employee)", "Pension (employer)", "NHF", "Total deductions", "Net pay"];
+  const amt = (minor: number | undefined) => (minor === undefined ? "" : (minor / 100).toFixed(2));
+  const line = (r: (typeof rows)[number], prefix: string) => r.slip?.earnings.concat(r.slip.deductions).find((l) => l.label.startsWith(prefix))?.amount_minor;
   const lines = rows.map((r) =>
     [
       r.name,
@@ -38,7 +41,17 @@ export async function GET(request: NextRequest) {
       String(r.paidLeaveDays),
       String(r.unpaidLeaveDays),
       String(r.daysWithoutTime),
-      r.amountMinor !== null ? (r.amountMinor / 100).toFixed(2) : "",
+      amt(r.slip?.gross_minor),
+      amt(line(r, "Basic")),
+      amt(line(r, "Housing")),
+      amt(line(r, "Transport")),
+      amt(line(r, "Other allowances")),
+      amt(line(r, "PAYE")),
+      amt(line(r, "Pension")),
+      amt(r.slip ? r.slip.employer_pension_minor : undefined),
+      amt(line(r, "National Housing Fund")),
+      amt(r.slip?.deductions_minor),
+      amt(r.slip?.net_minor),
     ].map(csvCell).join(","),
   );
   const csv = "﻿" + [header.map(csvCell).join(","), ...lines].join("\r\n");

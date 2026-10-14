@@ -5,7 +5,7 @@ import { naira, paymentLabel } from "@/lib/billing";
 import { APP_NAME, OPERATOR_NAME, SUPPORT_EMAIL } from "@/lib/config";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
-import { PrintButton } from "./print-button";
+import { PrintButton } from "@/components/print-button";
 
 export const metadata: Metadata = { title: "Receipt" };
 
@@ -61,7 +61,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/dashboard/billing" className="text-sm text-slate-600 hover:text-slate-900">← Plan and billing</Link>
-        <PrintButton />
+        <PrintButton label="Print or save as PDF" />
       </div>
 
       <article className="card mx-auto max-w-2xl p-8 print:max-w-none print:border-0 print:shadow-none">

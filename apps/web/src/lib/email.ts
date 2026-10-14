@@ -36,6 +36,7 @@ const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 type Message = { subject: string; heading: string; text?: string | null; link: string; button?: string };
+export type Attachment = { filename: string; content: Buffer; contentType: string };
 
 function render(message: Message) {
   const url = `${siteUrl()}${message.link}`;
@@ -54,14 +55,14 @@ function render(message: Message) {
 }
 
 /**
- * Send one email to known addresses. Returns how many were sent; never throws.
+ * Send one email to known addresses (each gets their own copy). Returns how many were sent; never throws.
  */
-export async function sendEmail(to: string[], message: Message): Promise<number> {
+export async function sendEmail(to: string[], message: Message, attachments?: Attachment[]): Promise<number> {
   const t = mailer();
   const list = [...new Set(to.filter(Boolean))];
   if (!t || !list.length) return 0;
   const mail = render(message);
-  const results = await Promise.allSettled(list.map((address) => t.sendMail({ from, to: address, ...mail })));
+  const results = await Promise.allSettled(list.map((address) => t.sendMail({ from, to: address, ...mail, attachments })));
   for (const r of results) {
     if (r.status === "rejected") console.error("Email not sent:", r.reason instanceof Error ? r.reason.message : r.reason);
   }

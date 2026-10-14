@@ -2,33 +2,10 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { FormMessage, SubmitButton, TimezoneSelect } from "@/components/form";
+import { FormMessage, SubmitButton, Switch, TimezoneSelect } from "@/components/form";
 import { InfoTip } from "@/components/ui";
 import type { Organization } from "@/lib/types";
 import { updateCompanySettings } from "./actions";
-
-/** An on/off switch that submits as a normal checkbox. */
-function Switch({ name, label, hint, defaultChecked, disabled }: {
-  name: string;
-  label: string;
-  hint?: string;
-  defaultChecked: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`flex items-start justify-between gap-6 py-3.5 ${disabled ? "opacity-60" : "cursor-pointer"}`}>
-      <span>
-        <span className="block text-sm font-medium text-slate-900">{label}</span>
-        {hint && <span className="mt-0.5 block text-xs text-slate-500">{hint}</span>}
-      </span>
-      <span className="relative mt-0.5 inline-flex shrink-0">
-        <input type="checkbox" name={name} defaultChecked={defaultChecked} disabled={disabled} className="peer sr-only" />
-        <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-brand-600 peer-focus-visible:ring-3 peer-focus-visible:ring-brand-500/30" />
-        <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
-      </span>
-    </label>
-  );
-}
 
 /** One settings group: what it is on the left, the controls on the right. */
 function Section({ title, aside, children }: { title: React.ReactNode; aside?: React.ReactNode; children: React.ReactNode }) {
