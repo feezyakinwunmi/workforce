@@ -82,3 +82,5 @@ button:disabled { opacity: .6; cursor: default; }
 .mb10 { margin: 0 0 10px; }
 .err-text { color: var(--red); }
 .plan-note { background: #fffbeb; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 0 0 10px; }
+.row-gap { display: inline-flex; gap: 12px; }
+.badge { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--brand); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }

@@ -14,7 +14,7 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - MVP = modules 1–4: core accounts, time tracking, activity monitoring, tasks. Screenshots, chat, billing, mobile, leave and payroll come later.
 - Product name not decided: the UI name lives in `apps/web/src/lib/config.ts` (`APP_NAME`).
 
-## Current status (14 Oct 2026, Week 9: billing)
+## Current status (14 Oct 2026, Week 10: chat)
 
 - **Week 1 done and confirmed working by Femi:**
   - sign-up/login, forgot/reset/change password
@@ -23,7 +23,7 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - **Weeks 2–6 core done:**
   - Electron desktop agent (`apps/agent`): login, consent, clock in/out, idle detection + prompt, app/window tracking, offline queue, heartbeat, tray
   - dashboard: live "who is working now" (Overview), per-person day view (`/dashboard/activity`), weekly timesheets + CSV
-- **Distribution is live:** Windows installer published per tag `agent-v<version>` → GitHub release in public `feezyakinwunmi/workforce-releases` (v0.1.0 … v0.4.0), shown on https://phantomire-workforce.vercel.app/download. Installed apps auto-update from that repo (only while clocked out). Release = bump `apps/agent/package.json` version, commit, push tag `agent-v<version>`.
+- **Distribution is live:** Windows installer published per tag `agent-v<version>` → GitHub release in public `feezyakinwunmi/workforce-releases` (v0.1.0 … v0.5.0), shown on https://phantomire-workforce.vercel.app/download. Installed apps auto-update from that repo (only while clocked out). Release = bump `apps/agent/package.json` version, commit, push tag `agent-v<version>`.
 - **Dashboard live on Vercel** (https://phantomire-workforce.vercel.app); the installed v0.1.0 app works end to end on Femi's PC.
 - **Week 7, tasks & projects (released, agent v0.2.0):**
   - DB: migration 0006 `tasks` (applied live): `projects`, `tasks`, `task_comments`, `task_time`, `daily_reports`, trigger `private.guard_task`, RPCs `my_open_tasks`, `task_time_totals`; `ingest_batch` also takes `task_time` and `reports` (older agents still work)
@@ -39,7 +39,12 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
   - DB: migration 0008 `billing` (applied live): `payments` (prepaid periods; admins read), `private.org_billing()` derives tier/seat limit from successful payments covering now, `private.member_can_track()` (seats go owner first, then by join date), `my_billing()`, `start_payment(kind, seats, months)` (admin; the DB sets the price: 12 months = 10), `confirm_payment()` (service_role only). `register_device`/`heartbeat` now return `billing {tier, can_track, message}` and `settings.track_window_titles`.
   - dashboard: `/dashboard/billing` (plans, price calculator, Paystack redirect checkout, add people pro-rata, payment history), `/dashboard/billing/callback` (verifies with Paystack), `/api/paystack/webhook` (HMAC-SHA512), plan banner in the layout, Free gates (activity timeline + window titles hidden, history > 30 days and CSV blocked, "Not on plan" badge on Team). Server env: `PAYSTACK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (Vercel only; see docs/DEPLOY.md §8).
   - agent: won't clock in when `can_track` is false (shows the reason), clocks out if the plan stops covering the person, sends no window titles on Free.
-- **Migrations applied to Supabase:** 0001–0008, all live. 0004, 0007 and 0008 schedule pg_cron jobs.
+- **Week 10, chat and groups (agent v0.5.0):**
+  - DB: migration 0009 `chat`: `channels` (kinds `public`, `private`, `direct`, `announcements`; every company gets `#general` + `Announcements` via trigger), `channel_members` (also holds `last_read_at`), `messages` (soft delete clears the text; edits marked). Helpers `private.my_channel_ids/can_read_channel/can_post_channel`. RPCs `create_channel` (managers/admins), `open_direct`, `add_channel_members`, `remove_channel_member`, `mark_channel_read` (also clears that chat's notifications), `my_channels` (sidebar + unread), `online_member_ids` (clocked in, heartbeat < 3 min). Notifications `chat_direct` (one per unread conversation) and `announcement`. `messages` is in the `supabase_realtime` publication.
+  - privacy: admins/owner cannot read direct messages or private groups they are not in; only managers/admins post announcements; org admins may delete (not edit) messages in channels they can read.
+  - dashboard: `/dashboard/chat` (sidebar with unread + green "working now" dots, live refresh), `/dashboard/chat/[id]` (Realtime room: send, edit, delete, load older, members/add/leave/archive), `/dashboard/chat/new` (message someone, new group). Browser Supabase client `lib/supabase/client.ts` (anon key; RLS applies). Chat unread badge in the nav.
+  - agent: unread chat count on the main screen + tray "Open chat"; DM/announcement pop-ups come from notifications.
+- **Migrations applied to Supabase:** 0001–0009, all live. 0004, 0007 and 0008 schedule pg_cron jobs.
 - **Manual Supabase settings (not possible via MCP):**
   - Site URL `http://localhost:3000`, Redirect URL `http://localhost:3000/**`
   - "Confirm email" off during development
@@ -65,16 +70,19 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/app/(auth)          login, signup (server actions + useActionState)
   src/app/onboarding      create company / accept pending invites
   src/app/invite/[token]  invite landing page
-  src/app/dashboard       overview (live), notifications, billing (+ callback), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
+  src/app/dashboard       overview (live), chat (+ [id], new), notifications, billing (+ callback), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
   src/lib/tracking.ts     visibility rule (mirrors DB), live status, day stats loaders
   src/lib/time.ts         time-zone helpers (zonedMidnight, localDateIn, mondayOf)
   src/lib/tasks.ts        task/project types, labels, taskPermissions (mirrors guard_task), loadTaskTime
   src/lib/email.ts        optional SMTP email (task assigned, comments); never throws
-  src/lib/billing.ts      plan display constants, getBilling() (my_billing RPC), Free-plan gates
+  src/lib/billing.ts      plan display constants and Free-plan helpers (safe for client components)
+  src/lib/billing-server.ts  getBilling() (my_billing RPC, server only: never import it from a client component)
   src/lib/paystack.ts     Paystack initialize/verify/webhook signature, recordSuccess (service role)
   src/lib/supabase/admin.ts  service-role client (server only, payments confirmation only)
+  src/lib/supabase/client.ts browser client (chat Realtime + sending messages; anon key)
+  src/lib/chat.ts         chat types and helpers
   src/app/(legal)         public what-we-track, privacy, terms pages
-supabase/migrations/      SQL migrations, in order (applied: 0001–0008)
+supabase/migrations/      SQL migrations, in order (applied: 0001–0009)
 docs/SPEC.md              product spec and roadmap
 ```
 
@@ -104,6 +112,7 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 - Task rules are enforced by the trigger `private.guard_task`: managers/admins/owner change anything; a worker creates tasks only for themselves; the creator edits their task (may only assign themselves); the assignee may only change the status. `completed_at` is set by the trigger.
 - Sensitive operations go through `SECURITY DEFINER` functions with `set search_path = ''` and their own `auth.uid()` checks: `create_organization`, `accept_invitation`, `get_invitation` (anon, token-gated), `my_pending_invitations`, `update_my_timezone`, `transfer_ownership` (sets `app.trusted_member_change` to pass the membership guard).
 - Payments: prices live in the database (`private.seat_price_kobo()`); the browser never marks anything paid. Only the server, with the service-role key and after verifying with Paystack, calls `confirm_payment`. The service-role key is used for nothing else.
+- Chat: admins/owner never see direct messages or private groups they're not in (RLS via `private.can_read_channel`). Messages are posted through RLS (`private.can_post_channel`); author, company and timestamps are set by the `guard_message` trigger.
 - Notifications are inserted only by SECURITY DEFINER triggers/jobs (`private.notify` skips the actor and non-active members); users may only `select` their own and `update (read_at)`.
 - Membership rules are enforced by a trigger (`private.guard_membership_update`): nobody changes their own role or status; only the owner touches owner access; role, status and team changes are written to `audit_logs`.
 - One active company per user in the MVP (`memberships_one_company_per_user` index).
@@ -132,14 +141,14 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 
 ## Next steps
 
-1. Femi: Paystack test setup (docs/DEPLOY.md §8: two Vercel env vars + webhook URL), test-pay with the test card; email setup (§7); push tag `agent-v0.4.0`.
-2. Pilot with one real company; register the business (CAC) so Paystack can go live.
-3. Renewal reminder emails (7 and 1 days before `paid_until`), a printable receipt/invoice page with 7.5% VAT once registered.
-4. Mac build (Apple Developer account), then chat and groups (Supabase Realtime), leave requests, Pro features (screenshots).
+1. Femi: release `agent-v0.5.0`; Paystack test setup (docs/DEPLOY.md §8) and email (§7) if not done.
+2. Chat extras when pilots ask: file/image attachments (Supabase Storage), @mentions with notifications, message search, typing indicators.
+3. Renewal reminder emails and printable receipts; Mac build (Apple Developer account); leave requests; Pro features (screenshots).
 
 ## Known gaps / backlog
 
 - Billing: no automatic renewals (prepaid only), no renewal emails yet, no invoices/VAT, no USD checkout; seat limit is enforced by the desktop app (server still accepts uploads).
+- Chat: text only (no files, reactions, threads, mentions or search yet); the desktop app shows unread counts and pop-ups but chatting happens in the dashboard.
 - No task attachments or recurring tasks; no per-user email opt-out yet; due-tomorrow reminders are in-app/desktop only (no email).
 - Agent pop-ups only appear while the desktop app is running and logged in.
 - macOS agent gets the app name only (window titles need Accessibility permission work).

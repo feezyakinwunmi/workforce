@@ -35,6 +35,7 @@ let loginMessage: string | null = null;
 let lastPendingIdleCount = 0;
 let lastState: "active" | "idle" = "active";
 let updater: ReturnType<typeof startAutoUpdates>;
+let unreadChat = 0;
 let billing: AgentBilling | null = null; // plan limits from the server; null = unknown (allowed)
 let askClockOut = false; // the window shows the "what did you get done?" panel
 let lastTaskFetch = 0;
@@ -175,6 +176,7 @@ function updateTray() {
           ]
         : []),
       { label: `Open ${APP_NAME}`, click: showWindow },
+      { label: unreadChat ? `Open chat (${unreadChat} unread)` : "Open chat", click: () => void shell.openExternal(`${DASHBOARD_URL}/dashboard/chat`) },
       { label: "Open dashboard", click: () => void shell.openExternal(`${DASHBOARD_URL}/dashboard`) },
       { type: "separator" },
       { label: "Quit", click: () => void quit() },
@@ -220,6 +222,7 @@ function view() {
     currentTaskId: tracker.currentTask?.id ?? null,
     askClockOut: askClockOut && tracker.clockedIn,
     canTrack: billing ? billing.can_track : true,
+    unreadChat,
     planMessage: billing && !billing.can_track ? billing.message : null,
   };
 }
@@ -277,6 +280,7 @@ async function heartbeat() {
     tracker.setSettings(res.settings);
     applyBilling(res.billing);
     void checkNotifications();
+    unreadChat = await api.unreadMessages().catch(() => unreadChat);
   } catch (e) {
     await handleApiError(e);
   }
@@ -643,6 +647,7 @@ ipcMain.handle("open-dashboard", (_e, page: string) => {
     "/dashboard/timesheets",
     "/dashboard/tasks",
     "/dashboard/notifications",
+    "/dashboard/chat",
     "/forgot-password",
     "/signup",
     "/what-we-track",

@@ -24,6 +24,7 @@ workforce/
 - Admin tools: team managers, expected hours and time zone per member, ownership transfer
 - Public pages: what we track, privacy policy, terms of service
 - Billing: Free (3 people), 14-day Standard trial, Standard ₦2,500 per person per month prepaid through Paystack
+- Chat: #general, announcements, private groups and direct messages, live, with unread counts and who's working now
 
 ## 1. Database
 
@@ -104,4 +105,4 @@ See **docs/DEPLOY.md**: deploy the dashboard to Vercel, update the Supabase URLs
 
 ## Next
 
-Renewal reminders and invoices, Mac build, then chat and leave requests. Code signing for the installer and the Mac version before paying customers. See `CLAUDE.md`.
+Chat attachments and mentions, renewal reminders and invoices, Mac build, leave requests. Code signing for the installer and the Mac version before paying customers. See `CLAUDE.md`.

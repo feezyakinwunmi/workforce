@@ -137,7 +137,10 @@ function mainScreen() {
     <div class="small muted truncate" id="current-app"></div>
     <div class="footer">
       <span id="sync"></span>
-      <button class="link small" data-action="my-activity">My activity ↗</button>
+      <span class="row-gap">
+        <button class="link small" data-action="chat">Chat<span id="chat-unread"></span> ↗</button>
+        <button class="link small" data-action="my-activity">My activity ↗</button>
+      </span>
     </div>`;
 }
 
@@ -249,6 +252,7 @@ function updateLive() {
   set("status", `<span class="dot ${dot}"></span>${label}`);
 
   set("today", hm(v.todayTracked));
+  set("chat-unread", v.unreadChat ? ` <span class="badge">${v.unreadChat > 99 ? "99+" : v.unreadChat}</span>` : "");
   set("activity", v.todayTracked > 60 ? `${Math.round((v.todayActive / v.todayTracked) * 100)}%` : "–");
   set(
     "current-app",
@@ -324,6 +328,8 @@ root.addEventListener("click", async (e) => {
       return window.agent.answerIdle(el.dataset.id, false, null);
     case "dismiss":
       return window.agent.dismissNotice();
+    case "chat":
+      return window.agent.openDashboard("/dashboard/chat");
     case "my-activity":
       return window.agent.openDashboard("/dashboard/activity");
     case "what-we-track":
