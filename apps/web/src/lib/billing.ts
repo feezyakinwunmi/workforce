@@ -1,6 +1,3 @@
-import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
-
 /**
  * Plans. The database (migration 0008) decides who is on which plan and sets every price;
  * the numbers here are only for display and must match it.
@@ -46,20 +43,6 @@ export function daysLeft(iso: string | null) {
   if (!iso) return 0;
   return Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000));
 }
-
-/** The current company's plan (cached per request). */
-export const getBilling = cache(async (): Promise<Billing> => {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("my_billing");
-  if (error || !data) {
-    // Never lock people out because of a billing hiccup: fall back to the trial view.
-    return {
-      tier: "trial", seat_limit: null, paid_seats: 0, paid_until: null, trial_ends_at: new Date().toISOString(),
-      active_members: 0, can_track: true, tracked_member_ids: [], seat_price_kobo: SEAT_PRICE_NAIRA * 100, free_seats: FREE_SEATS,
-    };
-  }
-  return data as Billing;
-});
 
 /** Oldest date a Free company may look at (YYYY-MM-DD), or null when history is unlimited. */
 export function historyLimit(b: Billing, today: string) {

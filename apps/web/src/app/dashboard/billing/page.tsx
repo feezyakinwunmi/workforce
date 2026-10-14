@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { daysLeft, FREE_HISTORY_DAYS, FREE_SEATS, getBilling, naira, TIER_LABEL } from "@/lib/billing";
+import { daysLeft, FREE_HISTORY_DAYS, FREE_SEATS, naira, TIER_LABEL } from "@/lib/billing";
+import { getBilling } from "@/lib/billing-server";
 import { paystackConfigured } from "@/lib/paystack";
 import { requireAdmin } from "@/lib/session";
 import { formatDate, cn } from "@/lib/utils";

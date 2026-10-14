@@ -28,4 +28,11 @@ jobs:
       - name: Type-check dashboard
         run: npm run typecheck --workspace web
       - name: Build dashboard
-        run: npm run build --workspace web
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build --workspace web 2>&1 | tee build.log
+      - name: Show build errors
+        if: failure()
+        shell: bash
+        run: grep -iE -A3 "error|failed to compile" build.log | head -40 | sed 's/^/::error::/' || true

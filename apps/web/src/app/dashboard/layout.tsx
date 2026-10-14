@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SideNav, type NavItem } from "@/components/nav";
-import { daysLeft, getBilling } from "@/lib/billing";
+import { daysLeft } from "@/lib/billing";
+import { getBilling } from "@/lib/billing-server";
 import { APP_NAME } from "@/lib/config";
 import { requireMember } from "@/lib/session";
 import { isAdminRole, ROLE_LABELS } from "@/lib/types";

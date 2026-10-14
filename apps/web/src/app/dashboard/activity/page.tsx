@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FREE_HISTORY_DAYS, getBilling, hasStandard, historyLimit } from "@/lib/billing";
+import { FREE_HISTORY_DAYS, hasStandard, historyLimit } from "@/lib/billing";
+import { getBilling } from "@/lib/billing-server";
 import { requireMember } from "@/lib/session";
 import {
   addDays,

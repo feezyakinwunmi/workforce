@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getBilling, hasStandard } from "@/lib/billing";
+import { hasStandard } from "@/lib/billing";
+import { getBilling } from "@/lib/billing-server";
 import { getSession } from "@/lib/session";
 import { buildTimesheet } from "@/lib/timesheet";
 

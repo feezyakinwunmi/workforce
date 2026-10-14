@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AutoSubmitSelect, CopyButton, TimezoneSelect } from "@/components/form";
-import { getBilling } from "@/lib/billing";
+import { getBilling } from "@/lib/billing-server";
 import { requireMember } from "@/lib/session";
 import {
   isAdminRole,
