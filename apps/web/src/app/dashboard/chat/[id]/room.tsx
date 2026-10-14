@@ -1,5 +1,6 @@
 "use client";
 
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MESSAGE_COLUMNS, PAGE_SIZE, type ChatMessage } from "@/lib/chat";
 import { createClient } from "@/lib/supabase/client";
@@ -80,12 +81,12 @@ export function ChatRoom({
     const sub = supabase
       .channel(`room-${channelId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `channel_id=eq.${channelId}` },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<ChatMessage>) => {
           upsert(payload.new as ChatMessage);
           markRead();
         })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `channel_id=eq.${channelId}` },
-        (payload) => upsert(payload.new as ChatMessage))
+        (payload: RealtimePostgresChangesPayload<ChatMessage>) => upsert(payload.new as ChatMessage))
       .subscribe();
     const onVisible = () => document.visibilityState === "visible" && markRead();
     document.addEventListener("visibilitychange", onVisible);
