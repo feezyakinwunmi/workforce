@@ -294,7 +294,9 @@ function maybeScreenshot() {
       app: tracker.appTrackingAllowed ? tracker.currentApp : null,
       blurred: !!settings.blur_screenshots,
     })
-    .then((ok) => ok && shots.upload(api, account.userId, account.orgId))
+    .then(async (ok) => {
+      if (ok) await shots.upload(api, account.userId, account.orgId);
+    })
     .catch(() => undefined);
 }
 
