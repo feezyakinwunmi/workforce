@@ -10,14 +10,19 @@ import { initials } from "@/lib/utils";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { supabase, org, member, profile, user } = await requireMember();
   const admin = isAdminRole(member.role);
-  const [{ count: unread }, billing] = await Promise.all([
+  const [{ count: unread }, billing, { data: channels }] = await Promise.all([
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
     getBilling(),
+    supabase.rpc("my_channels"),
   ]);
+  const unreadChat = ((channels ?? []) as Array<{ unread: number; archived: boolean }>)
+    .filter((c) => !c.archived)
+    .reduce((s, c) => s + (c.unread ?? 0), 0);
   const banner = billingBanner(billing, admin);
 
   const items: NavItem[] = [
     { href: "/dashboard", label: "Overview" },
+    { href: "/dashboard/chat", label: "Chat", badge: unreadChat },
     { href: "/dashboard/notifications", label: "Notifications", badge: unread ?? 0 },
     { href: "/dashboard/activity", label: admin || member.role === "manager" ? "Activity" : "My activity" },
     { href: "/dashboard/timesheets", label: "Timesheets" },

@@ -43,6 +43,7 @@ export default function PrivacyPage() {
         <li>Away-from-computer periods and your answer about them</li>
         <li>The name of the app in front and its window title, if your company turned app tracking on</li>
         <li>The task you are working on, your end-of-day report, tasks and comments you write</li>
+        <li>Chat messages you send. Direct messages and private groups can only be read by the people in them, not by company admins.</li>
         <li>The computer&apos;s name, operating system, app version and clock difference, to keep data accurate</li>
       </ul>
       <p>

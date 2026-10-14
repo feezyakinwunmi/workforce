@@ -143,6 +143,15 @@ export class Api {
     return (data ?? []) as AgentNotification[];
   }
 
+  /** Unread chat messages across the person's channels (0 if chat isn't available). */
+  async unreadMessages(): Promise<number> {
+    const { data, error } = await this.supabase.rpc("my_channels");
+    if (error) return 0;
+    return ((data ?? []) as Array<{ unread: number; archived: boolean }>)
+      .filter((c) => !c.archived)
+      .reduce((s, c) => s + (c.unread ?? 0), 0);
+  }
+
   async ingest(payload: Payload): Promise<{ server_time: string }> {
     const { data, error } = await this.supabase.rpc("ingest_batch", { p_payload: payload });
     if (error) throw classify(error);
