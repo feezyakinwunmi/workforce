@@ -90,7 +90,7 @@ export default async function DownloadPage() {
       <p className="mt-10 rounded-xl bg-slate-100 p-4 text-sm text-slate-600">
         <strong>Your privacy:</strong> the app records only while you are clocked in: your hours, whether the keyboard
         and mouse are in use (never what you type) and, if your company turned it on, which apps you use. No
-        screenshots, webcam or microphone. You can see everything it recorded under <em>My activity</em>.{" "}
+        webcam or microphone, and no screenshots unless your company is on Pro, switches them on and you agree in the app. You can see everything it recorded under <em>My activity</em>.{" "}
         <Link className="font-medium text-brand-700 hover:underline" href="/what-we-track">Read exactly what we track</Link>.
       </p>
       <p className="mt-6 flex gap-4 text-sm text-slate-500">

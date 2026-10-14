@@ -87,7 +87,7 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/lib/billing.ts      plan display constants and Free-plan helpers (safe for client components)
   src/lib/billing-server.ts  getBilling() (my_billing RPC, server only: never import it from a client component)
   src/lib/paystack.ts     Paystack initialize/verify/webhook signature, recordSuccess (service role)
-  src/lib/supabase/admin.ts  service-role client (server only, payments confirmation only)
+  src/lib/supabase/admin.ts  service-role client (server only: payments, reminder emails, screenshot cleanup)
   src/lib/supabase/client.ts browser client (chat Realtime + sending messages; anon key)
   src/lib/chat.ts         chat types and helpers (attachments, file limits, storage names)
   src/lib/payroll.ts      monthly pay calculation (hours, leave, holidays, rates)

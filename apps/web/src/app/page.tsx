@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
-import { FREE_HISTORY_DAYS, FREE_SEATS, SEAT_PRICE_NAIRA } from "@/lib/billing";
+import { FREE_HISTORY_DAYS, FREE_SEATS, PRO_PRICE_NAIRA, SEAT_PRICE_NAIRA } from "@/lib/billing";
 import { APP_NAME, OPERATOR_NAME } from "@/lib/config";
 import { getSession } from "@/lib/session";
 import { HeroTimeline } from "./_landing/timeline";
@@ -51,12 +51,16 @@ const FEATURES = [
 const NEVER = [
   "Anything while someone is clocked out",
   "What people type: no keystrokes, passwords or messages",
-  "Screenshots or screen recordings",
+  "Screen recordings, and no screenshots unless your company is on Pro, switches them on and each worker agrees",
   "Webcam or microphone",
   "Files, emails or location",
 ];
 
 const FAQ = [
+  {
+    q: "Do you take screenshots?",
+    a: "Not unless the company is on the Pro plan and switches them on. Then the desktop app tells every worker first, asks them to agree, takes one at a random moment in each interval only while they are clocked in (optionally blurred), and lets them see and delete their own. They are kept for 90 days.",
+  },
   {
     q: "Do my workers need to install anything?",
     a: "Yes, a small Windows app (Mac is coming). They download it from a link, log in once, and it starts with their computer. Managers only need the website.",
@@ -192,7 +196,7 @@ export default async function Home() {
         <section id="pricing" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Simple pricing, in naira</h2>
           <p className="mt-3 max-w-xl text-[#5B5876]">Every company starts with 14 days of Standard, free. Pay ahead for 1, 3 or 12 months; 12 months costs the same as 10.</p>
-          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
             <div className="rounded-2xl border border-[#E6E3F2] p-6 sm:p-8">
               <h3 className="text-xl font-bold">Free</h3>
               <p className="mt-2"><span className="text-4xl font-extrabold tracking-tight">₦0</span></p>
@@ -222,9 +226,22 @@ export default async function Home() {
                 {user ? "See your plan" : "Start free trial"}
               </Link>
             </div>
+            <div className="rounded-2xl border border-[#E6E3F2] p-6 sm:p-8">
+              <h3 className="text-xl font-bold">Pro</h3>
+              <p className="mt-2">
+                <span className="text-4xl font-extrabold tracking-tight">{naira(PRO_PRICE_NAIRA)}</span>
+                <span className="text-[#5B5876]"> per person, per month</span>
+              </p>
+              <ul className="mt-6 space-y-2.5 text-[#3F3A5E]">
+                <li>Everything in Standard</li>
+                <li>Optional screenshots, off until you switch them on</li>
+                <li>Blur them if you only need to see the kind of work</li>
+                <li>Workers agree first and see their own</li>
+              </ul>
+            </div>
           </div>
           <p className="mt-6 text-sm text-[#5B5876]">
-            For a team of 10, Standard is {naira(SEAT_PRICE_NAIRA * 10)} a month. Pro, with optional screenshots, is coming.
+            For a team of 10, Standard is {naira(SEAT_PRICE_NAIRA * 10)} a month and Pro is {naira(PRO_PRICE_NAIRA * 10)}.
           </p>
         </section>
 

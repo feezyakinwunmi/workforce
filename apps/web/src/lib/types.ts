@@ -8,6 +8,7 @@ export type OrgSettings = {
   screenshots_enabled: boolean;
   screenshot_interval_minutes: number;
   blur_screenshots: boolean;
+  screenshots_changed_at?: string | null; // set by the database; the desktop app asks workers to agree to this version
 };
 
 export type Organization = {

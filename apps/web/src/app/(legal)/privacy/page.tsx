@@ -45,9 +45,10 @@ export default function PrivacyPage() {
         <li>The task you are working on, your end-of-day report, tasks and comments you write</li>
         <li>Chat messages and files you choose to send. Direct messages and private groups can only be read by the people in them, not by company admins.</li>
         <li>The computer&apos;s name, operating system, app version and clock difference, to keep data accurate</li>
+        <li>Screenshots of the screen you are using, only if your company is on the Pro plan, switched them on and you agreed in the app; optionally blurred before upload; kept 90 days; you can see and delete your own</li>
       </ul>
       <p>
-        We never record keystroke content, passwords, messages, screenshots, the webcam, the microphone, the files on your computer or
+        We never record keystroke content, passwords, messages, screen recordings, screenshots you did not agree to, the webcam, the microphone, the files on your computer or
         location, and nothing at all while you are clocked out. See <Link href="/what-we-track">what we track</Link>.
       </p>
       <h3>Technical data</h3>
@@ -114,7 +115,7 @@ export default function PrivacyPage() {
       <h2>10. Changes</h2>
       <p>
         We will update this page when the service changes, and tell company owners by email about important changes.
-        New features that record more (for example screenshots) are always shown to workers in the app before they start.
+        New features that record more are always shown to workers in the app before they start.
       </p>
 
       <h2>11. Contact</h2>

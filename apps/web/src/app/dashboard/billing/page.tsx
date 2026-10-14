@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { daysLeft, FREE_HISTORY_DAYS, FREE_SEATS, naira, paymentLabel, TIER_LABEL } from "@/lib/billing";
+import { daysLeft, FREE_HISTORY_DAYS, FREE_SEATS, isPaid, naira, paymentLabel, proPriceKobo, TIER_LABEL } from "@/lib/billing";
 import { getBilling } from "@/lib/billing-server";
 import { paystackConfigured } from "@/lib/paystack";
 import { requireAdmin } from "@/lib/session";
 import { formatDate, cn } from "@/lib/utils";
-import { AddSeatsForm, RenewForm } from "./forms";
+import { AddSeatsForm, RenewForm, UpgradeForm } from "./forms";
 
 export const metadata: Metadata = { title: "Plan and billing" };
 
 type Payment = {
   id: string;
   reference: string;
-  kind: "renew" | "add_seats" | "manual";
+  kind: "renew" | "add_seats" | "upgrade" | "manual";
+  plan: "standard" | "pro";
   seats: number;
   months: number;
   amount_kobo: number;
@@ -39,7 +40,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     getBilling(),
     supabase
       .from("payments")
-      .select("id, reference, kind, seats, months, amount_kobo, status, period_start, period_end, channel, paid_at, created_at")
+      .select("id, reference, kind, plan, seats, months, amount_kobo, status, period_start, period_end, channel, paid_at, created_at")
       .neq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(50),
@@ -50,6 +51,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const uncovered = billing.seat_limit !== null ? Math.max(0, billing.active_members - billing.seat_limit) : 0;
   const paidDays = daysLeft(billing.paid_until);
   const trialDays = daysLeft(billing.trial_ends_at);
+  const proKobo = proPriceKobo(billing);
+  const paid = isPaid(billing);
+  const currentKobo = billing.tier === "pro" ? proKobo : billing.seat_price_kobo;
 
   return (
     <div className="space-y-8">
@@ -72,7 +76,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <p className="mt-1 text-sm text-slate-600">
               {billing.tier === "trial" &&
                 `All Standard features for everyone until ${formatDate(billing.trial_ends_at, org.timezone)} (${trialDays} ${trialDays === 1 ? "day" : "days"} left). Then the company moves to Free unless you choose a plan.`}
-              {billing.tier === "standard" &&
+              {paid &&
                 `${billing.paid_seats} ${billing.paid_seats === 1 ? "person" : "people"} paid until ${formatDate(billing.paid_until!, org.timezone)} (${paidDays} days left).`}
               {billing.tier === "free" && `Up to ${FREE_SEATS} people, app names only, last ${FREE_HISTORY_DAYS} days of history.`}
             </p>
@@ -88,7 +92,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         {uncovered > 0 && (
           <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
             {uncovered} {uncovered === 1 ? "person isn't" : "people aren't"} covered by your plan and can&apos;t clock in. You can see who on
-            the Team page. {billing.tier === "standard" ? "Add people below." : "Choose a plan below."}
+            the Team page. {paid ? "Add people below." : "Choose a plan below."}
           </p>
         )}
       </section>
@@ -109,23 +113,28 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         />
         <PlanCard
           name="Pro"
-          price="Coming soon"
-          items={["Everything in Standard", "Screenshots (optional, blurred)", "Screenshot retention you choose"]}
-          muted
+          price={naira(proKobo)}
+          current={billing.tier === "pro"}
+          items={["Everything in Standard", "Screenshots: off until you switch them on", "Optional blur, 5 to 60 minutes apart", "Workers agree first and see their own", "Kept 90 days"]}
         />
       </section>
 
       <section className="card p-5">
         <h2 className="mb-1 font-semibold">
-          {billing.tier === "standard" ? "Renew or extend Standard" : "Choose Standard"}
+          {paid ? "Renew or extend your plan" : "Choose a plan"}
         </h2>
         <p className="mb-4 text-sm text-slate-600">
-          {billing.tier === "standard"
+          {paid
             ? `The new period starts when the current one ends on ${formatDate(billing.paid_until!, org.timezone)}.`
             : "Prepay for the people in your company. No automatic charges: we'll remind you before it ends."}
         </p>
         {ready ? (
-          <RenewForm minSeats={billing.active_members} priceKobo={billing.seat_price_kobo} label="Pay with Paystack" />
+          <RenewForm
+            minSeats={billing.active_members}
+            prices={{ standard: billing.seat_price_kobo, pro: proKobo }}
+            defaultPlan={billing.tier === "pro" ? "pro" : "standard"}
+            label="Pay with Paystack"
+          />
         ) : (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
             Online payment is being set up. Contact us to pay by transfer in the meantime.
@@ -134,10 +143,21 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </section>
 
       {billing.tier === "standard" && ready && (
+        <section className="card border-brand-200 p-5">
+          <h2 className="mb-1 font-semibold">Upgrade to Pro now</h2>
+          <p className="mb-4 text-sm text-slate-600">
+            Pay only the difference ({naira(proKobo - billing.seat_price_kobo)} per person per month) for the days left. Screenshots stay off until
+            you switch them on in Company settings.
+          </p>
+          <UpgradeForm seats={billing.paid_seats} differenceKobo={proKobo - billing.seat_price_kobo} daysLeft={paidDays} />
+        </section>
+      )}
+
+      {paid && ready && (
         <section className="card p-5">
           <h2 className="mb-1 font-semibold">Add people to your current plan</h2>
           <p className="mb-4 text-sm text-slate-600">For new hires. You only pay for the days left in your plan.</p>
-          <AddSeatsForm priceKobo={billing.seat_price_kobo} daysLeft={paidDays} />
+          <AddSeatsForm priceKobo={currentKobo} daysLeft={paidDays} />
         </section>
       )}
 

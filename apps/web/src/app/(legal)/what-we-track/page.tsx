@@ -29,6 +29,7 @@ export default function WhatWeTrackPage() {
             <li><Yes />The app in front and its window title, if your company turned this on</li>
             <li><Yes />The task you picked under &ldquo;Working on&rdquo;</li>
             <li><Yes />Your end-of-day report, if you write one</li>
+            <li><Yes />Screenshots, only if your company is on the Pro plan, switched them on, and you agreed in the app (see below)</li>
           </ul>
         </section>
         <section className="card p-5">
@@ -36,7 +37,7 @@ export default function WhatWeTrackPage() {
           <ul className="list-none pl-0 text-sm">
             <li><No />Anything at all while you are clocked out</li>
             <li><No />What you type: no keystrokes, passwords or messages</li>
-            <li><No />Screenshots or screen recordings</li>
+            <li><No />Screen recordings, and no screenshots unless you agreed to them</li>
             <li><No />Your webcam or microphone</li>
             <li><No />Your files, emails or browsing history</li>
             <li><No />Your location</li>
@@ -59,6 +60,16 @@ export default function WhatWeTrackPage() {
       <p>
         Your <strong>activity %</strong> is active time divided by worked time. It is one signal, not a score: the
         dashboard shows it next to the tasks you finished and your report, so your work is judged on output too.
+      </p>
+
+      <h2>Screenshots (Pro plan only, off unless your company switches them on)</h2>
+      <p>
+        If your company switches screenshots on, you get a notice, and the desktop app shows exactly what will happen and
+        asks you to agree before it takes any. It asks again whenever the rules change. Then, only while you are clocked in,
+        it takes one picture of the screen you are using at a random moment in each interval your company chose (5 to 60
+        minutes). If your company chose blurring, the picture is blurred on your computer before it is uploaded, so the
+        details never leave it. You can see all of yours under <em>Screenshots</em> in the dashboard and delete any of
+        them (your company sees that one was deleted). They are deleted automatically after 90 days.
       </p>
 
       <h2>Who can see your data</h2>

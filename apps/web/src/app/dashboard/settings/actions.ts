@@ -21,6 +21,13 @@ export async function updateCompanySettings(_prev: FormState, formData: FormData
     idle_timeout_minutes: idle,
     track_apps: formData.get("track_apps") === "on",
     track_urls: formData.get("track_urls") === "on",
+    ...(formData.get("screenshot_form") === "1"
+      ? {
+          screenshots_enabled: formData.get("screenshots_enabled") === "on",
+          blur_screenshots: formData.get("blur_screenshots") === "on",
+          screenshot_interval_minutes: Number(formData.get("screenshot_interval_minutes")) || 10,
+        }
+      : {}),
   };
 
   const { data, error } = await supabase
@@ -29,6 +36,7 @@ export async function updateCompanySettings(_prev: FormState, formData: FormData
     .eq("id", org.id)
     .select("id");
 
+  // The database refuses screenshots without the Pro plan and tells everyone about changes.
   if (error) return { error: error.message };
   if (!data?.length) return { error: "You don't have permission to change company settings." };
 

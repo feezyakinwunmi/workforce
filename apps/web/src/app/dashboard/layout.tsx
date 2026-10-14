@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SideNav, type NavItem } from "@/components/nav";
-import { daysLeft } from "@/lib/billing";
+import { daysLeft, hasPro, isPaid } from "@/lib/billing";
 import { getBilling } from "@/lib/billing-server";
 import { APP_NAME } from "@/lib/config";
 import { requireMember } from "@/lib/session";
@@ -34,6 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/tasks", label: "Tasks" },
     { href: "/dashboard/leave", label: "Leave", badge: leaveWaiting ?? 0 },
     ...(admin || member.role === "manager" ? [{ href: "/dashboard/projects", label: "Projects" }] : []),
+    ...(hasPro(billing) || org.settings.screenshots_enabled ? [{ href: "/dashboard/screenshots", label: "Screenshots" }] : []),
     ...(admin ? [{ href: "/dashboard/settings", label: "Company settings" }] : []),
     ...(admin ? [{ href: "/dashboard/payroll", label: "Payroll" }] : []),
     ...(admin ? [{ href: "/dashboard/billing", label: "Plan and billing" }] : []),
@@ -107,7 +108,7 @@ function billingBanner(b: Awaited<ReturnType<typeof getBilling>>, admin: boolean
     const d = daysLeft(b.trial_ends_at);
     return d <= 7 ? { text: `Your free trial ends in ${d} ${d === 1 ? "day" : "days"}. Choose a plan to keep every feature.`, urgent: d <= 2, action: "Choose a plan" } : null;
   }
-  if (b.tier === "standard") {
+  if (isPaid(b)) {
     const d = daysLeft(b.paid_until);
     return d <= 5 ? { text: `Your plan ends in ${d} ${d === 1 ? "day" : "days"}.`, urgent: true, action: "Renew" } : null;
   }

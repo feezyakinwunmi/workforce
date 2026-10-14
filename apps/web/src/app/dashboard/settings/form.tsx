@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { FormMessage, SubmitButton, TimezoneSelect } from "@/components/form";
 import type { Organization } from "@/lib/types";
 import { updateCompanySettings } from "./actions";
@@ -29,7 +30,7 @@ function Toggle({ name, label, hint, defaultChecked, disabled }: {
   );
 }
 
-export function SettingsForm({ org }: { org: Organization }) {
+export function SettingsForm({ org, pro }: { org: Organization; pro: boolean }) {
   const [state, action] = useActionState(updateCompanySettings, undefined);
   const s = org.settings;
 
@@ -65,8 +66,41 @@ export function SettingsForm({ org }: { org: Organization }) {
                   hint="App names and website domains while clocked in (e.g. VS Code, figma.com)." />
           <Toggle name="track_urls" label="Record full web addresses" defaultChecked={s.track_urls}
                   hint="Off by default. Full URLs can contain private information." />
-          <Toggle name="screenshots" label="Screenshots" defaultChecked={false} disabled
-                  hint="Coming in a later release, on the Business plan." />
+        </div>
+      </section>
+
+      <section className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Screenshots</h2>
+          {!pro && <Link href="/dashboard/billing" className="badge bg-brand-100 text-brand-700 hover:bg-brand-200">Pro plan</Link>}
+        </div>
+        <p className="mb-2 mt-1 text-sm text-slate-600">
+          Off unless you switch them on. Taken only while someone is clocked in, at a random moment in each interval, of the
+          screen they are using. Everyone is notified, and the desktop app asks each worker to agree before it takes any.
+          Workers see their own and may delete them. Kept for 90 days.
+        </p>
+        {!pro && !s.screenshots_enabled && (
+          <p className="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            Screenshots are part of the Pro plan. <Link href="/dashboard/billing" className="font-medium text-brand-700 hover:underline">Upgrade</Link> to switch them on.
+          </p>
+        )}
+        {(pro || s.screenshots_enabled) && <input type="hidden" name="screenshot_form" value="1" />}
+        <div className="divide-y divide-slate-100">
+          <Toggle name="screenshots_enabled" label="Take screenshots" defaultChecked={s.screenshots_enabled}
+                  disabled={!pro && !s.screenshots_enabled}
+                  hint="Changing this or the options below asks every worker to agree again." />
+          <Toggle name="blur_screenshots" label="Blur screenshots" defaultChecked={s.blur_screenshots}
+                  disabled={!pro && !s.screenshots_enabled}
+                  hint="Blurred on the worker's computer before upload: you see what kind of work it is, not the details." />
+        </div>
+        <div className="mt-3 max-w-xs">
+          <label className="label" htmlFor="shot-interval">About one every</label>
+          <select id="shot-interval" name="screenshot_interval_minutes" className="input" defaultValue={String(s.screenshot_interval_minutes ?? 10)}
+                  disabled={!pro && !s.screenshots_enabled}>
+            {[5, 10, 15, 20, 30, 60].map((m) => (
+              <option key={m} value={m}>{m === 60 ? "hour" : `${m} minutes`}</option>
+            ))}
+          </select>
         </div>
       </section>
 

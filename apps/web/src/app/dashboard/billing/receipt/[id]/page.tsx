@@ -13,6 +13,7 @@ type Payment = {
   id: string;
   reference: string;
   kind: string;
+  plan: string | null;
   seats: number;
   months: number;
   amount_kobo: number;
@@ -40,7 +41,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const { supabase, org } = await requireAdmin();
   const { data } = await supabase
     .from("payments")
-    .select("id, reference, kind, seats, months, amount_kobo, status, period_start, period_end, channel, paid_at, created_at")
+    .select("id, reference, kind, plan, seats, months, amount_kobo, status, period_start, period_end, channel, paid_at, created_at")
     .eq("id", id)
     .eq("status", "success")
     .maybeSingle();
