@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Overview" };
 
-const ORDER: Record<LiveStatus, number> = { working: 0, idle: 1, offline: 2, not_working: 3 };
+const ORDER: Record<LiveStatus, number> = { working: 0, phone: 1, idle: 2, offline: 3, not_working: 4 };
 
 export default async function OverviewPage({
   searchParams,
@@ -97,11 +97,12 @@ export default async function OverviewPage({
     .sort((a, b) => ORDER[a.status] - ORDER[b.status] || (b.stat?.tracked_seconds ?? 0) - (a.stat?.tracked_seconds ?? 0));
 
   const counts = {
-    working: rows.filter((r) => r.status === "working").length,
+    working: rows.filter((r) => r.status === "working" || r.status === "phone").length,
     idle: rows.filter((r) => r.status === "idle").length,
     total: rows.length,
     tracked: rows.reduce((s, r) => s + (r.stat?.tracked_seconds ?? 0), 0),
     active: rows.reduce((s, r) => s + (r.stat?.active_seconds ?? 0), 0),
+    measured: rows.reduce((s, r) => s + (r.stat ? r.stat.tracked_seconds - r.stat.phone_seconds : 0), 0),
     done: rows.reduce((s, r) => s + (doneToday.get(r.m.user_id) ?? 0), 0),
   };
   const firstName = profile?.full_name?.split(" ")[0];
@@ -120,22 +121,25 @@ export default async function OverviewPage({
   const columns: Column[] = week.map((d) => {
     let active = 0;
     let tracked = 0;
+    let phone = 0;
     for (const m of people) {
       const st = stats.get(`${m.user_id}|${d}`);
       active += st?.active_seconds ?? 0;
       tracked += st?.tracked_seconds ?? 0;
+      phone += st?.phone_seconds ?? 0;
     }
     const weekday = new Date(`${d}T00:00:00Z`).getUTCDay();
     return {
       key: d,
       label: d === myToday ? "Today" : formatDay(d, { weekday: "short" }),
-      values: [active / 3600, Math.max(0, tracked - active) / 3600],
-      tooltip: `${formatDay(d, { weekday: "long", day: "numeric", month: "short" })}\n${formatHours(tracked)} worked · ${percent(active, tracked)} active`,
+      values: [active / 3600, Math.max(0, tracked - phone - active) / 3600, phone / 3600],
+      tooltip: `${formatDay(d, { weekday: "long", day: "numeric", month: "short" })}\n${formatHours(tracked)} worked · ${percent(active, tracked - phone)} active${phone ? `\n${formatHours(phone)} on phone` : ""}`,
       muted: weekday === 0 || weekday === 6,
       highlight: d === myToday,
     };
   });
-  const weekTracked = columns.reduce((a, c) => a + (c.values[0] + c.values[1]) * 3600, 0);
+  const weekTracked = columns.reduce((a, c) => a + (c.values[0] + c.values[1] + c.values[2]) * 3600, 0);
+  const weekPhone = columns.some((c) => c.values[2] > 0);
   const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: me.timezone }).format(new Date()));
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const mine = rows.find((r) => r.m.user_id === me.user_id) ?? rows[0];
@@ -221,15 +225,15 @@ export default async function OverviewPage({
         >
           <StackedColumns
             columns={columns}
-            series={["Active", "Idle"]}
+            series={weekPhone ? ["Active", "Idle", "Phone"] : ["Active", "Idle"]}
             format={(v) => `${Math.round(v * 10) / 10}h`}
             caption={team ? "Team hours for the last 7 days" : "Your hours for the last 7 days"}
           />
         </Panel>
         <Panel title="Activity today" bodyClassName="flex flex-col items-center gap-3 p-5 text-center">
-          <Ring value={counts.tracked ? counts.active / counts.tracked : null} size={120} label={`Activity today ${percent(counts.active, counts.tracked)}`} />
+          <Ring value={counts.measured ? counts.active / counts.measured : null} size={120} label={`Activity today ${percent(counts.active, counts.measured)}`} />
           <p className="text-sm text-slate-500">
-            {counts.tracked ? <>Keyboard or mouse in use for <span className="font-medium text-slate-900">{formatHours(counts.active)}</span> of {formatHours(counts.tracked)}</> : "No time tracked yet today"}
+            {counts.tracked ? <>Keyboard or mouse in use for <span className="font-medium text-slate-900">{formatHours(counts.active)}</span> of {formatHours(counts.measured)} at the computer</> : "No time tracked yet today"}
           </p>
         </Panel>
       </div>
@@ -278,11 +282,11 @@ export default async function OverviewPage({
                       </td>
                       <td className="px-5 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatHours(stat?.tracked_seconds ?? 0)}</td>
                       <td className="px-5 py-3">
-                        <ActivityMeter active={stat?.active_seconds ?? 0} tracked={stat?.tracked_seconds ?? 0} />
+                        <ActivityMeter active={stat?.active_seconds ?? 0} tracked={stat ? stat.tracked_seconds - stat.phone_seconds : 0} />
                       </td>
                       <td className="px-5 py-3 text-right text-slate-600 tabular-nums">{doneToday.get(m.user_id) || "–"}</td>
                       <td className="max-w-48 truncate px-5 py-3 text-slate-500">
-                        {status === "working" || status === "idle" ? (session?.current_app ?? "–") : "–"}
+                        {status === "working" || status === "idle" || status === "phone" ? (session?.current_app ?? "–") : "–"}
                       </td>
                     </tr>
                   );

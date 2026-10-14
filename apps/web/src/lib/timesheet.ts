@@ -8,9 +8,10 @@ export type TimesheetRow = {
   name: string;
   email: string;
   timezone: string;
-  days: Array<{ date: string; tracked: number; active: number; leave: string | null }>;
+  days: Array<{ date: string; tracked: number; active: number; phone: number; leave: string | null }>;
   total: number;
   active: number;
+  phone: number; // part of total, clocked on a phone (no activity measure)
   leaveDays: number;
 };
 
@@ -52,6 +53,7 @@ export async function buildTimesheet(supabase: SupabaseClient, me: Membership, w
           date,
           tracked: s?.tracked_seconds ?? 0,
           active: s?.active_seconds ?? 0,
+          phone: s?.phone_seconds ?? 0,
           leave: onLeave ? (typeName.get(onLeave.leave_type_id) ?? "Leave") : null,
         };
       });
@@ -63,6 +65,7 @@ export async function buildTimesheet(supabase: SupabaseClient, me: Membership, w
         days: cells,
         total: cells.reduce((s, c) => s + c.tracked, 0),
         active: cells.reduce((s, c) => s + c.active, 0),
+        phone: cells.reduce((s, c) => s + c.phone, 0),
         leaveDays: cells.filter((c) => c.leave).length,
       };
     })

@@ -26,8 +26,18 @@ import { disconnectDevice } from "./actions";
 
 export const metadata: Metadata = { title: "Activity" };
 
-type Block = { block_start: string; active_seconds: number; idle_seconds: number; excluded_seconds: number };
-type Session = { id: string; started_at: string; ended_at: string | null; end_reason: string | null; device_id: string | null };
+type Block = { block_start: string; active_seconds: number; idle_seconds: number; excluded_seconds: number; field_seconds: number };
+type Place = { lat: number; lng: number; accuracy?: number | null } | null;
+type Session = {
+  id: string;
+  started_at: string;
+  ended_at: string | null;
+  end_reason: string | null;
+  device_id: string | null;
+  source: "desktop" | "phone";
+  start_location: Place;
+  end_location: Place;
+};
 type Idle = { id: string; started_at: string; ended_at: string | null; decision: string; reason: string | null };
 type AppRow = { app_name: string; window_title: string; seconds: number };
 type Device = { id: string; name: string; os: string; agent_version: string; last_seen_at: string | null; revoked_at: string | null; clock_offset_seconds: number };
@@ -86,14 +96,14 @@ export default async function ActivityPage({
   const [blocksRes, sessionsRes, idleRes, appsRes, titlesRes, devicesRes, taskTimeRes, reportsRes, doneRes] = await Promise.all([
     supabase
       .from("activity_blocks")
-      .select("block_start, active_seconds, idle_seconds, excluded_seconds")
+      .select("block_start, active_seconds, idle_seconds, excluded_seconds, field_seconds")
       .eq("user_id", target.user_id)
       .gte("block_start", from)
       .lt("block_start", to)
       .order("block_start"),
     supabase
       .from("work_sessions")
-      .select("id, started_at, ended_at, end_reason, device_id")
+      .select("id, started_at, ended_at, end_reason, device_id, source, start_location, end_location")
       .eq("user_id", target.user_id)
       .lt("started_at", to)
       .or(`ended_at.is.null,ended_at.gt.${from}`)
@@ -139,8 +149,10 @@ export default async function ActivityPage({
       .lt("completed_at", to),
   ]);
 
-  const blocks = (blocksRes.data ?? []) as Block[];
   const sessions = (sessionsRes.data ?? []) as Session[];
+  const blocks = [...((blocksRes.data ?? []) as Block[]), ...runningPhoneBlocks(sessions, dayStart.getTime(), dayEnd.getTime())].sort(
+    (a, b) => a.block_start.localeCompare(b.block_start),
+  );
   const idle = (idleRes.data ?? []) as Idle[];
   const apps = ((appsRes.data ?? []) as Array<{ app_name: string; seconds: number }>).map((a) => ({
     ...a,
@@ -164,7 +176,8 @@ export default async function ActivityPage({
     .sort((a, b) => b.seconds - a.seconds);
   const taskTotal = tasksWorked.reduce((s, t) => s + t.seconds, 0);
 
-  const tracked = blocks.reduce((s, b) => s + b.active_seconds + b.idle_seconds, 0);
+  const phone = blocks.reduce((s, b) => s + (b.field_seconds ?? 0), 0);
+  const tracked = blocks.reduce((s, b) => s + b.active_seconds + b.idle_seconds, 0) + phone;
   const active = blocks.reduce((s, b) => s + b.active_seconds, 0);
   const removed = blocks.reduce((s, b) => s + b.excluded_seconds, 0);
 
@@ -194,9 +207,11 @@ export default async function ActivityPage({
     return {
       key: String(s),
       label: s % 12 === 0 ? `${hh}:00` : "",
-      values: b ? [b.active_seconds / 60, b.idle_seconds / 60] : [0, 0],
+      values: b ? [b.active_seconds / 60, b.idle_seconds / 60, (b.field_seconds ?? 0) / 60] : [0, 0, 0],
       tooltip: b
-        ? `${hh}:${mm}\n${Math.round(b.active_seconds / 60)} min active · ${Math.round(b.idle_seconds / 60)} min idle${b.excluded_seconds ? `\n${Math.round(b.excluded_seconds / 60)} min removed` : ""}`
+        ? b.field_seconds && !b.active_seconds && !b.idle_seconds
+          ? `${hh}:${mm}\n${Math.round(b.field_seconds / 60)} min clocked in on phone`
+          : `${hh}:${mm}\n${Math.round(b.active_seconds / 60)} min active · ${Math.round(b.idle_seconds / 60)} min idle${b.field_seconds ? ` · ${Math.round(b.field_seconds / 60)} min phone` : ""}${b.excluded_seconds ? `\n${Math.round(b.excluded_seconds / 60)} min removed` : ""}`
         : `${hh}:${mm}\nNot working`,
     };
   });
@@ -234,8 +249,8 @@ export default async function ActivityPage({
 
       <StatStrip
         stats={[
-          { label: "Hours worked", value: formatHours(tracked), icon: "clock", tone: "brand" },
-          { label: "Activity", value: percent(active, tracked), icon: "activity", tone: "green" },
+          { label: "Hours worked", value: formatHours(tracked), icon: "clock", tone: "brand", hint: phone ? `${formatHours(phone)} on phone` : undefined },
+          { label: "Activity", value: tracked - phone > 0 ? percent(active, tracked - phone) : "–", icon: "activity", tone: "green", hint: phone ? "At the computer" : undefined },
           { label: "First clock-in", value: firstIn ? formatClock(firstIn, tz) : "–", icon: "play", tone: "slate" },
           {
             label: "Last clock-out",
@@ -261,7 +276,7 @@ export default async function ActivityPage({
               <div className="min-w-[640px]">
                 <StackedColumns
                   columns={timeline}
-                  series={["Active", "Idle"]}
+                  series={phone ? ["Active", "Idle", "Phone"] : ["Active", "Idle"]}
                   format={(v) => `${Math.round(v)}m`}
                   height={140}
                   dense
@@ -354,9 +369,21 @@ export default async function ActivityPage({
           ) : (
             <ul className="divide-y divide-slate-100 text-sm">
               {sessions.map((s) => (
-                <li key={s.id} className="flex justify-between gap-3 py-2.5">
-                  <span className="text-slate-800 tabular-nums">
-                    {formatClock(s.started_at, tz)} – {s.ended_at ? formatClock(s.ended_at, tz) : "now"}
+                <li key={s.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <Icon name={s.source === "phone" ? "phone" : "monitor"} className="h-4 w-4 text-slate-400" title={s.source === "phone" ? "Phone" : "Computer"} />
+                    <span>
+                      <span className="text-slate-800 tabular-nums">
+                        {formatClock(s.started_at, tz)} – {s.ended_at ? formatClock(s.ended_at, tz) : "now"}
+                      </span>
+                      {(s.start_location || s.end_location) && (
+                        <span className="block text-xs text-slate-500">
+                          {s.start_location && <MapLink place={s.start_location} label="Clock-in place" />}
+                          {s.start_location && s.end_location && " · "}
+                          {s.end_location && <MapLink place={s.end_location} label="Clock-out place" />}
+                        </span>
+                      )}
+                    </span>
                   </span>
                   <span className="text-slate-500">{s.ended_at ? (END_REASON[s.end_reason ?? ""] ?? "") : "Working"}</span>
                 </li>
@@ -451,4 +478,31 @@ function UpgradeCard({ text, admin }: { text: string; admin: boolean }) {
       {text}
     </Notice>
   );
+}
+
+/** A clock-in or clock-out position, opened on OpenStreetMap. */
+function MapLink({ place, label }: { place: NonNullable<Place>; label: string }) {
+  const href = `https://www.openstreetmap.org/?mlat=${place.lat}&mlon=${place.lng}#map=17/${place.lat}/${place.lng}`;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="hover:text-brand-700 hover:underline">
+      {label}
+      {place.accuracy ? ` (±${place.accuracy} m)` : ""}
+    </a>
+  );
+}
+
+/** A phone session still running has no blocks yet (they're written at clock-out): show its time so far. */
+function runningPhoneBlocks(sessions: Session[], from: number, to: number): Block[] {
+  const out: Block[] = [];
+  const now = Date.now();
+  for (const s of sessions) {
+    if (s.source !== "phone" || s.ended_at) continue;
+    const start = Date.parse(s.started_at);
+    const end = Math.min(now, start + 12 * 3600_000, to);
+    for (let b = Math.floor(Math.max(start, from) / 600_000) * 600_000; b < end; b += 600_000) {
+      const secs = Math.round((Math.min(b + 600_000, end) - Math.max(b, start)) / 1000);
+      if (secs > 0) out.push({ block_start: new Date(b).toISOString(), active_seconds: 0, idle_seconds: 0, excluded_seconds: 0, field_seconds: secs });
+    }
+  }
+  return out;
 }

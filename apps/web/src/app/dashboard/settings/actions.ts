@@ -21,6 +21,12 @@ export async function updateCompanySettings(_prev: FormState, formData: FormData
     idle_timeout_minutes: idle,
     track_apps: formData.get("track_apps") === "on",
     track_urls: formData.get("track_urls") === "on",
+    ...(formData.get("phone_form") === "1"
+      ? {
+          phone_clock: formData.get("phone_clock") === "on",
+          phone_location: (["off", "ask", "required"] as const).find((v) => v === formData.get("phone_location")) ?? "ask",
+        }
+      : {}),
     ...(formData.get("screenshot_form") === "1"
       ? {
           screenshots_enabled: formData.get("screenshots_enabled") === "on",

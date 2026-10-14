@@ -60,6 +60,34 @@ export function SettingsForm({ org, pro }: { org: Organization; pro: boolean }) 
       <Section
         title={
           <>
+            Phone
+            <InfoTip>
+              People can clock in and out from the dashboard on their phone, or add it to their home screen as an app. Phone time counts as
+              worked time; it has no activity measure. The location is saved only at the moment of clocking in and out.
+            </InfoTip>
+          </>
+        }
+      >
+        <input type="hidden" name="phone_form" value="1" />
+        <div className="divide-y divide-slate-100">
+          <Switch name="phone_clock" label="Clock in from a phone" hint="For people working away from a computer" defaultChecked={s.phone_clock !== false} />
+          <div className="flex items-center justify-between gap-6 py-3.5">
+            <label htmlFor="phone-location" className="text-sm font-medium text-slate-900">
+              Location
+              <span className="block text-xs font-normal text-slate-500">At clock-in and clock-out only</span>
+            </label>
+            <select id="phone-location" name="phone_location" className="input w-36" defaultValue={s.phone_location ?? "ask"}>
+              <option value="off">Don&apos;t record</option>
+              <option value="ask">If allowed</option>
+              <option value="required">Required</option>
+            </select>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title={
+          <>
             Screenshots
             <InfoTip>
               Taken only while someone is clocked in, at a random moment in each interval, of the screen they are using. Everyone is told,

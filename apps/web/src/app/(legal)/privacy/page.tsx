@@ -45,11 +45,12 @@ export default function PrivacyPage() {
         <li>The task you are working on, your end-of-day report, tasks and comments you write</li>
         <li>Chat messages and files you choose to send. Direct messages and private groups can only be read by the people in them, not by company admins.</li>
         <li>The computer&apos;s name, operating system, app version and clock difference, to keep data accurate</li>
+        <li>If you clock in from a phone: your position at the moment you clock in and out, if your company asks for it and your phone allows it</li>
         <li>Screenshots of the screen you are using, only if your company is on the Pro plan, switched them on and you agreed in the app; optionally blurred before upload; kept 90 days; you can see and delete your own</li>
       </ul>
       <p>
         We never record keystroke content, passwords, messages, screen recordings, screenshots you did not agree to, the webcam, the microphone, the files on your computer or
-        location, and nothing at all while you are clocked out. See <Link href="/what-we-track">what we track</Link>.
+        your location (other than the clock-in and clock-out moments on a phone described above), and nothing at all while you are clocked out. See <Link href="/what-we-track">what we track</Link>.
       </p>
       <h3>Technical data</h3>
       <ul>

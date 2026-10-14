@@ -99,7 +99,8 @@ export function Tour({ steps, storageKey }: { steps: TourStep[]; storageKey: str
       : Math.min(rect.bottom + 12, viewport.h - 220);
     cardStyle = { left, top, width: Math.min(CARD_W, viewport.w - 24) };
   } else {
-    cardStyle = { left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: Math.min(CARD_W + 40, viewport.w - 24 || CARD_W) };
+    // Centred with margins, not a transform (the entry animation animates transform).
+    cardStyle = { inset: 0, margin: "auto", height: "fit-content", width: Math.min(CARD_W + 40, viewport.w - 24 || CARD_W) };
   }
 
   return (

@@ -39,6 +39,7 @@ export default function WhatWeTrackPage() {
             <li className="flex"><Yes />The task you picked under &ldquo;Working on&rdquo;</li>
             <li className="flex"><Yes />Your end-of-day report, if you write one</li>
             <li className="flex"><Yes />Screenshots, only if your company is on the Pro plan, switched them on, and you agreed in the app (see below)</li>
+            <li className="flex"><Yes />If you clock in from your phone: where you were at that moment and when you clock out, if your company asks and your phone allows it</li>
           </ul>
         </section>
         <section className="card p-5">
@@ -49,7 +50,7 @@ export default function WhatWeTrackPage() {
             <li className="flex"><No />Screen recordings, and no screenshots unless you agreed to them</li>
             <li className="flex"><No />Your webcam or microphone</li>
             <li className="flex"><No />Your files, emails or browsing history</li>
-            <li className="flex"><No />Your location</li>
+            <li className="flex"><No />Your location, except the moment you clock in or out on your phone</li>
           </ul>
         </section>
       </div>
@@ -79,6 +80,14 @@ export default function WhatWeTrackPage() {
         minutes). If your company chose blurring, the picture is blurred on your computer before it is uploaded, so the
         details never leave it. You can see all of yours under <em>Screenshots</em> in the dashboard and delete any of
         them (your company sees that one was deleted). They are deleted automatically after 90 days.
+      </p>
+
+      <h2>Clocking in from your phone</h2>
+      <p>
+        You can clock in and out from the dashboard on your phone. Nothing on the phone is watched: there is no activity
+        check, so phone time counts as worked time without an activity %. If your company asks for it, your phone shares
+        its position once when you clock in and once when you clock out, never in between; your phone asks you first.
+        Your company can also turn location off or require it.
       </p>
 
       <h2>Who can see your data</h2>

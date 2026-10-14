@@ -15,7 +15,7 @@ export type Column = {
   highlight?: boolean; // e.g. today
 };
 
-const SERIES_BG = ["bg-chart-1", "bg-chart-2"];
+const SERIES_BG = ["bg-chart-1", "bg-chart-2", "bg-chart-3"];
 
 export function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
   return (

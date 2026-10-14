@@ -32,6 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     {
       items: [
         { href: "/dashboard", label: "Overview", icon: "overview", tour: "overview" },
+        ...(org.settings.phone_clock !== false ? [{ href: "/dashboard/clock", label: "Clock in", icon: "phone" as const, tour: "clock" }] : []),
         { href: "/dashboard/activity", label: manager ? "Activity" : "My activity", icon: "activity", tour: "activity" },
         { href: "/dashboard/timesheets", label: "Timesheets", icon: "clock", tour: "timesheets" },
         ...(screenshots ? [{ href: "/dashboard/screenshots", label: "Screenshots", icon: "camera" as const, tour: "screenshots" }] : []),
@@ -167,6 +168,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
   return [
     hello,
     { target: "download", title: "Get the desktop app", body: "Install it and clock in when you start work. Nothing is recorded while you're clocked out." },
+    { target: "clock", title: "Working away from a computer?", body: "Clock in from your phone here. Add it to your home screen to open it like an app." },
     { target: "activity", title: manager ? "Your team's days" : "Your day", body: manager ? "See hours, active and idle time and tasks for you and your team." : "Everything the app recorded about your work is here for you to see." },
     { target: "timesheets", title: "Timesheets", body: "Your hours for each week, including leave and holidays." },
     { target: "tasks", title: "Your tasks", body: "Tasks assigned to you. Pick one in the desktop app to log time to it." },

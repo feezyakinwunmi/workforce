@@ -15,6 +15,7 @@ const bricolage = localFont({
 export const metadata: Metadata = {
   title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
   description: "Time tracking, activity, tasks, leave and payroll for remote teams.",
+  appleWebApp: { capable: true, title: "Workbase", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

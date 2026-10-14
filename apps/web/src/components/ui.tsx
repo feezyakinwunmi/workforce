@@ -74,6 +74,7 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
 
 const DOT: Record<string, string> = {
   working: "bg-emerald-500",
+  phone: "bg-emerald-500",
   idle: "bg-amber-500",
   offline: "bg-slate-400",
 };

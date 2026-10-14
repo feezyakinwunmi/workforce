@@ -22,17 +22,19 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
   const dayTotals = days.map((_, i) => rows.reduce((s, r) => s + r.days[i].tracked, 0));
   const grand = rows.reduce((s, r) => s + r.total, 0);
   const grandActive = rows.reduce((s, r) => s + r.active, 0);
+  const grandMeasured = grand - rows.reduce((s, r) => s + r.phone, 0);
   const isCurrentWeek = days.includes(today);
   const billing = await getBilling();
   const standard = hasStandard(billing);
   const oldest = historyLimit(billing, today);
   const locked = Boolean(oldest && days[6] < oldest);
   const dayActive = days.map((_, i) => rows.reduce((s, r) => s + r.days[i].active, 0));
+  const dayPhone = days.map((_, i) => rows.reduce((s, r) => s + r.days[i].phone, 0));
   const columns: Column[] = days.map((d, i) => ({
     key: d,
     label: formatDay(d, { weekday: "short", day: "numeric" }),
-    values: [dayActive[i] / 3600, Math.max(0, dayTotals[i] - dayActive[i]) / 3600],
-    tooltip: `${formatDay(d, { weekday: "long", day: "numeric", month: "short" })}${holidays.has(d) ? ` · ${holidays.get(d)}` : ""}\n${formatHours(dayTotals[i])} · ${percent(dayActive[i], dayTotals[i])} active`,
+    values: [dayActive[i] / 3600, Math.max(0, dayTotals[i] - dayPhone[i] - dayActive[i]) / 3600, dayPhone[i] / 3600],
+    tooltip: `${formatDay(d, { weekday: "long", day: "numeric", month: "short" })}${holidays.has(d) ? ` · ${holidays.get(d)}` : ""}\n${formatHours(dayTotals[i])} · ${percent(dayActive[i], dayTotals[i] - dayPhone[i])} active`,
     highlight: d === today,
     muted: holidays.has(d),
   }));
@@ -87,14 +89,14 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
               className="lg:grid-cols-1! lg:[&>*:last-child]:col-span-1"
               stats={[
                 { label: "Hours this week", value: formatHours(grand), icon: "clock", tone: "brand" },
-                { label: "Activity", value: percent(grandActive, grand), icon: "activity", tone: "green" },
+                { label: "Activity", value: percent(grandActive, grandMeasured), icon: "activity", tone: "green" },
                 { label: "People who worked", value: `${peopleWorked} of ${rows.length}`, icon: "users", tone: "slate" },
               ]}
             />
             <Panel title="Hours per day" bodyClassName="p-5">
               <StackedColumns
                 columns={columns}
-                series={["Active", "Idle"]}
+                series={dayPhone.some((p) => p > 0) ? ["Active", "Idle", "Phone"] : ["Active", "Idle"]}
                 format={(v) => `${Math.round(v)}h`}
                 height={150}
                 caption="Hours per day this week"
@@ -161,7 +163,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
                         );
                       })}
                       <td className="px-4 py-2.5 text-right font-semibold whitespace-nowrap text-slate-900 tabular-nums">{formatHours(r.total)}</td>
-                      <td className="px-5 py-2.5 text-right text-slate-600 tabular-nums">{percent(r.active, r.total)}</td>
+                      <td className="px-5 py-2.5 text-right text-slate-600 tabular-nums">{percent(r.active, r.total - r.phone)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -173,7 +175,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
                         <td key={days[i]} className="px-2 py-3 text-center text-xs whitespace-nowrap tabular-nums">{t ? formatHours(t) : "–"}</td>
                       ))}
                       <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{formatHours(grand)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{percent(grandActive, grand)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums">{percent(grandActive, grandMeasured)}</td>
                     </tr>
                   </tfoot>
                 )}

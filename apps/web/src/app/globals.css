@@ -49,6 +49,7 @@
   /* Charts (validated for colour-blind separation in both themes) */
   --color-chart-1: #6a4cf5;
   --color-chart-2: #cc7a12;
+  --color-chart-3: #12968a;
   --color-chart-grid: #e9e7f2;
 
   /* Surfaces */
@@ -63,6 +64,7 @@
   --color-surface: #17152f;
   --color-raised: #1f1c3b;
   --color-chart-1: #8f7bff;
+  --color-chart-3: #36c2b0;
   --color-chart-grid: #2a2748;
 
   --color-slate-50: #1b1836;
