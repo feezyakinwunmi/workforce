@@ -1,0 +1,46 @@
+name: Dev dependencies bundle
+
+# One-off helper for working on the dashboard in an offline sandbox: packages node_modules
+# and the two web fonts as a pre-release asset. Not part of the normal build.
+on:
+  push:
+    branches: ["devdeps"]
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Fonts (latin subsets, variable weight)
+        run: |
+          mkdir -p fonts
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+          for fam in "Inter:wght@100..900" "Bricolage+Grotesque:opsz,wght@12..96,200..800"; do
+            css=$(curl -sS -A "$UA" "https://fonts.googleapis.com/css2?family=${fam}&display=swap")
+            name=$(echo "$fam" | cut -d: -f1 | tr '+' '-' | tr 'A-Z' 'a-z')
+            url=$(echo "$css" | awk '/\/\* latin \*\//{f=1} f && /src:/{print; exit}' | grep -o 'https://[^)]*')
+            echo "$name -> $url"
+            curl -sS -o "fonts/${name}.woff2" "$url"
+          done
+          ls -la fonts
+      - name: Pack
+        run: |
+          tar czf deps.tgz node_modules $(ls -d apps/*/node_modules 2>/dev/null)
+          tar czf fonts.tgz fonts
+          ls -la deps.tgz fonts.tgz
+      - name: Publish as a pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete devdeps --yes --cleanup-tag || true
+          gh release create devdeps deps.tgz fonts.tgz --prerelease --target "${GITHUB_SHA}" \
+            --title "Dev dependencies (not a release)" --notes "Temporary bundle for offline development. Safe to delete."
