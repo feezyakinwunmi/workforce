@@ -223,7 +223,7 @@ export default async function Home() {
             </div>
           </div>
           <p className="mt-6 text-sm text-[#5B5876]">
-            For a team of 10, Standard is {naira(SEAT_PRICE_NAIRA * 10)} a month. Pro, with optional screenshots, leave and payroll exports, is coming.
+            For a team of 10, Standard is {naira(SEAT_PRICE_NAIRA * 10)} a month. Pro, with leave requests and payroll exports, is coming.
           </p>
         </section>
 

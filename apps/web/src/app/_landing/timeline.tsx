@@ -25,8 +25,8 @@ const ROWS: Row[] = [
   {
     name: "Tunde Bakare",
     initials: "TB",
-    city: "London",
-    local: "11:40",
+    city: "Accra",
+    local: "10:40",
     status: "Idle",
     blocks: [0, 0, 55, 61, 48, 70, 66, 52, 44, 63, 38, 22, 47, 59, 61, 40, 26, 18],
   },
@@ -73,7 +73,7 @@ export function HeroTimeline() {
               <p className="truncate text-sm font-semibold text-[#1C1640]">{r.name}</p>
               <p className="flex items-center gap-2 text-xs text-[#5B5876]">
                 <span>{r.city}, {r.local} there</span>
-                <span className={`rounded-full px-1.5 py-px text-[11px] font-medium ${STATUS[r.status]}`}>{r.status}</span>
+                <span className={`whitespace-nowrap rounded-full px-1.5 py-px text-[11px] font-medium ${STATUS[r.status]}`}>{r.status}</span>
               </p>
             </div>
             <div className="flex h-12 items-end gap-[3px]" aria-hidden>
@@ -92,7 +92,7 @@ export function HeroTimeline() {
         ))}
       </ul>
       <p className="sr-only">
-        Example: Adaeze in Lagos and Chiamaka in Nairobi are working with high activity, Tunde in London is idle, and Kemi in
+        Example: Adaeze in Lagos and Chiamaka in Nairobi are working with high activity, Tunde in Accra is idle, and Kemi in
         Toronto has not started her day.
       </p>
     </figure>
