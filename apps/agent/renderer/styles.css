@@ -1,11 +1,11 @@
 :root {
-  --brand: #7c3aed;
-  --brand-dark: #6d28d9;
-  --brand-soft: #f5f3ff;
-  --ink: #0f172a;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --bg: #f8fafc;
+  --brand: #6a4cf5;
+  --brand-dark: #5638d9;
+  --brand-soft: #f3f0ff;
+  --ink: #15123a;
+  --muted: #6e6990;
+  --line: #e3e0ee;
+  --bg: #f7f6fb;
   --green: #10b981;
   --amber: #f59e0b;
   --red: #dc2626;
@@ -23,7 +23,8 @@ body {
 input, textarea { -webkit-user-select: text; user-select: text; }
 #app { display: flex; flex-direction: column; min-height: 100vh; padding: 20px; gap: 14px; }
 .brand { display: flex; align-items: center; gap: 10px; }
-.logo { width: 34px; height: 34px; border-radius: 9px; background: var(--brand); color: #fff; font-weight: 700; display: grid; place-items: center; }
+.logo { width: 34px; height: 34px; flex-shrink: 0; }
+.logo svg { width: 100%; height: 100%; display: block; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
 h1 { font-size: 20px; margin: 4px 0 2px; }
@@ -37,7 +38,7 @@ select, textarea {
   width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; background: #fff; color: var(--ink);
 }
 textarea { resize: none; }
-input:focus, select:focus, textarea:focus { outline: 2px solid #ddd6fe; border-color: var(--brand); }
+input:focus, select:focus, textarea:focus { outline: 2px solid #d3c9ff; border-color: var(--brand); }
 .check { display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 0 0 4px; }
 .check span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mt4 { margin-top: 4px; }

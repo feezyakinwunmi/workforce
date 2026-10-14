@@ -45,7 +45,8 @@ function ago(ms) {
 // Screens
 // ---------------------------------------------------------------------
 function header() {
-  return `<div class="brand"><div class="logo">${esc(view.appName[0])}</div><div><strong>${esc(view.appName)}</strong>${
+  const mark = `<svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>`;
+  return `<div class="brand"><div class="logo">${mark}</div><div><strong>${esc(view.appName)}</strong>${
     view.account ? `<div class="small muted truncate">${esc(view.account.orgName)}</div>` : ""
   }</div></div>`;
 }
