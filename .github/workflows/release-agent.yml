@@ -48,6 +48,14 @@ jobs:
           npm install --no-audit --no-fund
           npm run build
           @{ dashboardUrl = $env:DASHBOARD_URL } | ConvertTo-Json | Set-Content -Encoding utf8NoBOM dist/build-info.json
+          # Create the release first: when electron-builder creates it while uploading several
+          # files at once, the uploads can race and the first run fails with only some files.
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          gh release view "v$version" --repo feezyakinwunmi/workforce-releases *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "v$version" --repo feezyakinwunmi/workforce-releases --title "$version" --notes "Workforce desktop app $version"
+          }
+          $global:LASTEXITCODE = 0
           npx electron-builder --win --publish always
 
       - name: Keep a copy of the installer on this run
