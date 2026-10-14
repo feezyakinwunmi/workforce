@@ -45,7 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen md:flex">
-      <aside className="border-b border-slate-200 bg-white md:sticky md:top-0 md:flex md:h-screen md:w-60 md:flex-col md:border-r md:border-b-0">
+      <aside className="print:hidden border-b border-slate-200 bg-white md:sticky md:top-0 md:flex md:h-screen md:w-60 md:flex-col md:border-r md:border-b-0">
         <div className="flex items-center gap-3 px-4 py-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">
             {APP_NAME[0]}
@@ -73,10 +73,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </form>
         </div>
       </aside>
-      <main className="flex-1 px-4 py-8 md:px-10">
+      <main className="flex-1 px-4 py-8 md:px-10 print:p-0">
         <div className="mx-auto max-w-5xl">
           {banner && (
-            <div className={`mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${banner.urgent ? "border-amber-200 bg-amber-50 text-amber-900" : "border-brand-200 bg-brand-50 text-brand-900"}`}>
+            <div className={`mb-6 flex flex-wrap print:hidden items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${banner.urgent ? "border-amber-200 bg-amber-50 text-amber-900" : "border-brand-200 bg-brand-50 text-brand-900"}`}>
               <span>{banner.text}</span>
               {banner.action && <Link href="/dashboard/billing" className="btn-primary btn-sm">{banner.action}</Link>}
             </div>

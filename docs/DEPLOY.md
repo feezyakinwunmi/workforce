@@ -134,6 +134,17 @@ select id, 'manual-' || slug || '-' || to_char(now(), 'YYYYMMDD'), 'manual', 20,
 from public.organizations where slug = 'their-company-slug';
 ```
 
+## 9. Plan reminder emails (daily job)
+
+Every morning the database writes "your plan / free trial ends in 7 days" and "…tomorrow" reminders for owners and admins (dashboard + desktop pop-up). A daily Vercel job then emails them, once each.
+
+1. Make a random secret: any long password, e.g. from a password generator (30+ letters and digits).
+2. Vercel → project → **Settings → Environment Variables** (Production), add `CRON_SECRET` = that secret. Vercel sends it to the job automatically; without it the job refuses to run.
+3. The job needs `SUPABASE_SERVICE_ROLE_KEY` (§8) and the SMTP variables (§7). Without SMTP the reminders still appear in the dashboard and desktop app; they just aren't emailed.
+4. Redeploy. Check it under Vercel → project → **Settings → Cron Jobs** (`/api/cron/billing-reminders`, daily 07:30 UTC = 08:30 Lagos). **Run** there to test it.
+
+Receipts: Plan and billing → Payments → **Receipt** on any successful payment (print or save as PDF).
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

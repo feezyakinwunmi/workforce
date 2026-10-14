@@ -35,6 +35,39 @@ export const emailEnabled = () => Boolean(host && user && pass);
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+type Message = { subject: string; heading: string; text?: string | null; link: string; button?: string };
+
+function render(message: Message) {
+  const url = `${siteUrl()}${message.link}`;
+  const body = message.text ? message.text.slice(0, 1000) : "";
+  const button = message.button ?? "Open";
+  return {
+    subject: message.subject.slice(0, 200),
+    text: `${message.heading}\n\n${body ? `${body}\n\n` : ""}${button}: ${url}\n\n— ${APP_NAME}`,
+    html: `<div style="font-family:Segoe UI,Arial,sans-serif;font-size:15px;color:#0f172a;max-width:520px">
+  <p style="font-size:17px;font-weight:600;margin:0 0 12px">${escapeHtml(message.heading)}</p>
+  ${body ? `<p style="white-space:pre-wrap;margin:0 0 16px;color:#334155">${escapeHtml(body)}</p>` : ""}
+  <p style="margin:0 0 24px"><a href="${escapeHtml(url)}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">${escapeHtml(button)}</a></p>
+  <p style="font-size:12px;color:#94a3b8;margin:0">Sent by ${escapeHtml(APP_NAME)} because you are a member of a company that uses it.</p>
+</div>`,
+  };
+}
+
+/**
+ * Send one email to known addresses. Returns how many were sent; never throws.
+ */
+export async function sendEmail(to: string[], message: Message): Promise<number> {
+  const t = mailer();
+  const list = [...new Set(to.filter(Boolean))];
+  if (!t || !list.length) return 0;
+  const mail = render(message);
+  const results = await Promise.allSettled(list.map((address) => t.sendMail({ from, to: address, ...mail })));
+  for (const r of results) {
+    if (r.status === "rejected") console.error("Email not sent:", r.reason instanceof Error ? r.reason.message : r.reason);
+  }
+  return results.filter((r) => r.status === "fulfilled").length;
+}
+
 /**
  * Email active members of the current company. Never throws: a failed email
  * must not fail the action that triggered it.
@@ -42,11 +75,10 @@ const escapeHtml = (s: string) =>
 export async function emailMembers(
   supabase: SupabaseClient,
   userIds: Array<string | null | undefined>,
-  message: { subject: string; heading: string; text?: string | null; link: string; button?: string },
+  message: Message,
 ) {
-  const t = mailer();
   const ids = [...new Set(userIds.filter((id): id is string => Boolean(id)))];
-  if (!t || !ids.length) return;
+  if (!emailEnabled() || !ids.length) return;
   try {
     const [{ data: active }, { data: people }] = await Promise.all([
       supabase.from("memberships").select("user_id").in("user_id", ids).eq("status", "active"),
@@ -56,27 +88,7 @@ export async function emailMembers(
     const to = ((people ?? []) as Array<{ id: string; email: string }>)
       .filter((p) => activeIds.has(p.id) && p.email)
       .map((p) => p.email);
-    if (!to.length) return;
-
-    const url = `${siteUrl()}${message.link}`;
-    const body = message.text ? message.text.slice(0, 1000) : "";
-    const button = message.button ?? "Open";
-    await Promise.all(
-      to.map((address) =>
-        t.sendMail({
-          from,
-          to: address,
-          subject: message.subject.slice(0, 200),
-          text: `${message.heading}\n\n${body ? `${body}\n\n` : ""}${button}: ${url}\n\n— ${APP_NAME}`,
-          html: `<div style="font-family:Segoe UI,Arial,sans-serif;font-size:15px;color:#0f172a;max-width:520px">
-  <p style="font-size:17px;font-weight:600;margin:0 0 12px">${escapeHtml(message.heading)}</p>
-  ${body ? `<p style="white-space:pre-wrap;margin:0 0 16px;color:#334155">${escapeHtml(body)}</p>` : ""}
-  <p style="margin:0 0 24px"><a href="${escapeHtml(url)}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">${escapeHtml(button)}</a></p>
-  <p style="font-size:12px;color:#94a3b8;margin:0">Sent by ${escapeHtml(APP_NAME)} because you are a member of a company that uses it.</p>
-</div>`,
-        }),
-      ),
-    );
+    await sendEmail(to, message);
   } catch (e) {
     console.error("Email not sent:", e instanceof Error ? e.message : e);
   }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { daysLeft, FREE_HISTORY_DAYS, FREE_SEATS, naira, TIER_LABEL } from "@/lib/billing";
+import Link from "next/link";
+import { daysLeft, FREE_HISTORY_DAYS, FREE_SEATS, naira, paymentLabel, TIER_LABEL } from "@/lib/billing";
 import { getBilling } from "@/lib/billing-server";
 import { paystackConfigured } from "@/lib/paystack";
 import { requireAdmin } from "@/lib/session";
@@ -154,6 +155,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   <th className="px-5 py-2.5 font-medium">Covers</th>
                   <th className="px-5 py-2.5 font-medium">Amount</th>
                   <th className="px-5 py-2.5 font-medium">Reference</th>
+                  <th className="px-5 py-2.5 font-medium"><span className="sr-only">Receipt</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -161,7 +163,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   <tr key={p.id}>
                     <td className="px-5 py-3 text-slate-600">{formatDate(p.paid_at ?? p.created_at, org.timezone)}</td>
                     <td className="px-5 py-3">
-                      {p.kind === "add_seats" ? `${p.seats} extra ${p.seats === 1 ? "person" : "people"}` : `Standard · ${p.seats} people · ${p.months} ${p.months === 1 ? "month" : "months"}`}
+                      {paymentLabel(p)}
                       {p.status === "failed" && <span className="badge ml-2 bg-red-100 text-red-700">Failed</span>}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
@@ -169,6 +171,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                     </td>
                     <td className="px-5 py-3 font-medium">{naira(p.amount_kobo)}</td>
                     <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.reference}</td>
+                    <td className="px-5 py-3 text-right">
+                      {p.status === "success" && (
+                        <Link href={`/dashboard/billing/receipt/${p.id}`} className="text-brand-700 hover:underline">Receipt</Link>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

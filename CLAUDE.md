@@ -50,8 +50,9 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
   - dashboard: `/dashboard/leave` (balances, request form with live day count, my requests, approvals, who's off in 30 days, holidays), `/dashboard/leave/settings` (admins: leave types, holidays, Nigerian presets 2026/2027 in `lib/leave.ts` with Eid/Maulud marked estimated). Timesheets mark approved leave and holidays; CSV adds "Leave days"; Overview shows "On leave"; nav badge for pending approvals.
 - **Payroll (Standard plan, owner/admin):** migration 0012 `payroll` (applied live): `member_pay` (one rate per person: hourly/monthly, NGN/USD, minor units; owner/admin read+write, each person reads own; changes audited by trigger). `lib/payroll.ts` `buildPayroll`: hourly = (hours + paid leave days × expected hours/day) × rate; monthly = salary − unpaid leave share of working days; "no time" days shown, never auto-deducted. `/dashboard/payroll` (+ `/export` CSV).
 - Plans now: leave is in every plan; payroll is Standard; Pro = screenshots (coming).
+- **Plan reminders and receipts:** migrations 0013 `billing_reminder_kind` (enum value `billing`, its own migration because a new enum value must be committed before use) and 0014 `billing_reminders` (applied live): `notifications.emailed_at`; unique index `notifications_billing_once`; `private.billing_reminders()` notifies owner/admins 7 days and 1 day before the paid plan or trial ends (pg_cron `billing-reminders`, 07:00 UTC); `claim_billing_emails()` (service_role only) returns unsent ones and marks them emailed. Vercel cron (`apps/web/vercel.json`, 07:30 UTC) → `/api/cron/billing-reminders` (needs env `CRON_SECRET`, checks `Authorization: Bearer`; doesn't claim when SMTP is unset) → `sendEmail` in `lib/email.ts`. Receipts: `/dashboard/billing/receipt/[id]` (admins, successful payments, print/PDF; "no VAT charged"). Dashboard sidebar and banners hide when printing.
 - **Public homepage** (`app/page.tsx` + `app/_landing/timeline.tsx`): hero = the product's own day timeline for a team across time zones (one load animation, reduced-motion safe), set-up steps, features, privacy ("it never records"), naira pricing from `lib/billing.ts`, FAQ. Font: Bricolage Grotesque (next/font) on this page only. Logged-in visitors get "Open dashboard". Update the privacy list if screenshots ever ship.
-- **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0004, 0007 and 0008 schedule pg_cron jobs.
+- **Migrations applied to Supabase:** 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0010–0014 are live too. 0004, 0007, 0008 and 0014 schedule pg_cron jobs.
 - **Manual Supabase settings (not possible via MCP):**
   - Site URL `http://localhost:3000`, Redirect URL `http://localhost:3000/**`
   - "Confirm email" off during development
@@ -77,11 +78,11 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/app/(auth)          login, signup (server actions + useActionState)
   src/app/onboarding      create company / accept pending invites
   src/app/invite/[token]  invite landing page
-  src/app/dashboard       overview (live), chat (+ [id], new), leave (+ settings), payroll (+ export), notifications, billing (+ callback), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
+  src/app/dashboard       overview (live), chat (+ [id], new), leave (+ settings), payroll (+ export), notifications, billing (+ callback, receipt/[id]), activity (day view), timesheets (+ /export CSV), tasks (+ [id]), projects, team, settings (admin), profile
   src/lib/tracking.ts     visibility rule (mirrors DB), live status, day stats loaders
   src/lib/time.ts         time-zone helpers (zonedMidnight, localDateIn, mondayOf)
   src/lib/tasks.ts        task/project types, labels, taskPermissions (mirrors guard_task), loadTaskTime
-  src/lib/email.ts        optional SMTP email (task assigned, comments); never throws
+  src/lib/email.ts        optional SMTP email (sendEmail, emailMembers: tasks, comments, plan reminders); never throws
   src/lib/billing.ts      plan display constants and Free-plan helpers (safe for client components)
   src/lib/billing-server.ts  getBilling() (my_billing RPC, server only: never import it from a client component)
   src/lib/paystack.ts     Paystack initialize/verify/webhook signature, recordSuccess (service role)
@@ -91,7 +92,7 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/lib/payroll.ts      monthly pay calculation (hours, leave, holidays, rates)
   src/lib/leave.ts        leave types/labels, countLeaveDays (mirrors private.leave_days), Nigerian holiday presets
   src/app/(legal)         public what-we-track, privacy, terms pages
-supabase/migrations/      SQL migrations, in order (applied: 0001–0012)
+supabase/migrations/      SQL migrations, in order (applied: 0001–0014)
 docs/SPEC.md              product spec and roadmap
 ```
 
@@ -150,13 +151,13 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 
 ## Next steps
 
-1. Femi: release `agent-v0.5.0`; Paystack test setup (docs/DEPLOY.md §8) and email (§7) if not done.
+1. Femi: push tag `agent-v0.6.0` (name change + pop-up fix); Paystack test setup (docs/DEPLOY.md §8), email (§7) and `CRON_SECRET` (§9) if not done.
 2. Chat extras when pilots ask: file/image attachments (Supabase Storage), @mentions with notifications, message search, typing indicators.
-3. Renewal reminder emails and printable receipts; Mac build (Apple Developer account); leave requests; Pro features (screenshots).
+3. Pro plan screenshots (off by default, optional blur, workers told first); Mac build (Apple Developer account).
 
 ## Known gaps / backlog
 
-- Billing: no automatic renewals (prepaid only), no renewal emails yet, no invoices/VAT, no USD checkout; seat limit is enforced by the desktop app (server still accepts uploads).
+- Billing: no automatic renewals (prepaid only), no VAT invoices (receipts only), no USD checkout; seat limit is enforced by the desktop app (server still accepts uploads).
 - Chat: text only (no files, reactions, threads, mentions or search yet); the desktop app shows unread counts and pop-ups but chatting happens in the dashboard.
 - No task attachments or recurring tasks; no per-user email opt-out yet; due-tomorrow reminders are in-app/desktop only (no email).
 - Agent pop-ups only appear while the desktop app is running and logged in.

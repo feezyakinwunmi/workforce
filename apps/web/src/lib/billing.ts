@@ -51,3 +51,9 @@ export function historyLimit(b: Billing, today: string) {
   d.setUTCDate(d.getUTCDate() - (FREE_HISTORY_DAYS - 1));
   return d.toISOString().slice(0, 10);
 }
+
+/** One-line description of a payment, used in the payments table and on receipts. */
+export function paymentLabel(p: { kind: string; seats: number; months: number }) {
+  if (p.kind === "add_seats") return `${p.seats} extra ${p.seats === 1 ? "person" : "people"} (rest of current period)`;
+  return `Standard plan · ${p.seats} ${p.seats === 1 ? "person" : "people"} · ${p.months} ${p.months === 1 ? "month" : "months"}`;
+}

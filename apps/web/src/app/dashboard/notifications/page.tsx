@@ -8,7 +8,9 @@ export const metadata: Metadata = { title: "Notifications" };
 
 type Notification = {
   id: string;
-  kind: "task_assigned" | "task_comment" | "task_done" | "task_due";
+  kind:
+    | "task_assigned" | "task_comment" | "task_done" | "task_due"
+    | "chat_direct" | "announcement" | "leave_requested" | "leave_decided" | "billing";
   title: string;
   body: string | null;
   link: string | null;
@@ -21,6 +23,11 @@ const ICON: Record<Notification["kind"], string> = {
   task_comment: "💬",
   task_done: "✅",
   task_due: "⏰",
+  chat_direct: "💬",
+  announcement: "📣",
+  leave_requested: "🌴",
+  leave_decided: "🌴",
+  billing: "💳",
 };
 
 export default async function NotificationsPage() {
@@ -47,7 +54,7 @@ export default async function NotificationsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Notifications</h1>
           <p className="mt-1 text-slate-600">
-            Tasks assigned to you, comments, finished tasks and due dates. The desktop app shows them as pop-ups too.
+            Tasks, messages, announcements, leave and plan reminders. The desktop app shows them as pop-ups too.
           </p>
         </div>
         {unread > 0 && (
@@ -72,7 +79,7 @@ export default async function NotificationsPage() {
                     !n.read_at && "bg-brand-50/60",
                   )}
                 >
-                  <span aria-hidden className="mt-0.5">{ICON[n.kind]}</span>
+                  <span aria-hidden className="mt-0.5">{ICON[n.kind] ?? "🔔"}</span>
                   <span className="min-w-0 flex-1">
                     <span className={cn("block", !n.read_at && "font-semibold")}>{n.title}</span>
                     {n.body && <span className="mt-0.5 block truncate text-slate-600">{n.body}</span>}
