@@ -5,7 +5,8 @@ import { Icon, type IconName } from "@/components/icons";
 import { blackVideoTrack, connectMedia, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
 import { meetingLink } from "@/lib/meet/paths";
 import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo } from "@/lib/meet/types";
-import { leaveOnUnload, useRoom } from "@/lib/meet/use-room";
+import { leaveOnUnload, useRoom, type PersonLink } from "@/lib/meet/use-room";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { avatarColour, DeviceSettings, initialsOf, VideoView, type LocalMedia } from "./meeting";
 
@@ -65,7 +66,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     [meId, media, toast, exit],
   );
 
-  const { people, waiting, room, chat, reactions, me, update, send, moderate } = useRoom(roomId, meId, onCommand);
+  const { people, waiting, room, chat, reactions, me, update, send, moderate, links, meOnline, online } = useRoom(roomId, meId, onCommand);
   const myRole = me?.role ?? join.role;
   const isMod = myRole === "host" || myRole === "cohost";
   const endsAt = me?.ends_at ?? room?.ends_at ?? join.ends_at;
@@ -82,12 +83,16 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const [connected, setConnected] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // My media link: connecting → ok, or reconnecting while it recovers by itself.
+  const [mediaLink, setMediaLink] = useState<"connecting" | "ok" | "reconnecting">("connecting");
+  const failures = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    let downTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryTimer2: ReturnType<typeof setTimeout> | null = null;
     (async () => {
       try {
-        setConnectError(null);
         const micTrack = media.mic ?? (silence.current ??= silentAudioTrack());
         const camTrack = (media.camOn && media.camOut) || black!;
         const { pub: p, sub: s } = await connectMedia(roomId, micTrack, camTrack, media.dataSaver);
@@ -96,6 +101,8 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
           s.close();
           return;
         }
+        failures.current = 0;
+        setConnectError(null);
         pub.current = p;
         sub.current = s;
         pulled.current.clear();
@@ -113,26 +120,59 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
           pulled.current.clear();
           setRetry((n) => n + 1);
         };
+        // Start over with fresh connections (Cloudflare's advice when a connection is lost).
+        const restart = () => {
+          if (cancelled) return;
+          cancelled = true;
+          if (downTimer) clearTimeout(downTimer);
+          p.close();
+          s.close();
+          setConnected(false);
+          setMediaLink("reconnecting");
+          setAttempt((a) => a + 1);
+        };
+        const states = () => [p.pc.connectionState, s.pc.connectionState === "new" ? "connected" : s.pc.connectionState];
         const watch = () => {
-          const bad = [p.pc.connectionState, s.pc.connectionState].some((st) => st === "failed");
-          if (bad && !cancelled) {
-            toast("Connection lost. Reconnecting…", "warn");
-            p.close();
-            s.close();
-            setConnected(false);
-            setAttempt((a) => a + 1);
+          if (cancelled) return;
+          const st = states();
+          // (Our own close() doesn't fire this event, so "closed" here means the other side ended it.)
+          if (st.includes("failed") || st.includes("closed")) return restart();
+          if (st.includes("disconnected")) {
+            // Often a short blip (switching Wi-Fi ↔ data): give it 5 s to come back by itself.
+            setMediaLink("reconnecting");
+            downTimer ??= setTimeout(() => {
+              downTimer = null;
+              const now = states();
+              if (now.includes("disconnected") || now.includes("failed")) restart();
+              else setMediaLink("ok");
+            }, 5000);
+            return;
           }
+          if (downTimer) {
+            clearTimeout(downTimer);
+            downTimer = null;
+          }
+          if (st.every((x) => x === "connected")) setMediaLink("ok");
         };
         p.pc.addEventListener("connectionstatechange", watch);
         s.onState = watch;
+        restartRef.current = restart;
         setConnected(true);
+        setMediaLink("ok");
         update({ sfu_session: p.session, tracks: p.tracks(), audio_on: media.micOn && !!media.mic, video_on: media.camOn });
       } catch (e) {
-        if (!cancelled) setConnectError(e instanceof Error ? e.message : "Couldn't connect to the meeting.");
+        if (cancelled) return;
+        // Try again by itself: 1.5 s, 3 s, 6 s, then every 10 s.
+        failures.current++;
+        setMediaLink("reconnecting");
+        if (failures.current >= 4) setConnectError(e instanceof Error ? e.message : "Couldn't connect to the meeting.");
+        retryTimer2 = setTimeout(() => setAttempt((a) => a + 1), Math.min(10_000, 1500 * 2 ** Math.min(failures.current - 1, 3)));
       }
     })();
     return () => {
       cancelled = true;
+      if (downTimer) clearTimeout(downTimer);
+      if (retryTimer2) clearTimeout(retryTimer2);
       pub.current?.close();
       sub.current?.close();
       pub.current = null;
@@ -142,6 +182,54 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     // Reconnect only on retry; device and mute changes are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, attempt]);
+  const restartRef = useRef<() => void>(() => {});
+
+  // Internet back: reconnect at once instead of waiting for the next try.
+  useEffect(() => {
+    const back = () => {
+      if (mediaLinkRef.current !== "ok") setAttempt((a) => a + 1);
+    };
+    window.addEventListener("online", back);
+    return () => window.removeEventListener("online", back);
+  }, []);
+  const mediaLinkRef = useRef(mediaLink);
+  mediaLinkRef.current = mediaLink;
+
+  // Away too long (no heartbeat for 2 min), the server counts me as gone: join again quietly.
+  const rejoining = useRef(false);
+  useEffect(() => {
+    if (!me || me.status !== "left" || rejoining.current || exited.current) return;
+    rejoining.current = true;
+    void (async () => {
+      const { error } = await createClient().rpc("meet_join", { p_code: info.code, p_name: join.name });
+      rejoining.current = false;
+      if (!error) setAttempt((a) => a + 1);
+    })();
+  }, [me, info.code, join.name]);
+
+  // Tell me when my connection drops and when it's back.
+  const selfDown = !meOnline || mediaLink === "reconnecting";
+  const wasDown = useRef(false);
+  useEffect(() => {
+    if (selfDown) wasDown.current = true;
+    else if (wasDown.current) {
+      wasDown.current = false;
+      toast("You're back online.");
+    }
+  }, [selfDown, toast]);
+
+  // Others: say when someone loses their connection and when they're back.
+  const prevLinks = useRef<Record<string, PersonLink>>({});
+  useEffect(() => {
+    if (selfDown) return;
+    for (const [id, l] of Object.entries(links)) {
+      const before = prevLinks.current[id];
+      const name = people.find((p) => p.id === id)?.display_name ?? "Someone";
+      if (before === "ok" && l === "reconnecting") toast(`${name} lost connection. Reconnecting…`, "warn");
+      if (before === "reconnecting" && l === "ok") toast(`${name} is back.`);
+    }
+    prevLinks.current = links;
+  }, [links, people, selfDown, toast]);
 
   // My camera: real camera (or background version) when on, a black frame when off.
   useEffect(() => {
@@ -276,6 +364,12 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
 
   const [net, setNet] = useState({ mb: 0, score: 3 });
   const lastStats = useRef({ lost: 0, packets: 0 });
+  // Per person: when did their data last arrive? Nothing for 8 s = their connection is weak.
+  const inbound = useRef<Record<string, { bytes: number; at: number }>>({});
+  const [weak, setWeak] = useState<Set<string>>(new Set());
+  const remoteRef = useRef(remote);
+  remoteRef.current = remote;
+  const weakSelf = useRef(0);
   useEffect(() => {
     const t = setInterval(async () => {
       if (!pub.current || !sub.current) return;
@@ -284,10 +378,28 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       const dp = s.packets - lastStats.current.packets;
       lastStats.current = { lost: s.lost, packets: s.packets };
       const ok = pub.current.pc.connectionState === "connected";
-      setNet({ mb: s.bytes / 1_000_000, score: signalScore(s.rtt, dp > 0 ? dl / dp : 0, ok) });
+      const score = signalScore(s.rtt, dp > 0 ? dl / dp : 0, ok);
+      setNet({ mb: s.bytes / 1_000_000, score });
+      // My own connection weak for ~15 s: suggest data saver once.
+      weakSelf.current = ok && score <= 1 ? weakSelf.current + 1 : 0;
+      if (weakSelf.current === 5) toast("Your connection is weak. Turning on Data saver (Settings) can help.", "warn");
+
+      const now = Date.now();
+      const next = new Set<string>();
+      for (const [pid, tracks] of Object.entries(remoteRef.current)) {
+        // Sound and camera both keep sending (silence / a black frame) even when muted or off.
+        const live = [tracks.mic, tracks.camera].filter((x): x is MediaStreamTrack => !!x && x.readyState === "live");
+        if (!live.length || !sub.current) continue;
+        let bytes = 0;
+        for (const x of live) bytes += (await sub.current.info(x)).bytes;
+        const prev = inbound.current[pid];
+        if (!prev || bytes > prev.bytes) inbound.current[pid] = { bytes, at: now };
+        else if (now - prev.at > 8000) next.add(pid);
+      }
+      setWeak((w) => (w.size === next.size && [...next].every((x) => w.has(x)) ? w : next));
     }, 3000);
     return () => clearInterval(t);
-  }, [connected]);
+  }, [connected, toast]);
 
   // ----- time limit ---------------------------------------------------------
   const [now, setNow] = useState(() => Date.now());
@@ -399,6 +511,11 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       onPin={() => setPinned((x) => (x === p.id ? null : p.id))}
       big={big}
       note={p.id !== meId && p.video_on && media.dataSaver ? "Video paused (data saver)" : p.id !== meId && p.video_on && !remote[p.id]?.camera ? "Connecting video…" : undefined}
+      status={
+        p.id === meId
+          ? selfDown ? "Reconnecting…" : undefined
+          : selfDown ? undefined : links[p.id] === "reconnecting" ? "Reconnecting…" : weak.has(p.id) ? "Weak connection" : undefined
+      }
     />
   );
 
@@ -424,7 +541,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
           <span className="hidden rounded-full bg-white/10 px-2.5 py-1 tabular-nums text-white/80 sm:inline" title="Data used by this meeting on this device">
             {net.mb < 10 ? net.mb.toFixed(1) : Math.round(net.mb)} MB
           </span>
-          <SignalBars score={connected ? net.score : 0} />
+          <SignalBars score={connected && !selfDown ? net.score : 0} />
           <button onClick={() => void copyLink()} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 hover:bg-white/15" title="Copy the meeting link">
             <Icon name={copied ? "check" : "copy"} className="h-4 w-4" />
             <span className="hidden sm:inline">{copied ? "Copied" : "Invite"}</span>
@@ -435,10 +552,15 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       <div className="relative flex min-h-0 flex-1 gap-3 px-2 pb-2 sm:px-4">
         {/* Stage */}
         <div className="relative min-w-0 flex-1">
-          {connectError && (
-            <div className="absolute inset-x-0 top-2 z-20 mx-auto w-fit rounded-xl bg-red-500/90 px-4 py-2 text-sm">
-              {connectError}{" "}
-              <button className="ml-2 underline" onClick={() => setAttempt((a) => a + 1)}>Try again</button>
+          {selfDown && (
+            <div role="status" className="absolute inset-x-0 top-2 z-20 mx-auto flex w-fit max-w-[calc(100%-1rem)] items-center gap-2 rounded-xl bg-[#f2a93b] px-4 py-2 text-sm font-medium text-[#15123a] shadow-lg">
+              <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#15123a] border-t-transparent" aria-hidden />
+              {!online
+                ? "You're offline. We'll reconnect as soon as your internet is back."
+                : "Your connection dropped. Reconnecting…"}
+              {connectError && (
+                <button className="ml-1 shrink-0 underline" onClick={() => setAttempt((a) => a + 1)}>Try now</button>
+              )}
             </div>
           )}
           {screenOwner || focusId ? (
@@ -699,9 +821,17 @@ function Control({ icon, label, onClick, off, active, disabled, badge, className
   );
 }
 
-function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note }: { p: Participant; me: boolean; track: MediaStreamTrack | null | undefined; speaking: boolean; micOn: boolean; pinned: boolean; onPin: () => void; big?: boolean; note?: string }) {
+function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note, status }: { p: Participant; me: boolean; track: MediaStreamTrack | null | undefined; speaking: boolean; micOn: boolean; pinned: boolean; onPin: () => void; big?: boolean; note?: string; status?: string }) {
+  const reconnecting = status === "Reconnecting…";
   return (
     <div className={cn("group relative h-full w-full overflow-hidden rounded-2xl bg-[#1b1842] ring-2 transition", speaking ? "ring-emerald-400" : "ring-transparent")}>
+      {status && (
+        <div className={cn("absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 py-1.5 text-xs font-medium", reconnecting ? "bg-[#f2a93b] text-[#15123a]" : "bg-black/60 text-[#f2c27a]")}>
+          {reconnecting ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#15123a] border-t-transparent" aria-hidden /> : <SignalBars score={1} />}
+          {status}
+        </div>
+      )}
+      {reconnecting && <div className="pointer-events-none absolute inset-0 z-[5] bg-[#0f0d26]/50" aria-hidden />}
       {track ? (
         <VideoView track={track} mirror={me} />
       ) : (

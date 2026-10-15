@@ -5,10 +5,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, realtimeClient } from "@/lib/supabase/client";
 import { PARTICIPANT_COLUMNS, ROOM_COLUMNS, type MeetEvent, type Participant, type PingResult, type RoomRow } from "./types";
 
+export type PersonLink = "ok" | "reconnecting";
+
 /**
  * Live state of one meeting: people (admitted + waiting), the room, chat/reactions and host
  * commands. Supabase Realtime pushes changes; a regular check fills gaps (every 2 s while
- * Realtime is down, every 12 s otherwise). A heartbeat every 8 s keeps me "in the meeting".
+ * Realtime is down, every 12 s otherwise). A heartbeat every 8 s keeps me "in the meeting";
+ * everyone's heartbeats are read every 4 s to show who is reconnecting.
+ *
+ * Times are compared on the server's clock (phones and laptops are often a minute off), so a
+ * wrong device clock never makes people vanish.
  */
 export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) => void) {
   const [people, setPeople] = useState<Participant[]>([]);
@@ -22,6 +28,9 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
   commandRef.current = onCommand;
   const patch = useRef<Record<string, unknown>>({});
   const pingNow = useRef<() => void>(() => {});
+  const skew = useRef(0); // server clock − this device's clock (ms)
+  const [lastPingOk, setLastPingOk] = useState(() => Date.now());
+  const [online, setOnline] = useState(true);
 
   const loadPeople = useCallback(async () => {
     const supabase = createClient();
@@ -47,6 +56,11 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
     if (rx.length) setReactions((prev) => [...prev.filter((r) => now - r.at < 4000), ...rx.map((r) => ({ ...r, at: now }))]);
     for (const e of fresh) if (!["chat", "reaction"].includes(e.kind)) commandRef.current(e);
   }, []);
+
+  const loadPresence = useCallback(async () => {
+    const { data: pres } = await createClient().from("meet_presence").select("participant_id, last_seen_at").eq("room_id", roomId);
+    if (pres) setSeen(Object.fromEntries((pres as Array<{ participant_id: string; last_seen_at: string }>).map((p) => [p.participant_id, Date.parse(p.last_seen_at)])));
+  }, [roomId]);
 
   const loadEvents = useCallback(
     async (initial = false) => {
@@ -89,31 +103,67 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
       if (!live || ticks % 6 === 0) {
         void loadEvents();
         void loadPeople();
-      }
+      } else if (ticks % 2 === 0) void loadPresence();
     }, 2000);
 
     // Heartbeat (+ any pending state changes).
     const ping = async () => {
       const p = patch.current;
       patch.current = {};
-      const { data, error } = await createClient().rpc("meet_ping", { p_room: roomId, p_patch: p });
+      const sent = Date.now();
+      let data: unknown = null;
+      let error: unknown = null;
+      try {
+        ({ data, error } = await createClient().rpc("meet_ping", { p_room: roomId, p_patch: p }));
+      } catch (e) {
+        error = e;
+      }
       if (error) {
         patch.current = { ...p, ...patch.current };
         return;
       }
-      if (data) setMe(data as PingResult);
+      const res = data as PingResult | null;
+      if (res) {
+        const got = Date.now();
+        if (res.server_time) skew.current = Date.parse(res.server_time) - (sent + got) / 2;
+        setMe(res);
+      }
+      setLastPingOk(Date.now());
     };
     pingNow.current = () => void ping();
     void ping();
-    const beat = setInterval(() => void ping(), 8000);
+    // Every 8 s; every 3 s while the last heartbeat failed (to notice quickly when we're back).
+    let n = 0;
+    const beat = setInterval(() => {
+      const failing = Date.now() - lastOk.current > 10_000;
+      if (failing || ++n % 3 === 0) void ping();
+    }, 3000);
+
+    // Back online / back to the tab: catch up at once.
+    const catchUp = () => {
+      setOnline(navigator.onLine);
+      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      void ping();
+      void loadPeople();
+      void loadEvents();
+    };
+    window.addEventListener("online", catchUp);
+    window.addEventListener("offline", catchUp);
+    document.addEventListener("visibilitychange", catchUp);
 
     return () => {
       stopped = true;
       clearInterval(poll);
       clearInterval(beat);
+      window.removeEventListener("online", catchUp);
+      window.removeEventListener("offline", catchUp);
+      document.removeEventListener("visibilitychange", catchUp);
       if (channel) void createClient().removeChannel(channel);
     };
-  }, [roomId, loadPeople, loadEvents, handleEvents]);
+  }, [roomId, loadPeople, loadEvents, loadPresence, handleEvents]);
+
+  const lastOk = useRef(Date.now());
+  lastOk.current = lastPingOk;
 
   /** Change my state (mic, camera, hand, tracks…); sent at once. */
   const update = useCallback((p: Record<string, unknown>) => {
@@ -140,12 +190,18 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
     [roomId, loadPeople, loadEvents],
   );
 
-  // Someone admitted but silent for 30 s has probably dropped: hide them until they're back.
-  const now = Date.now();
-  const inRoom = people.filter((p) => p.status === "admitted" && (p.id === meId || !seen[p.id] || now - seen[p.id] < 30_000));
-  const waiting = people.filter((p) => p.status === "waiting" && (!seen[p.id] || now - seen[p.id] < 30_000));
+  // On the server's clock: no heartbeat for 15 s = reconnecting; for 90 s = gone (the server
+  // marks them as left after 2 minutes).
+  const now = Date.now() + skew.current;
+  const age = (id: string) => (seen[id] ? now - seen[id] : 0);
+  const inRoom = people.filter((p) => p.status === "admitted" && (p.id === meId || age(p.id) < 90_000));
+  const waiting = people.filter((p) => p.status === "waiting" && age(p.id) < 60_000);
+  const links: Record<string, PersonLink> = {};
+  for (const p of inRoom) links[p.id] = p.id !== meId && age(p.id) > 15_000 ? "reconnecting" : "ok";
+  // My own link: heartbeat answered in the last 20 s and the device says it's online.
+  const meOnline = online && Date.now() - lastPingOk < 20_000;
 
-  return { people: inRoom, waiting, room, chat, reactions, me, update, send, moderate, refresh: loadPeople };
+  return { people: inRoom, waiting, room, chat, reactions, me, update, send, moderate, refresh: loadPeople, links, meOnline, online };
 }
 
 /** Leave even when the tab is closing (keepalive request). */
