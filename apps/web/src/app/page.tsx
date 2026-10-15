@@ -29,7 +29,11 @@ const FEATURES: Array<{ icon: IconName; title: string; body: string }> = [
   { icon: "zap", title: "Made for patchy internet", body: "Time is saved on the computer and uploads when the connection comes back." },
   { icon: "chat", title: "Chat and announcements", body: "Groups, direct messages, files and company news next to the work." },
   { icon: "leave", title: "Leave and holidays", body: "Requests, approvals and balances, with Nigerian public holidays built in." },
-  { icon: "wallet", title: "Payroll from real hours", body: "Each month's pay worked out from hours, leave and each person's rate." },
+  { icon: "wallet", title: "Nigerian payroll and payslips", body: "Pay from hours and leave, with PAYE, pension and NHF worked out, and a PDF payslip emailed to each person." },
+  { icon: "phone", title: "Clock in from a phone", body: "For people on the road: one tap, with their location at clock-in if you want it." },
+  { icon: "receipt", title: "Expense claims", body: "Snap the receipt, a manager approves, and it's paid back with the next payslip." },
+  { icon: "briefcase", title: "Staff records", body: "Contracts, IDs, bank and pension details, and a checklist for every new hire." },
+  { icon: "sparkle", title: "Goals and reviews", body: "Reviews that start from the hours, tasks and leave the app already knows." },
 ];
 
 const NEVER: Array<{ icon: IconName; text: string }> = [
