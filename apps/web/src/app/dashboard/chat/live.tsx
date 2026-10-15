@@ -1,31 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-/** Refresh unread counts when any message arrives in a channel this person can see. */
-export function LiveRefresh() {
-  const router = useRouter();
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel("chat-sidebar")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
-        if (timer.current) clearTimeout(timer.current);
-        timer.current = setTimeout(() => router.refresh(), 1200);
-      })
-      .subscribe();
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-      void supabase.removeChannel(channel);
-    };
-  }, [router]);
-  return null;
-}
 
 export function ChatSidebarLink({ href, unread, children }: { href: string; unread: number; children: React.ReactNode }) {
   const path = usePathname();

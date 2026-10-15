@@ -1,6 +1,6 @@
 "use client";
 
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ALLOWED_FILE_TYPES,
@@ -18,7 +18,7 @@ import {
 } from "@/lib/chat";
 import { Icon } from "@/components/icons";
 import { Avatar } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, realtimeClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 export type Person = { name: string; initials: string };
@@ -40,6 +40,9 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Rows from Realtime may miss the new columns for a moment; fill them in. */
 const normalize = (m: ChatMessage): ChatMessage => ({ ...m, attachments: m.attachments ?? [], mentions: m.mentions ?? [] });
+/** A message shown straight away while it is still being sent. */
+type Shown = ChatMessage & { pending?: boolean };
+const TEMP = "temp-";
 
 /** Messages of one channel, live (Supabase Realtime), with a box to write, files and @mentions. */
 export function ChatRoom({
@@ -69,7 +72,7 @@ export function ChatRoom({
   placeholder: string;
   cannotPostReason: string;
 }) {
-  const [messages, setMessages] = useState(() => initial.map(normalize));
+  const [messages, setMessages] = useState<Shown[]>(() => initial.map(normalize));
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [draft, setDraft] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -86,18 +89,36 @@ export function ChatRoom({
   const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const asked = useRef(new Set<string>());
 
-  const upsert = useCallback((raw: ChatMessage) => {
-    const m = normalize(raw);
+  const upsertMany = useCallback((rows: ChatMessage[], dropTemp?: string) => {
     setMessages((prev) => {
-      const i = prev.findIndex((x) => x.id === m.id);
-      if (i >= 0) {
-        const next = prev.slice();
-        next[i] = m;
-        return next;
+      let next = dropTemp ? prev.filter((x) => x.id !== dropTemp) : prev.slice();
+      let added = false;
+      for (const raw of rows) {
+        const m = normalize(raw);
+        const i = next.findIndex((x) => x.id === m.id);
+        if (i >= 0) next[i] = m;
+        else {
+          next.push(m);
+          added = true;
+        }
       }
-      return [...prev, m].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      if (added) next = next.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      return next;
     });
   }, []);
+  const upsert = useCallback((raw: ChatMessage) => upsertMany([raw]), [upsertMany]);
+
+  // Newest message we have from the server (not the ones still sending).
+  const newest = useRef<string | null>(null);
+  useEffect(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (!messages[i].id.startsWith(TEMP)) {
+        newest.current = messages[i].created_at;
+        return;
+      }
+    }
+    newest.current = null;
+  }, [messages]);
 
   const markRead = useCallback(() => {
     if (readTimer.current) clearTimeout(readTimer.current);
@@ -106,33 +127,80 @@ export function ChatRoom({
     }, 800);
   }, [channelId]);
 
-  // Live updates for this channel.
+  // Live updates for this channel: Supabase Realtime pushes new messages at once, and a
+  // small "anything new?" check covers the moments Realtime is connecting, offline or blocked.
   useEffect(() => {
     setMessages(initial.map(normalize));
-    const supabase = createClient();
-    const sub = supabase
-      .channel(`room-${channelId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `channel_id=eq.${channelId}` },
-        (payload: RealtimePostgresChangesPayload<ChatMessage>) => {
-          upsert(payload.new as ChatMessage);
-          markRead();
-        })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `channel_id=eq.${channelId}` },
-        (payload: RealtimePostgresChangesPayload<ChatMessage>) => upsert(payload.new as ChatMessage))
-      .subscribe();
-    const onVisible = () => document.visibilityState === "visible" && markRead();
+    let stopped = false;
+    let live = false; // Realtime connected
+    let missed = false; // the check found messages Realtime never delivered: keep checking often
+    let busy = false;
+    let sub: RealtimeChannel | null = null;
+    let ticks = 0;
+
+    async function catchUp() {
+      if (busy || stopped) return;
+      busy = true;
+      try {
+        let q = createClient().from("messages").select(MESSAGE_COLUMNS).eq("channel_id", channelId).order("created_at", { ascending: true }).limit(100);
+        if (newest.current) q = q.gt("created_at", newest.current);
+        const { data } = await q;
+        const rows = (data ?? []) as ChatMessage[];
+        if (!rows.length || stopped) return;
+        if (live && rows.some((r) => r.author_id !== meId && Date.now() - Date.parse(r.created_at) > 4000)) missed = true;
+        upsertMany(rows);
+        markRead();
+      } finally {
+        busy = false;
+      }
+    }
+
+    void realtimeClient().then((supabase) => {
+      if (stopped) return;
+      sub = supabase
+        .channel(`room-${channelId}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `channel_id=eq.${channelId}` },
+          (payload: RealtimePostgresChangesPayload<ChatMessage>) => {
+            upsert(payload.new as ChatMessage);
+            markRead();
+          })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `channel_id=eq.${channelId}` },
+          (payload: RealtimePostgresChangesPayload<ChatMessage>) => upsert(payload.new as ChatMessage))
+        .subscribe((status: string) => {
+          live = status === "SUBSCRIBED";
+          if (live) void catchUp(); // anything sent while connecting
+        });
+    });
+
+    // Every 3 s without Realtime (or when it missed something), every 15 s as a safety net.
+    const poll = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      ticks++;
+      if (!live || missed || ticks % 5 === 0) void catchUp();
+    }, 3000);
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      markRead();
+      void catchUp();
+    };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("online", onVisible);
     return () => {
+      stopped = true;
+      clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("online", onVisible);
       if (readTimer.current) clearTimeout(readTimer.current);
-      void supabase.removeChannel(sub);
+      if (sub) void createClient().removeChannel(sub);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
   // Short-lived download links for files in view (Storage checks you can read the chat).
   useEffect(() => {
-    const missing = [...new Set(messages.flatMap((m) => m.attachments.map((a) => a.path)))].filter((p) => !asked.current.has(p));
+    const missing = [...new Set(messages.flatMap((m) => m.attachments.map((a) => a.path)))].filter((p) => p && !asked.current.has(p));
     if (!missing.length) return;
     missing.forEach((p) => asked.current.add(p));
     void createClient()
@@ -187,35 +255,52 @@ export function ChatRoom({
   async function send() {
     const body = draft.trim();
     if ((!body && !files.length) || sending) return;
-    setSending(true);
+    // Text goes out instantly and you can keep typing; only file uploads hold the box.
+    const withFiles = files.length > 0;
+    if (withFiles) setSending(true);
     setError(null);
     const supabase = createClient();
     const uploaded: Array<{ path: string; name: string }> = [];
+    // Show the message at once; it turns solid when the server has it.
+    const tempId = TEMP + crypto.randomUUID();
+    const sentDraft = { draft, files, picked };
+    const mentionIds = picked.filter((p) => body.includes(`@${p.name}`)).map((p) => p.id);
+    stick.current = true;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId, channel_id: channelId, author_id: meId, body, created_at: new Date().toISOString(), edited_at: null, deleted_at: null,
+        attachments: files.map((f) => ({ path: "", name: f.name, size: f.size, type: f.type })), mentions: mentionIds, pending: true,
+      },
+    ]);
+    setDraft("");
+    setFiles([]);
+    setPicked([]);
+    setSuggest(null);
     try {
-      for (const f of files) {
+      for (const f of sentDraft.files) {
         const path = `${orgId}/${channelId}/${crypto.randomUUID()}/${storageName(f.name)}`;
         const { error: upErr } = await supabase.storage.from(CHAT_BUCKET).upload(path, f, { contentType: f.type, upsert: false });
         if (upErr) throw new Error(/row-level security|unauthori[sz]ed/i.test(upErr.message) ? cannotPostReason : `${f.name}: ${upErr.message}`);
         uploaded.push({ path, name: f.name });
       }
-      const mentions = picked.filter((p) => body.includes(`@${p.name}`)).map((p) => p.id);
       const { data, error: err } = await supabase
         .from("messages")
-        .insert({ channel_id: channelId, body, attachments: uploaded, mentions })
+        .insert({ channel_id: channelId, body, attachments: uploaded, mentions: mentionIds })
         .select(MESSAGE_COLUMNS)
         .single();
       if (err) throw new Error(/row-level security/i.test(err.message) ? cannotPostReason : err.message);
-      setDraft("");
-      setFiles([]);
-      setPicked([]);
-      setSuggest(null);
-      stick.current = true;
-      upsert(data as ChatMessage);
+      upsertMany([data as ChatMessage], tempId);
     } catch (e) {
       if (uploaded.length) void supabase.storage.from(CHAT_BUCKET).remove(uploaded.map((u) => u.path));
+      // Put the text back so nothing is lost.
+      setMessages((prev) => prev.filter((x) => x.id !== tempId));
+      setDraft(sentDraft.draft);
+      setFiles(sentDraft.files);
+      setPicked(sentDraft.picked);
       setError(e instanceof Error ? e.message : "Could not send the message.");
     } finally {
-      setSending(false);
+      if (withFiles) setSending(false);
     }
   }
 
@@ -374,7 +459,7 @@ export function ChatRoom({
                     <span className="h-px flex-1 bg-slate-200" />
                   </div>
                 )}
-                <div className={cn("group flex gap-3 rounded-lg px-2 py-0.5 hover:bg-slate-50", !grouped && "mt-2", mentionsMe && !m.deleted_at && "bg-amber-50/60")}>
+                <div className={cn("group flex gap-3 rounded-lg px-2 py-0.5 hover:bg-slate-50", !grouped && "mt-2", mentionsMe && !m.deleted_at && "bg-amber-50/60", m.pending && "opacity-60")}>
                   <div className="w-8 shrink-0">
                     {!grouped && (
                       <Avatar name={who?.name ?? "?"} size="sm" />
@@ -418,11 +503,15 @@ export function ChatRoom({
                             {m.edited_at && <span className="ml-1 text-xs text-slate-400">(edited)</span>}
                           </p>
                         )}
-                        {renderFiles(m.attachments)}
+                        {m.pending ? (
+                          m.attachments.length > 0 && <p className="text-xs text-slate-400">Sending {m.attachments.length === 1 ? m.attachments[0].name : `${m.attachments.length} files`}…</p>
+                        ) : (
+                          renderFiles(m.attachments)
+                        )}
                       </>
                     )}
                   </div>
-                  {!m.deleted_at && editing?.id !== m.id && (mine || canModerate) && (
+                  {!m.deleted_at && !m.pending && editing?.id !== m.id && (mine || canModerate) && (
                     <div className="flex shrink-0 items-start gap-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
                       {mine && (
                         <button className="text-xs text-slate-400 hover:text-slate-700" onClick={() => setEditing({ id: m.id, body: m.body })}>Edit</button>
@@ -556,7 +645,7 @@ export function ChatRoom({
               />
               <button className="btn-primary h-10 px-3.5" disabled={sending || (!draft.trim() && !files.length)} aria-label="Send">
                 <Icon name="send" className="h-4 w-4" />
-                <span className="hidden sm:inline">{sending ? (files.length ? "Uploading…" : "Sending…") : "Send"}</span>
+                <span className="hidden sm:inline">{sending ? "Uploading…" : "Send"}</span>
               </button>
             </form>
           </>

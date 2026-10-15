@@ -9,9 +9,11 @@ import { isAdminRole, type Membership, type Organization, type Profile } from "@
  */
 export const getSession = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims checks the login token's signature locally when the project uses signing keys
+  // (no trip to the Auth server); with the older shared secret it asks the server, like getUser.
+  const { data: auth } = await supabase.auth.getClaims();
+  const claims = auth?.claims;
+  const user = claims?.sub ? { id: claims.sub, email: typeof claims.email === "string" ? claims.email : undefined } : null;
 
   if (!user) return { supabase, user: null, profile: null, member: null, org: null };
 

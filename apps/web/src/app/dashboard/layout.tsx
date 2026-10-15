@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Logo } from "@/components/logo";
 import { AppNav, type NavGroup } from "@/components/nav";
+import { LiveUpdates } from "@/components/live-updates";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Tour, TourButton, type TourStep } from "@/components/tour";
 import { daysLeft, hasPro, hasStandard, isPaid } from "@/lib/billing";
@@ -79,6 +80,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen lg:flex">
+      <LiveUpdates meId={user.id} />
       <AppNav
         groups={groups}
         header={

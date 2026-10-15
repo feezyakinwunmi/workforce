@@ -28,10 +28,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Do not put code between createServerClient and getUser: it keeps the session fresh.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Do not put code between createServerClient and getClaims: it keeps the session fresh
+  // (an expired token is renewed here and the new cookie is written to the response).
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? data.claims : null;
 
   const path = request.nextUrl.pathname;
 

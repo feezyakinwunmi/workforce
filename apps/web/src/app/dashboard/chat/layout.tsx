@@ -5,7 +5,7 @@ import { requireMember } from "@/lib/session";
 import { loadPeople } from "@/lib/tracking";
 import { Icon } from "@/components/icons";
 import { Avatar } from "@/components/ui";
-import { ChatSidebarLink, LiveRefresh } from "./live";
+import { ChatSidebarLink } from "./live";
 
 export const metadata: Metadata = { title: "Chat" };
 
@@ -23,7 +23,6 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="grid gap-4 md:grid-cols-[230px_1fr]">
-      <LiveRefresh />
       <aside className="card h-fit p-3 md:sticky md:top-8">
         <div className="mb-3 flex items-center justify-between px-2 pt-1">
           <h1 className="section-title">Chat</h1>
