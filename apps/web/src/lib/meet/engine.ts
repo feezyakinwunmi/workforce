@@ -85,6 +85,8 @@ export class Publisher {
     this.tx.set("mic", this.pc.addTransceiver(mic, { direction: "sendonly" }));
     this.tx.set("camera", this.pc.addTransceiver(camera, { direction: "sendonly", sendEncodings: [videoEncoding(lowData)] }));
     await this.q.run(() => this.publish(["mic", "camera"]));
+    // Others can only receive my tracks once this connection is up, so wait for it (max 15 s).
+    await connectedOrTimeout(this.pc, 15_000);
   }
 
   private async publish(sources: Source[]) {
@@ -129,6 +131,23 @@ export class Publisher {
   }
 }
 
+/** Resolves when the connection is up, or after the timeout (later retries cover slow networks). */
+function connectedOrTimeout(pc: RTCPeerConnection, ms: number) {
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      if (pc.connectionState === "connected" || pc.connectionState === "failed" || pc.connectionState === "closed") finish();
+    };
+    const finish = () => {
+      clearTimeout(t);
+      pc.removeEventListener("connectionstatechange", done);
+      resolve();
+    };
+    const t = setTimeout(finish, ms);
+    pc.addEventListener("connectionstatechange", done);
+    done();
+  });
+}
+
 function videoEncoding(lowData: boolean): RTCRtpEncodingParameters {
   return lowData ? { maxBitrate: 150_000, scaleResolutionDownBy: 2, maxFramerate: 15 } : { maxBitrate: 700_000, maxFramerate: 24 };
 }
@@ -163,29 +182,40 @@ export class Subscriber {
     return this.pulled.has(Subscriber.key(r));
   }
 
-  /** Receive these tracks (skips ones already received). */
-  pull(refs: RemoteRef[]) {
+  /**
+   * Receive these tracks (skips ones already received). Returns the ones that aren't available
+   * yet (e.g. the person is still connecting), so the caller can try again shortly.
+   */
+  pull(refs: RemoteRef[]): Promise<RemoteRef[]> {
     return this.q.run(async () => {
       const todo = refs.filter((r) => !this.pulled.has(Subscriber.key(r)));
-      if (!todo.length) return;
+      if (!todo.length) return [];
       const res = await this.api.post("pull", {
         session: this.session,
         ticket: this.ticket,
         remotes: todo.map((r) => ({ sessionId: r.sessionId, trackName: r.trackName })),
       });
+      const ok: RemoteRef[] = [];
       for (const t of res.tracks ?? []) {
         if (t.errorCode || !t.mid) continue;
         const ref = todo.find((r) => r.sessionId === t.sessionId && r.trackName === t.trackName);
         if (!ref) continue;
         this.byMid.set(t.mid, ref);
         this.pulled.set(Subscriber.key(ref), t.mid);
+        ok.push(ref);
       }
       if (res.sessionDescription?.type === "offer") {
-        await this.pc.setRemoteDescription(res.sessionDescription);
-        const answer = await this.pc.createAnswer();
-        await this.pc.setLocalDescription(answer);
-        await this.api.post("renegotiate", { session: this.session, ticket: this.ticket, answer: this.pc.localDescription!.toJSON() });
+        try {
+          await this.pc.setRemoteDescription(res.sessionDescription);
+          const answer = await this.pc.createAnswer();
+          await this.pc.setLocalDescription(answer);
+          await this.api.post("renegotiate", { session: this.session, ticket: this.ticket, answer: this.pc.localDescription!.toJSON() });
+        } catch (e) {
+          for (const r of ok) this.pulled.delete(Subscriber.key(r));
+          throw e;
+        }
       }
+      return todo.filter((r) => !ok.includes(r));
     });
   }
 

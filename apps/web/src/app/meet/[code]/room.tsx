@@ -76,6 +76,8 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const black = useMemo(() => (typeof document === "undefined" ? null : blackVideoTrack()), []);
   const silence = useRef<MediaStreamTrack | null>(null);
   const pulled = useRef(new Map<string, RemoteRef>());
+  const [retry, setRetry] = useState(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remote, setRemote] = useState<RemoteMedia>({});
   const [connected, setConnected] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -178,11 +180,16 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     for (const r of fresh) pulled.current.set(`${r.sessionId}/${r.trackName}`, r);
     if (drop.length) void s.drop(drop).catch(() => undefined);
     if (fresh.length) {
-      void s.pull(fresh).catch(() => {
-        for (const r of fresh) pulled.current.delete(`${r.sessionId}/${r.trackName}`);
-      });
+      // Someone who just joined may still be connecting: try what didn't work again shortly.
+      const again = (refs: RemoteRef[]) => {
+        if (!refs.length || sub.current !== s) return;
+        for (const r of refs) pulled.current.delete(`${r.sessionId}/${r.trackName}`);
+        if (!retryTimer.current) retryTimer.current = setTimeout(() => ((retryTimer.current = null), setRetry((n) => n + 1)), 2000);
+      };
+      void s.pull(fresh).then(again, () => again(fresh));
     }
-  }, [connected, people, meId, media.dataSaver]);
+  }, [connected, people, meId, media.dataSaver, retry]);
+  useEffect(() => () => void (retryTimer.current && clearTimeout(retryTimer.current)), []);
 
   // ----- screen sharing -----------------------------------------------------
   const stopShare = useCallback(() => {
