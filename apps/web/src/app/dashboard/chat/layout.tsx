@@ -5,7 +5,7 @@ import { requireMember } from "@/lib/session";
 import { loadPeople } from "@/lib/tracking";
 import { Icon } from "@/components/icons";
 import { Avatar } from "@/components/ui";
-import { ChatSidebarLink } from "./live";
+import { ChatShell, ChatSidebarLink } from "./live";
 
 export const metadata: Metadata = { title: "Chat" };
 
@@ -21,9 +21,8 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
   const groups = channels.filter((c) => c.kind !== "direct");
   const directs = channels.filter((c) => c.kind === "direct");
 
-  return (
-    <div className="grid gap-4 md:grid-cols-[230px_1fr]">
-      <aside className="card h-fit p-3 md:sticky md:top-8">
+  const list = (
+    <>
         <div className="mb-3 flex items-center justify-between px-2 pt-1">
           <h1 className="section-title">Chat</h1>
           <Link href="/dashboard/chat/new" className="btn-primary btn-sm" title="New message or group">
@@ -65,8 +64,7 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
             );
           })}
         </ul>
-      </aside>
-      <section className="min-w-0">{children}</section>
-    </div>
+    </>
   );
+  return <ChatShell list={list}>{children}</ChatShell>;
 }

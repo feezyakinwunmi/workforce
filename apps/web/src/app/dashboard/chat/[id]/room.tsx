@@ -58,6 +58,7 @@ export function ChatRoom({
   timezone,
   placeholder,
   cannotPostReason,
+  direct = false,
 }: {
   channelId: string;
   orgId: string;
@@ -71,6 +72,8 @@ export function ChatRoom({
   timezone: string;
   placeholder: string;
   cannotPostReason: string;
+  /** A two-person chat: no names over the bubbles. */
+  direct?: boolean;
 }) {
   const [messages, setMessages] = useState<Shown[]>(() => initial.map(normalize));
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -81,6 +84,7 @@ export function ChatRoom({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
+  const [active, setActive] = useState<string | null>(null); // bubble tapped to show Edit/Delete (phones have no hover)
   const [urls, setUrls] = useState<Record<string, string>>({});
   const listRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLTextAreaElement>(null);
@@ -370,7 +374,7 @@ export function ChatRoom({
   }
 
   /** Message text with mentions highlighted (yours stronger). */
-  function renderBody(m: ChatMessage) {
+  function renderBody(m: ChatMessage, mine = false) {
     const named = m.mentions
       .map((id) => ({ id, name: people[id]?.name }))
       .filter((x): x is { id: string; name: string } => Boolean(x.name))
@@ -381,7 +385,7 @@ export function ChatRoom({
       const who = part.startsWith("@") ? named.find((n) => `@${n.name}` === part) : undefined;
       if (!who) return <Fragment key={i}>{part}</Fragment>;
       return (
-        <span key={i} className={cn("rounded px-0.5 font-medium", who.id === meId ? "bg-amber-100 text-amber-900" : "bg-brand-50 text-brand-700")}>
+        <span key={i} className={cn("rounded px-0.5 font-medium", mine ? "bg-white/20 text-white" : who.id === meId ? "bg-amber-100 text-amber-900" : "bg-brand-50 text-brand-700")}>
           {part}
         </span>
       );
@@ -399,7 +403,17 @@ export function ChatRoom({
               <a key={a.path} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 bg-slate-50" title={a.name}>
                 {url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt={a.name} className="max-h-60 max-w-[280px] object-contain" loading="lazy" />
+                  <img
+                    src={url}
+                    alt={a.name}
+                    className="max-h-60 max-w-full object-contain sm:max-w-[280px]"
+                    loading="lazy"
+                    onLoad={() => {
+                      // A picture that finishes loading makes the list taller: stay at the bottom.
+                      const el = listRef.current;
+                      if (el && stick.current) el.scrollTop = el.scrollHeight;
+                    }}
+                  />
                 ) : (
                   <span className="flex h-24 w-40 items-center justify-center text-xs text-slate-400">Loading image…</span>
                 )}
@@ -428,7 +442,7 @@ export function ChatRoom({
     <>
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto px-5 py-4"
+        className="flex-1 overflow-y-auto px-3 py-4 sm:px-5"
         onScroll={(e) => {
           const el = e.currentTarget;
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -440,16 +454,28 @@ export function ChatRoom({
           </div>
         )}
         {messages.length === 0 && <p className="py-10 text-center text-sm text-slate-400">No messages yet. Say hello!</p>}
-        <ol className="space-y-1">
+        <ol>
           {messages.map((m, i) => {
             const prev = messages[i - 1];
-            const newDay = !prev || dayKey(prev.created_at, timezone) !== dayKey(m.created_at, timezone);
-            const grouped =
-              !newDay && prev && prev.author_id === m.author_id && !prev.deleted_at &&
-              Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60_000;
+            const next = messages[i + 1];
+            const day = dayKey(m.created_at, timezone);
+            const newDay = !prev || dayKey(prev.created_at, timezone) !== day;
+            const near = (a: Shown, b: Shown) => a.author_id === b.author_id && !a.deleted_at && Date.parse(b.created_at) - Date.parse(a.created_at) < 5 * 60_000;
+            const joinsPrev = !newDay && !!prev && near(prev, m);
+            const joinsNext = !!next && dayKey(next.created_at, timezone) === day && near(m, next);
             const who = m.author_id ? people[m.author_id] : undefined;
             const mine = m.author_id === meId;
             const mentionsMe = m.mentions.includes(meId);
+            const canAct = !m.deleted_at && !m.pending && editing?.id !== m.id && (mine || canModerate);
+            const open = active === m.id;
+            const actions = canAct && (
+              <div className={cn("flex shrink-0 flex-col gap-1 self-center text-xs transition", open ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+                {mine && (
+                  <button className="rounded px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800" onClick={() => { setActive(null); setEditing({ id: m.id, body: m.body }); }}>Edit</button>
+                )}
+                <button className="rounded px-1.5 py-0.5 text-slate-500 hover:bg-red-50 hover:text-red-600" onClick={() => { setActive(null); void remove(m); }}>Delete</button>
+              </div>
+            );
             return (
               <li key={m.id}>
                 {newDay && (
@@ -459,23 +485,13 @@ export function ChatRoom({
                     <span className="h-px flex-1 bg-slate-200" />
                   </div>
                 )}
-                <div className={cn("group flex gap-3 rounded-lg px-2 py-0.5 hover:bg-slate-50", !grouped && "mt-2", mentionsMe && !m.deleted_at && "bg-amber-50/60", m.pending && "opacity-60")}>
-                  <div className="w-8 shrink-0">
-                    {!grouped && (
-                      <Avatar name={who?.name ?? "?"} size="sm" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {!grouped && (
-                      <p className="flex items-baseline gap-2 text-sm">
-                        <span className="font-semibold">{who?.name ?? "Someone"}</span>
-                        <span className="text-xs text-slate-400">{clock(m.created_at, timezone)}</span>
-                      </p>
-                    )}
-                    {m.deleted_at ? (
-                      <p className="text-sm italic text-slate-400">Message deleted</p>
-                    ) : editing?.id === m.id ? (
-                      <div className="space-y-2 py-1">
+                <div className={cn("group flex items-end gap-2", mine ? "justify-end" : "justify-start", joinsPrev ? "mt-0.5" : "mt-3", m.pending && "opacity-60")}>
+                  {!mine && <div className="w-8 shrink-0">{!joinsNext && <Avatar name={who?.name ?? "?"} size="sm" />}</div>}
+                  {mine && actions}
+                  <div className={cn("flex min-w-0 max-w-[82%] flex-col sm:max-w-[70%]", mine ? "items-end" : "items-start", editing?.id === m.id && "w-full")}>
+                    {!mine && !direct && !joinsPrev && <p className="mb-0.5 px-1 text-xs font-medium text-slate-500">{who?.name ?? "Someone"}</p>}
+                    {editing?.id === m.id ? (
+                      <div className="w-full space-y-2 py-1">
                         <textarea
                           className="input min-h-16"
                           value={editing.body}
@@ -490,35 +506,46 @@ export function ChatRoom({
                             if (e.key === "Escape") setEditing(null);
                           }}
                         />
-                        <div className="flex gap-2">
-                          <button className="btn-primary btn-sm" onClick={() => void saveEdit()}>Save</button>
+                        <div className="flex justify-end gap-2">
                           <button className="btn-secondary btn-sm" onClick={() => setEditing(null)}>Cancel</button>
+                          <button className="btn-primary btn-sm" onClick={() => void saveEdit()}>Save</button>
                         </div>
                       </div>
                     ) : (
-                      <>
-                        {(m.body || m.edited_at) && (
-                          <p className="whitespace-pre-wrap break-words text-sm text-slate-800">
-                            {renderBody(m)}
-                            {m.edited_at && <span className="ml-1 text-xs text-slate-400">(edited)</span>}
-                          </p>
+                      <div
+                        onClick={() => canAct && setActive(open ? null : m.id)}
+                        className={cn(
+                          "min-w-0 max-w-full rounded-2xl px-3.5 py-2 text-[15px] leading-snug sm:text-sm",
+                          m.deleted_at
+                            ? "border border-dashed border-slate-300 text-slate-400 italic"
+                            : mine
+                              ? "bg-brand-600 text-white"
+                              : "bg-slate-100 text-slate-800",
+                          !joinsNext && (mine ? "rounded-br-md" : "rounded-bl-md"),
+                          mentionsMe && !mine && !m.deleted_at && "ring-2 ring-amber-300",
+                          canAct && "cursor-pointer select-text",
                         )}
-                        {m.pending ? (
-                          m.attachments.length > 0 && <p className="text-xs text-slate-400">Sending {m.attachments.length === 1 ? m.attachments[0].name : `${m.attachments.length} files`}…</p>
+                      >
+                        {m.deleted_at ? (
+                          "Message deleted"
                         ) : (
-                          renderFiles(m.attachments)
+                          <>
+                            {m.body && <p className="whitespace-pre-wrap break-words">{renderBody(m, mine)}</p>}
+                            {m.pending ? (
+                              m.attachments.length > 0 && <p className="text-xs opacity-80">Sending {m.attachments.length === 1 ? m.attachments[0].name : `${m.attachments.length} files`}…</p>
+                            ) : (
+                              renderFiles(m.attachments)
+                            )}
+                          </>
                         )}
-                      </>
+                        <span className={cn("mt-0.5 block text-right text-[11px] leading-none", mine && !m.deleted_at ? "text-white/70" : "text-slate-400")}>
+                          {m.edited_at && !m.deleted_at && "edited · "}
+                          {m.pending ? "Sending…" : clock(m.created_at, timezone)}
+                        </span>
+                      </div>
                     )}
                   </div>
-                  {!m.deleted_at && !m.pending && editing?.id !== m.id && (mine || canModerate) && (
-                    <div className="flex shrink-0 items-start gap-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-                      {mine && (
-                        <button className="text-xs text-slate-400 hover:text-slate-700" onClick={() => setEditing({ id: m.id, body: m.body })}>Edit</button>
-                      )}
-                      <button className="text-xs text-slate-400 hover:text-red-600" onClick={() => void remove(m)}>Delete</button>
-                    </div>
-                  )}
+                  {!mine && actions}
                 </div>
               </li>
             );

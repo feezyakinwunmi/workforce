@@ -70,8 +70,12 @@ export default async function ChannelPage({
           .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div className="card flex h-[calc(100vh-8rem)] min-h-[480px] flex-col overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
+    <div className="card flex h-[calc(100dvh-7rem)] min-h-[420px] flex-col overflow-hidden md:h-[calc(100vh-8rem)] md:min-h-[480px]">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-3 py-3 sm:px-5">
+        <div className="flex min-w-0 items-center gap-2">
+        <Link href="/dashboard/chat" aria-label="Back to chats" className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden">
+          <Icon name="chevronLeft" className="h-5 w-5" />
+        </Link>
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 truncate font-semibold">
             {channel.kind !== "direct" && <Icon name={KIND_ICON[channel.kind]} className="h-4 w-4 text-slate-400" />}
@@ -81,6 +85,7 @@ export default async function ChannelPage({
           </h2>
           {channel.description && <p className="truncate text-xs text-slate-500">{channel.description}</p>}
           {channel.kind === "direct" && <p className="flex items-center gap-1 text-xs text-slate-500"><Icon name="lock" className="h-3 w-3" />Only the two of you can read this</p>}
+        </div>
         </div>
         {(channel.kind === "private" || (manager && channel.kind !== "direct" && channel.kind !== "announcements")) && (
           <details className="relative">
@@ -157,6 +162,7 @@ export default async function ChannelPage({
         canPost={canPost}
         canModerate={isAdminRole(me.role) && channel.kind !== "direct"}
         timezone={me.timezone}
+        direct={channel.kind === "direct"}
         cannotPostReason={
           channel.archived_at
             ? "This group is archived."
