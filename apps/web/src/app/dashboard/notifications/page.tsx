@@ -13,7 +13,7 @@ type Notification = {
   kind:
     | "task_assigned" | "task_comment" | "task_done" | "task_due"
     | "chat_direct" | "announcement" | "leave_requested" | "leave_decided" | "billing" | "mention"
-    | "payslip" | "expense_submitted" | "expense_decided" | "review";
+    | "payslip" | "expense_submitted" | "expense_decided" | "review" | "staff_record";
   title: string;
   body: string | null;
   link: string | null;
@@ -36,6 +36,7 @@ const ICON: Record<Notification["kind"], { icon: IconName; tone: string }> = {
   expense_submitted: { icon: "wallet", tone: "bg-marigold-50 text-marigold-700" },
   expense_decided: { icon: "wallet", tone: "bg-marigold-50 text-marigold-700" },
   review: { icon: "sparkle", tone: "bg-brand-50 text-brand-600 dark:text-brand-700" },
+  staff_record: { icon: "shield", tone: "bg-amber-50 text-amber-700" },
 };
 
 export default async function NotificationsPage() {

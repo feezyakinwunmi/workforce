@@ -58,12 +58,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
         { href: "/dashboard/team", label: "Team", icon: "users", tour: "team" },
         ...(admin
           ? [
+              { href: "/dashboard/records", label: "Staff records", icon: "briefcase" as const, tour: "records" },
               { href: "/dashboard/payroll", label: "Payroll", icon: "wallet" as const, tour: "payroll" },
               { href: "/dashboard/billing", label: "Plan and billing", icon: "card" as const, tour: "billing" },
               { href: "/dashboard/settings", label: "Company settings", icon: "settings" as const, tour: "settings" },
             ]
           : []),
         ...(hasStandard(billing) ? [{ href: "/dashboard/payslips", label: "My payslips", icon: "cash" as const }] : []),
+        ...(admin ? [] : [{ href: "/dashboard/records/me", label: "My records", icon: "briefcase" as const, tour: "records" }]),
         { href: "/dashboard/profile", label: "My profile", icon: "user" },
       ],
     },
@@ -164,6 +166,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
       { target: "tasks", title: "Give out work", body: "Assign tasks with due dates. Time is logged against the task each person picks in the app." },
       { target: "chat", title: "Talk to your team", body: "Groups, direct messages, files and announcements, in one place." },
       { target: "leave", title: "Leave requests", body: "People request time off here and you approve it. Approved leave flows into timesheets and payroll." },
+      { target: "records", title: "Staff records", body: "Contracts, IDs, bank and pension details and a checklist for each new hire. Only admins and the person see them." },
       { target: "expenses", title: "Expense claims", body: "Staff photograph a receipt and claim it. Approved claims are paid back with their next payslip." },
       { target: "payroll", title: "Monthly payroll", body: "Set each person's rate once. Pay, PAYE, pension and payslips are worked out from hours and leave." },
       { target: "settings", title: "Your rules", body: "Idle time, app tracking and screenshots are set here for the whole company." },
