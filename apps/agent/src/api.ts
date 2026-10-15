@@ -54,7 +54,13 @@ function classify(error: { message?: string; code?: string; status?: number } | 
   if (/disconnected by your admin/i.test(message)) return new ApiError(message, "revoked");
   if (/not registered/i.test(message)) return new ApiError(message, "not_registered");
   if (/not active in any company/i.test(message)) return new ApiError(message, "inactive");
-  if (/JWT|sign in first|refresh token|not authenticated/i.test(message) || error?.code === "PGRST301") {
+  // "permission denied for function …" = the request arrived without a valid login (as "anon"),
+  // e.g. after the login was ended somewhere else. Treat it as an expired login.
+  if (
+    /JWT|sign in first|refresh token|not authenticated|permission denied for function/i.test(message) ||
+    error?.code === "PGRST301" ||
+    error?.status === 401
+  ) {
     return new ApiError("Your login expired. Please log in again.", "auth");
   }
   return new ApiError(message, "other");
