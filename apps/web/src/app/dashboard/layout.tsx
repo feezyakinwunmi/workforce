@@ -7,6 +7,7 @@ import { Tour, TourButton, type TourStep } from "@/components/tour";
 import { daysLeft, hasPro, hasStandard, isPaid } from "@/lib/billing";
 import { getBilling } from "@/lib/billing-server";
 import { requireMember } from "@/lib/session";
+import { reopenCompany } from "./settings/actions";
 import { isAdminRole, ROLE_LABELS } from "@/lib/types";
 import { initials } from "@/lib/utils";
 
@@ -130,6 +131,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8 print:p-0">
         <div className="mx-auto max-w-6xl">
+          {org.closing_at && (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 print:hidden">
+              <span className="flex items-center gap-2">
+                <Icon name="alert" className="h-4 w-4" />
+                {org.name} is closing. Clocking in is off, and all its data will be deleted on{" "}
+                {new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: org.timezone }).format(new Date(org.purge_after ?? org.closing_at))}.
+              </span>
+              {member.role === "owner" && (
+                <form action={reopenCompany}>
+                  <button className="btn-secondary btn-sm">Undo, keep the company</button>
+                </form>
+              )}
+            </div>
+          )}
           {banner && (
             <div
               className={`mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm print:hidden ${banner.urgent ? "border-amber-200 bg-amber-50 text-amber-900" : "border-brand-200 bg-brand-50 text-brand-900"}`}

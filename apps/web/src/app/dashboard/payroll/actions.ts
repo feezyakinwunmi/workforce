@@ -139,15 +139,18 @@ export async function issuePayslips(_: FormState, formData: FormData): Promise<F
       .eq("month", payroll.first)
       .is("emailed_at", null);
     const todo = (slips ?? []) as Array<{
-      id: string; month: string; currency: string; gross_minor: number; deductions_minor: number; net_minor: number;
+      id: string; user_id: string; month: string; currency: string; gross_minor: number; deductions_minor: number; net_minor: number;
       employer_pension_minor: number; issued_at: string; data: PayslipData;
     }>;
     const label = monthLabel(month);
+    // People who turned payslip emails off still get the payslip in the dashboard.
+    const { data: prefs } = await supabase.from("profiles").select("id, email_opt_out").in("id", todo.map((s) => s.user_id));
+    const optedOut = new Set(((prefs ?? []) as Array<{ id: string; email_opt_out: string[] | null }>).filter((p) => (p.email_opt_out ?? []).includes("payslips")).map((p) => p.id));
     // A few at a time so a big company doesn't open dozens of mail connections at once.
     for (let i = 0; i < todo.length; i += 4) {
       await Promise.all(
         todo.slice(i, i + 4).map(async (s) => {
-          if (!s.data.person.email) return;
+          if (!s.data.person.email || optedOut.has(s.user_id)) return;
           const pdf = renderPayslipPdf({ ...s, gross_minor: Number(s.gross_minor), deductions_minor: Number(s.deductions_minor), net_minor: Number(s.net_minor), employer_pension_minor: Number(s.employer_pension_minor) });
           const sent = await sendEmail(
             [s.data.person.email],

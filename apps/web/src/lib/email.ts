@@ -38,6 +38,14 @@ const escapeHtml = (s: string) =>
 type Message = { subject: string; heading: string; text?: string | null; link: string; button?: string };
 export type Attachment = { filename: string; content: Buffer; contentType: string };
 
+/** Kinds of email a person can turn off on their profile (profiles.email_opt_out). */
+export const EMAIL_KINDS = {
+  tasks: "Tasks assigned to me and comments",
+  payslips: "My payslips (with the PDF)",
+  billing: "Plan reminders (owners and admins)",
+} as const;
+export type EmailKind = keyof typeof EMAIL_KINDS;
+
 function render(message: Message) {
   const url = `${siteUrl()}${message.link}`;
   const body = message.text ? message.text.slice(0, 1000) : "";
@@ -77,17 +85,18 @@ export async function emailMembers(
   supabase: SupabaseClient,
   userIds: Array<string | null | undefined>,
   message: Message,
+  kind: EmailKind = "tasks",
 ) {
   const ids = [...new Set(userIds.filter((id): id is string => Boolean(id)))];
   if (!emailEnabled() || !ids.length) return;
   try {
     const [{ data: active }, { data: people }] = await Promise.all([
       supabase.from("memberships").select("user_id").in("user_id", ids).eq("status", "active"),
-      supabase.from("profiles").select("id, email").in("id", ids),
+      supabase.from("profiles").select("id, email, email_opt_out").in("id", ids),
     ]);
     const activeIds = new Set(((active ?? []) as Array<{ user_id: string }>).map((m) => m.user_id));
-    const to = ((people ?? []) as Array<{ id: string; email: string }>)
-      .filter((p) => activeIds.has(p.id) && p.email)
+    const to = ((people ?? []) as Array<{ id: string; email: string; email_opt_out: string[] | null }>)
+      .filter((p) => activeIds.has(p.id) && p.email && !(p.email_opt_out ?? []).includes(kind))
       .map((p) => p.email);
     await sendEmail(to, message);
   } catch (e) {

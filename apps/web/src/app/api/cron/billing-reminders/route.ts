@@ -30,9 +30,14 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const rows = (data ?? []) as Array<{ email: string | null; full_name: string | null; title: string; body: string | null; link: string | null }>;
+  const emails = rows.map((r) => r.email).filter((e): e is string => Boolean(e));
+  const { data: prefs } = emails.length
+    ? await createAdminClient().from("profiles").select("email, email_opt_out").in("email", emails)
+    : { data: [] };
+  const optedOut = new Set(((prefs ?? []) as Array<{ email: string; email_opt_out: string[] | null }>).filter((p) => (p.email_opt_out ?? []).includes("billing")).map((p) => p.email));
   let emailed = 0;
   for (const r of rows) {
-    if (!r.email) continue;
+    if (!r.email || optedOut.has(r.email)) continue;
     emailed += await sendEmail([r.email], {
       subject: r.title,
       heading: r.full_name ? `Hi ${r.full_name.split(" ")[0]}, ${r.title.charAt(0).toLowerCase()}${r.title.slice(1)}.` : `${r.title}.`,

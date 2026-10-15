@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { FormMessage, SubmitButton, TimezoneSelect } from "@/components/form";
-import { updateProfile } from "./actions";
+import { FormMessage, SubmitButton, Switch, TimezoneSelect } from "@/components/form";
+import { updateEmailPrefs, updateProfile } from "./actions";
 
 export function ProfileForm({ fullName, timezone }: { fullName: string; timezone: string }) {
   const [state, action] = useActionState(updateProfile, undefined);
@@ -21,6 +21,25 @@ export function ProfileForm({ fullName, timezone }: { fullName: string; timezone
       </div>
       <FormMessage state={state} />
       <SubmitButton pendingText="Saving…">Save</SubmitButton>
+    </form>
+  );
+}
+
+export function EmailPrefsForm({ kinds, off, enabled }: { kinds: Array<{ key: string; label: string }>; off: string[]; enabled: boolean }) {
+  const [state, action] = useActionState(updateEmailPrefs, undefined);
+  return (
+    <form action={action}>
+      <input type="hidden" name="kinds" value={kinds.map((k) => k.key).join(",")} />
+      <div className="divide-y divide-slate-100 border-y border-slate-100">
+        {kinds.map((k) => (
+          <Switch key={k.key} name={k.key} label={k.label} defaultChecked={!off.includes(k.key)} />
+        ))}
+      </div>
+      {!enabled && <p className="mt-3 text-xs text-slate-500">Your company hasn&apos;t set up email yet, so none are sent for now.</p>}
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <SubmitButton pendingText="Saving…" className="btn-secondary">Save email settings</SubmitButton>
+        <FormMessage state={state} />
+      </div>
     </form>
   );
 }

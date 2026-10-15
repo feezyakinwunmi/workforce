@@ -24,6 +24,8 @@ export type Organization = {
   trial_ends_at: string;
   settings: OrgSettings;
   created_at: string;
+  closing_at?: string | null; // the owner closed the company; data is deleted at purge_after
+  purge_after?: string | null;
 };
 
 export type Membership = {

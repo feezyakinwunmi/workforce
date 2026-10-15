@@ -32,6 +32,10 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
             New
           </Link>
         </div>
+        <form action="/dashboard/chat/search" role="search" className="relative mb-2 px-1">
+          <Icon name="search" className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input name="q" type="search" placeholder="Search messages" aria-label="Search messages" minLength={2} maxLength={100} className="input py-1.5 pl-8 text-sm" />
+        </form>
         <p className="px-2 pt-2 text-xs font-medium text-slate-400">Groups</p>
         <ul className="mt-1 space-y-0.5">
           {groups.map((c) => (

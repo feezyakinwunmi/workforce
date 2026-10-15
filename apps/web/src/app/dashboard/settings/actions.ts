@@ -49,3 +49,19 @@ export async function updateCompanySettings(_prev: FormState, formData: FormData
   revalidatePath("/dashboard", "layout");
   return { success: "Settings saved." };
 }
+
+/** Owner: close the company. Nothing is deleted for 14 days; clocking in stops at once. */
+export async function closeCompany(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase } = await requireAdmin();
+  const { error } = await supabase.rpc("close_company", { p_confirm: String(formData.get("confirm") ?? "") });
+  if (error) return { error: error.message.endsWith(".") ? error.message : `${error.message}.` };
+  revalidatePath("/dashboard", "layout");
+  return { success: "The company is closing. You can undo this for 14 days." };
+}
+
+/** Owner: undo closing while the 14 days are not over. */
+export async function reopenCompany() {
+  const { supabase } = await requireAdmin();
+  await supabase.rpc("reopen_company");
+  revalidatePath("/dashboard", "layout");
+}

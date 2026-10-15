@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Daily Vercel cron (vercel.json): removes screenshots older than 90 days
- * (private.screenshot_retention_days in migration 0019). Files must be removed
- * through the Storage API, so this runs here with the service-role key.
+ * Nightly Vercel cron (vercel.json), with the service-role key because files can only be
+ * removed through the Storage API:
+ * 1. removes screenshots older than 90 days (migration 0019);
+ * 2. deletes companies whose owner closed them more than 14 days ago (migration 0028):
+ *    first their stored files, then the company row, which cascades to all its data.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -38,5 +40,25 @@ export async function GET(request: Request) {
     if (deleteError) return NextResponse.json({ error: deleteError.message, removed }, { status: 500 });
     removed += rows.length;
   }
-  return NextResponse.json({ removed });
+
+  // Closed companies past their 14 days.
+  const { data: closing } = await admin.from("organizations").select("id, name").not("purge_after", "is", null).lt("purge_after", new Date().toISOString()).limit(5);
+  const deleted: string[] = [];
+  for (const org of (closing ?? []) as Array<{ id: string; name: string }>) {
+    const { data: files, error: listError } = await admin.rpc("company_files", { p_org: org.id });
+    if (listError) return NextResponse.json({ error: listError.message, removed, deleted }, { status: 500 });
+    const byBucket = new Map<string, string[]>();
+    for (const f of (files ?? []) as Array<{ bucket_id: string; name: string }>) byBucket.set(f.bucket_id, [...(byBucket.get(f.bucket_id) ?? []), f.name]);
+    for (const [bucket, names] of byBucket) {
+      for (let i = 0; i < names.length; i += 100) {
+        const { error: rmError } = await admin.storage.from(bucket).remove(names.slice(i, i + 100));
+        if (rmError) return NextResponse.json({ error: rmError.message, removed, deleted }, { status: 500 });
+      }
+    }
+    const { error: orgError } = await admin.from("organizations").delete().eq("id", org.id);
+    if (orgError) return NextResponse.json({ error: orgError.message, removed, deleted }, { status: 500 });
+    console.log(`Deleted closed company ${org.id}`);
+    deleted.push(org.id);
+  }
+  return NextResponse.json({ removed, deleted: deleted.length });
 }
