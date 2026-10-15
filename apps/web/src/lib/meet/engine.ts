@@ -102,7 +102,8 @@ export class Publisher {
     const s = await this.api.post<{ session: string; ticket: string }>("session");
     this.session = s.session;
     this.ticket = s.ticket;
-    this.tx.set("mic", this.pc.addTransceiver(mic, { direction: "sendonly" }));
+    // On a weak network the browser keeps sound going and lets video suffer first.
+    this.tx.set("mic", this.pc.addTransceiver(mic, { direction: "sendonly", sendEncodings: [AUDIO_ENCODING] }));
     this.tx.set("camera", this.pc.addTransceiver(camera, { direction: "sendonly", sendEncodings: [videoEncoding(lowData)] }));
     this.names.set("mic", "mic");
     this.names.set("camera", "camera");
@@ -180,7 +181,7 @@ export class Publisher {
         if (res?.sessionDescription?.type === "answer") await this.pc.setRemoteDescription(res.sessionDescription);
       }
       const replacement = track ?? (source === "mic" ? silentAudioTrack() : blackVideoTrack());
-      const sendEncodings = source === "camera" ? [videoEncoding(this.lowData)] : source === "screen" ? [SCREEN_ENCODING] : undefined;
+      const sendEncodings = source === "camera" ? [videoEncoding(this.lowData)] : source === "screen" ? [SCREEN_ENCODING] : [AUDIO_ENCODING];
       this.tx.set(source, this.pc.addTransceiver(replacement, { direction: "sendonly", sendEncodings }));
       this.names.set(source, `${source}.${++this.version}`);
       await this.publish([source]);
@@ -243,7 +244,8 @@ export class Publisher {
   }
 }
 
-const SCREEN_ENCODING: RTCRtpEncodingParameters = { maxBitrate: 1_200_000, maxFramerate: 15 };
+const SCREEN_ENCODING: RTCRtpEncodingParameters = { maxBitrate: 1_200_000, maxFramerate: 15, priority: "low" } as RTCRtpEncodingParameters;
+const AUDIO_ENCODING = { priority: "high", networkPriority: "high" } as RTCRtpEncodingParameters;
 
 /** Resolves when the connection is up, or after the timeout (later retries cover slow networks). */
 function connectedOrTimeout(pc: RTCPeerConnection, ms: number) {
@@ -263,7 +265,8 @@ function connectedOrTimeout(pc: RTCPeerConnection, ms: number) {
 }
 
 function videoEncoding(lowData: boolean): RTCRtpEncodingParameters {
-  return lowData ? { maxBitrate: 150_000, scaleResolutionDownBy: 2, maxFramerate: 15 } : { maxBitrate: 700_000, maxFramerate: 24 };
+  const base = lowData ? { maxBitrate: 150_000, scaleResolutionDownBy: 2, maxFramerate: 15 } : { maxBitrate: 600_000, maxFramerate: 24 };
+  return { ...base, priority: "low", networkPriority: "low" } as RTCRtpEncodingParameters;
 }
 
 export class Subscriber {
@@ -327,6 +330,11 @@ export class Subscriber {
     this.newConnection();
     for (const ref of had) this.onRemoved(ref);
     this.onReset();
+  }
+
+  /** Rebuild only the receiving side (my sending is untouched, so nobody else notices). */
+  rebuild() {
+    return this.q.run(async () => this.reset());
   }
 
   has(r: { sessionId: string; trackName: string }) {
@@ -406,6 +414,12 @@ export class Subscriber {
       }
       if (!mids.length) return;
       for (const t of this.pc.getTransceivers()) if (t.mid && mids.includes(t.mid)) t.stop();
+      // Nothing left to receive: a fresh, empty connection is simpler than renegotiating to zero.
+      if (!this.pc.getTransceivers().some((t) => t.direction !== "stopped")) {
+        void this.api.post("close", { session: this.session, ticket: this.ticket, mids }).catch(() => undefined);
+        this.reset();
+        return;
+      }
       const offer = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
       const res = await this.api.post("close", { session: this.session, ticket: this.ticket, mids, offer: this.pc.localDescription!.toJSON() });
@@ -435,6 +449,14 @@ export class Subscriber {
 }
 
 /** Starts both connections. */
+/** A fresh sending connection (when only my sending side broke). */
+export async function connectPublisher(roomId: string, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean) {
+  const api = new MediaApi(roomId);
+  const pub = new Publisher(api);
+  await pub.start(await iceConfig(api), mic, camera, lowData);
+  return pub;
+}
+
 export async function connectMedia(roomId: string, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean) {
   const api = new MediaApi(roomId);
   const config = await iceConfig(api);

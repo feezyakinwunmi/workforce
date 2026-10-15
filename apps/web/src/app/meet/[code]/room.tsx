@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/icons";
-import { blackVideoTrack, connectMedia, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
+import { blackVideoTrack, connectMedia, connectPublisher, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
 import { meetingLink } from "@/lib/meet/paths";
 import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo } from "@/lib/meet/types";
 import { leaveOnUnload, useRoom, type PersonLink } from "@/lib/meet/use-room";
@@ -89,7 +89,6 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
 
   useEffect(() => {
     let cancelled = false;
-    let downTimer: ReturnType<typeof setTimeout> | null = null;
     let retryTimer2: ReturnType<typeof setTimeout> | null = null;
     (async () => {
       try {
@@ -120,43 +119,6 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
           pulled.current.clear();
           setRetry((n) => n + 1);
         };
-        // Start over with fresh connections (Cloudflare's advice when a connection is lost).
-        const restart = () => {
-          if (cancelled) return;
-          cancelled = true;
-          if (downTimer) clearTimeout(downTimer);
-          p.close();
-          s.close();
-          setConnected(false);
-          setMediaLink("reconnecting");
-          setAttempt((a) => a + 1);
-        };
-        const states = () => [p.pc.connectionState, s.pc.connectionState === "new" ? "connected" : s.pc.connectionState];
-        const watch = () => {
-          if (cancelled) return;
-          const st = states();
-          // (Our own close() doesn't fire this event, so "closed" here means the other side ended it.)
-          if (st.includes("failed") || st.includes("closed")) return restart();
-          if (st.includes("disconnected")) {
-            // Often a short blip (switching Wi-Fi ↔ data): give it 5 s to come back by itself.
-            setMediaLink("reconnecting");
-            downTimer ??= setTimeout(() => {
-              downTimer = null;
-              const now = states();
-              if (now.includes("disconnected") || now.includes("failed")) restart();
-              else setMediaLink("ok");
-            }, 5000);
-            return;
-          }
-          if (downTimer) {
-            clearTimeout(downTimer);
-            downTimer = null;
-          }
-          if (st.every((x) => x === "connected")) setMediaLink("ok");
-        };
-        p.pc.addEventListener("connectionstatechange", watch);
-        s.onState = watch;
-        restartRef.current = restart;
         setConnected(true);
         setMediaLink("ok");
         update({ sfu_session: p.session, tracks: p.tracks(), audio_on: media.micOn && !!media.mic, video_on: media.camOn });
@@ -171,7 +133,6 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     })();
     return () => {
       cancelled = true;
-      if (downTimer) clearTimeout(downTimer);
       if (retryTimer2) clearTimeout(retryTimer2);
       pub.current?.close();
       sub.current?.close();
@@ -182,18 +143,84 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     // Reconnect only on retry; device and mute changes are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, attempt]);
-  const restartRef = useRef<() => void>(() => {});
 
-  // Internet back: reconnect at once instead of waiting for the next try.
+  // Latest values for the timers below.
+  const mediaRef = useRef(media);
+  mediaRef.current = media;
+  const sharingRef = useRef<MediaStreamTrack | null>(null);
+  sharingRef.current = sharing;
+  const connectedRef = useRef(connected);
+  connectedRef.current = connected;
+
+  // Only my sending side broke: rebuild it alone (receiving keeps playing).
+  const rebuildingPub = useRef(false);
+  const rebuildPub = useCallback(async () => {
+    const old = pub.current;
+    if (!old || rebuildingPub.current) return;
+    rebuildingPub.current = true;
+    try {
+      const m = mediaRef.current;
+      const np = await connectPublisher(roomId, m.mic ?? (silence.current ??= silentAudioTrack()), (m.camOn && m.camOut) || black!, m.dataSaver);
+      if (pub.current !== old) {
+        np.close();
+        return;
+      }
+      np.onTracksChanged = () => update({ tracks: np.tracks() });
+      pub.current = np;
+      old.close();
+      if (sharingRef.current) await np.shareScreen(sharingRef.current);
+      update({ sfu_session: np.session, tracks: np.tracks() });
+    } catch {
+      // Still no network: the watchdog tries again.
+    } finally {
+      rebuildingPub.current = false;
+    }
+  }, [roomId, black, update]);
+
+  /*
+   * Watchdog, every second. Bad networks make connections "disconnected" for a few seconds all
+   * the time and they usually recover by themselves, so we wait 15 s before rebuilding — and we
+   * only rebuild the side that broke (sending or receiving), so the others barely notice.
+   */
+  useEffect(() => {
+    if (!connected) return;
+    let pubDown = 0;
+    let subDown = 0;
+    let lastPubTry = 0;
+    const t = setInterval(() => {
+      const p = pub.current;
+      const s = sub.current;
+      if (!p || !s) return;
+      const now = Date.now();
+      const ps = p.pc.connectionState;
+      const ss = s.pc.connectionState;
+      const pubBad = ps === "failed" || ps === "closed" || (ps === "disconnected" && (pubDown ||= now) && now - pubDown > 15_000);
+      if (ps !== "disconnected") pubDown = 0;
+      if (pubBad && now - lastPubTry > 5000) {
+        lastPubTry = now;
+        void rebuildPub();
+      }
+      // "new" = nothing to receive yet.
+      const subBad = ss === "failed" || ss === "closed" || (ss === "disconnected" && (subDown ||= now) && now - subDown > 15_000);
+      if (ss !== "disconnected") subDown = 0;
+      if (subBad) {
+        subDown = 0;
+        void s.rebuild();
+      }
+      const ok = ps === "connected" && (ss === "connected" || ss === "new" || ss === "connecting");
+      setMediaLink(ok ? "ok" : "reconnecting");
+    }, 1000);
+    return () => clearInterval(t);
+  }, [connected, rebuildPub]);
+
+  // Internet back: if we never got connected, try at once instead of waiting for the next try.
   useEffect(() => {
     const back = () => {
-      if (mediaLinkRef.current !== "ok") setAttempt((a) => a + 1);
+      if (!connectedRef.current) setAttempt((a) => a + 1);
     };
     window.addEventListener("online", back);
     return () => window.removeEventListener("online", back);
   }, []);
-  const mediaLinkRef = useRef(mediaLink);
-  mediaLinkRef.current = mediaLink;
 
   // Away too long (no heartbeat for 2 min), the server counts me as gone: join again quietly.
   const rejoining = useRef(false);
@@ -370,6 +397,10 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const remoteRef = useRef(remote);
   remoteRef.current = remote;
   const weakSelf = useRef(0);
+  const autoSaver = useRef(false);
+  const healed = useRef<Record<string, number>>({});
+  const linksRef = useRef(links);
+  linksRef.current = links;
   useEffect(() => {
     const t = setInterval(async () => {
       if (!pub.current || !sub.current) return;
@@ -380,9 +411,13 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       const ok = pub.current.pc.connectionState === "connected";
       const score = signalScore(s.rtt, dp > 0 ? dl / dp : 0, ok);
       setNet({ mb: s.bytes / 1_000_000, score });
-      // My own connection weak for ~15 s: suggest data saver once.
+      // My own connection weak for ~12 s: switch to data saver once (sound first, video later).
       weakSelf.current = ok && score <= 1 ? weakSelf.current + 1 : 0;
-      if (weakSelf.current === 5) toast("Your connection is weak. Turning on Data saver (Settings) can help.", "warn");
+      if (weakSelf.current === 4 && !autoSaver.current && !mediaRef.current.dataSaver) {
+        autoSaver.current = true;
+        mediaRef.current.toggleDataSaver();
+        toast("Your connection is weak, so we turned on Data saver to keep the sound clear. You can turn it off in Settings.", "warn");
+      }
 
       const now = Date.now();
       const next = new Set<string>();
@@ -395,6 +430,16 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         const prev = inbound.current[pid];
         if (!prev || bytes > prev.bytes) inbound.current[pid] = { bytes, at: now };
         else if (now - prev.at > 8000) next.add(pid);
+        // Nothing from them for 12 s although their own connection is fine (they're still
+        // checking in) and mine is up: my copy of their stream is stuck, so receive it again.
+        if (prev && now - prev.at > 12_000 && linksRef.current[pid] === "ok" && sub.current.pc.connectionState === "connected"
+            && now - (healed.current[pid] ?? 0) > 30_000) {
+          healed.current[pid] = now;
+          inbound.current[pid] = { bytes, at: now };
+          const refs = [...pulled.current.values()].filter((r) => r.participantId === pid);
+          for (const r of refs) pulled.current.delete(`${r.sessionId}/${r.trackName}`);
+          void sub.current.drop(refs).finally(() => setRetry((n) => n + 1));
+        }
       }
       setWeak((w) => (w.size === next.size && [...next].every((x) => w.has(x)) ? w : next));
     }, 3000);
