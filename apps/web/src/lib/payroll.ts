@@ -44,6 +44,7 @@ export type PayrollRow = {
   amountMinor: number | null; // gross pay for the month; null = no rate set
   slip: Payslip | null; // gross → deductions → net
   issued: IssuedSlip | null; // the payslip already issued for this month, if any
+  expenseIds: string[]; // expense claims repaid on this payslip
 };
 
 export const isMonth = (s: unknown): s is string => typeof s === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(s);
@@ -104,7 +105,7 @@ export async function buildPayroll(supabase: SupabaseClient, me: Membership, mon
   const last = days[days.length - 1];
   const today = localDateIn(me.timezone);
 
-  const [{ members, profiles }, stats, { data: holidayRows }, { data: leaveRows }, { data: typeRows }, { data: payRows }, settings, { data: slipRows }] = await Promise.all([
+  const [{ members, profiles }, stats, { data: holidayRows }, { data: leaveRows }, { data: typeRows }, { data: payRows }, settings, { data: slipRows }, { data: claimRows }] = await Promise.all([
     loadPeople(supabase, { includeRemoved: true }),
     loadDayStats(supabase, first, last),
     supabase.from("holidays").select("day").gte("day", first).lte("day", last),
@@ -113,7 +114,11 @@ export async function buildPayroll(supabase: SupabaseClient, me: Membership, mon
     supabase.from("member_pay").select("user_id, basis, amount_minor, currency, statutory, annual_rent_minor, annual_reliefs_minor"),
     loadPayrollSettings(supabase),
     supabase.from("payslips").select("id, user_id, net_minor, currency, issued_at, emailed_at").eq("month", first),
+    // Approved expense claims are repaid with the next payslip; paid ones stay on the month they were paid in.
+    supabase.from("expense_claims").select("id, user_id, amount_minor, currency, status, paid_month").in("status", ["approved", "paid"]).lte("spent_on", last),
   ]);
+  const claims = ((claimRows ?? []) as Array<{ id: string; user_id: string; amount_minor: number; currency: string; status: string; paid_month: string | null }>)
+    .filter((c) => c.status === "approved" || c.paid_month === first);
   const issued = new Map(((slipRows ?? []) as IssuedSlip[]).map((s) => [s.user_id, { ...s, net_minor: Number(s.net_minor) }]));
   const holidays = new Set(((holidayRows ?? []) as Array<{ day: string }>).map((h) => h.day));
   const paidType = new Map(((typeRows ?? []) as Array<{ id: string; paid: boolean }>).map((t) => [t.id, t.paid]));
@@ -154,6 +159,8 @@ export async function buildPayroll(supabase: SupabaseClient, me: Membership, mon
             ? Math.round((hours + paidLeave * expected) * rate.amount_minor)
             : Math.max(0, Math.round(rate.amount_minor - (workDays.length ? (rate.amount_minor * unpaidLeave) / workDays.length : 0)));
       }
+      const myClaims = rate ? claims.filter((c) => c.user_id === m.user_id && c.currency === rate.currency) : [];
+      const refund = myClaims.reduce((s, c) => s + Number(c.amount_minor), 0);
       const slip =
         rate && amountMinor !== null
           ? computePayslip({
@@ -162,6 +169,9 @@ export async function buildPayroll(supabase: SupabaseClient, me: Membership, mon
               settings,
               person: rate,
               payLabel: rate.basis === "hourly" ? `Pay for ${(hours + paidLeave * expected).toFixed(1)} hours` : "Salary",
+              extras: refund
+                ? [{ label: "Expense refunds", amount_minor: refund, note: `${myClaims.length} approved ${myClaims.length === 1 ? "claim" : "claims"}, not taxed` }]
+                : [],
             })
           : null;
       return {
@@ -179,6 +189,7 @@ export async function buildPayroll(supabase: SupabaseClient, me: Membership, mon
         expectedHoursPerDay: expected,
         amountMinor,
         slip,
+        expenseIds: slip ? myClaims.map((c) => c.id) : [],
         issued: issued.get(m.user_id) ?? null,
       };
     })

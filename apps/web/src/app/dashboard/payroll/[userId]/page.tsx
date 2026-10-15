@@ -42,7 +42,7 @@ export default async function PersonPayPage({ params, searchParams }: { params: 
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <Panel title="Pay and tax details" bodyClassName="p-5" className="self-start">
           <PersonForm userId={r.userId} pay={r.pay} />
         </Panel>

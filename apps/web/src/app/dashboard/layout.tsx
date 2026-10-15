@@ -14,12 +14,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { supabase, org, member, profile, user } = await requireMember();
   const admin = isAdminRole(member.role);
   const manager = admin || member.role === "manager";
-  const [{ count: unread }, billing, { data: channels }, { count: leaveWaiting }] = await Promise.all([
+  const [{ count: unread }, billing, { data: channels }, { count: leaveWaiting }, { count: claimsWaiting }] = await Promise.all([
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
     getBilling(),
     supabase.rpc("my_channels"),
     manager
       ? supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending").neq("user_id", user.id)
+      : Promise.resolve({ count: 0 }),
+    manager
+      ? supabase.from("expense_claims").select("id", { count: "exact", head: true }).eq("status", "pending").neq("user_id", user.id)
       : Promise.resolve({ count: 0 }),
   ]);
   const unreadChat = ((channels ?? []) as Array<{ unread: number; archived: boolean }>)
@@ -46,6 +49,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         { href: "/dashboard/tasks", label: "Tasks", icon: "tasks", tour: "tasks" },
         ...(manager ? [{ href: "/dashboard/projects", label: "Projects", icon: "folder" as const }] : []),
         { href: "/dashboard/leave", label: "Leave", icon: "leave", badge: leaveWaiting ?? 0, tour: "leave" },
+        { href: "/dashboard/expenses", label: "Expenses", icon: "receipt", badge: claimsWaiting ?? 0, tour: "expenses" },
       ],
     },
     {
@@ -59,7 +63,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               { href: "/dashboard/settings", label: "Company settings", icon: "settings" as const, tour: "settings" },
             ]
           : []),
-        ...(hasStandard(billing) ? [{ href: "/dashboard/payslips", label: "My payslips", icon: "receipt" as const }] : []),
+        ...(hasStandard(billing) ? [{ href: "/dashboard/payslips", label: "My payslips", icon: "cash" as const }] : []),
         { href: "/dashboard/profile", label: "My profile", icon: "user" },
       ],
     },
@@ -160,6 +164,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
       { target: "tasks", title: "Give out work", body: "Assign tasks with due dates. Time is logged against the task each person picks in the app." },
       { target: "chat", title: "Talk to your team", body: "Groups, direct messages, files and announcements, in one place." },
       { target: "leave", title: "Leave requests", body: "People request time off here and you approve it. Approved leave flows into timesheets and payroll." },
+      { target: "expenses", title: "Expense claims", body: "Staff photograph a receipt and claim it. Approved claims are paid back with their next payslip." },
       { target: "payroll", title: "Monthly payroll", body: "Set each person's rate once. Pay, PAYE, pension and payslips are worked out from hours and leave." },
       { target: "settings", title: "Your rules", body: "Idle time, app tracking and screenshots are set here for the whole company." },
       { target: "help", title: "That's it", body: "Open this tour again from the question mark whenever you need it." },
@@ -174,6 +179,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
     { target: "tasks", title: "Your tasks", body: "Tasks assigned to you. Pick one in the desktop app to log time to it." },
     { target: "chat", title: "Chat", body: "Message your team, share files and follow announcements." },
     { target: "leave", title: "Time off", body: "Request leave and see how many days you have left." },
+    { target: "expenses", title: "Spent your own money?", body: "Snap the receipt and claim it back. Approved claims come with your next pay." },
     { target: "help", title: "That's it", body: "Open this tour again from the question mark whenever you need it." },
   ];
 }

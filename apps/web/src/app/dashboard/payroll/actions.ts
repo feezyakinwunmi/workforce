@@ -112,12 +112,23 @@ export async function issuePayslips(_: FormState, formData: FormData): Promise<F
       employer_pension_minor: slip.employer_pension_minor,
       data: payslipData(r, period, org.name),
     };
-    const id = existing.get(r.userId);
-    const { error } = id
-      ? await supabase.from("payslips").update(values).eq("id", id)
-      : await supabase.from("payslips").insert({ user_id: r.userId, month: payroll.first, ...values });
-    if (error) failed.push(r.name);
-    else issued++;
+    let id = existing.get(r.userId);
+    let error;
+    if (id) {
+      ({ error } = await supabase.from("payslips").update(values).eq("id", id));
+    } else {
+      const res = await supabase.from("payslips").insert({ user_id: r.userId, month: payroll.first, ...values }).select("id").single();
+      error = res.error;
+      id = (res.data as { id: string } | null)?.id;
+    }
+    if (error || !id) {
+      failed.push(r.name);
+      continue;
+    }
+    issued++;
+    // Mark the claims on this payslip as paid (and release any that were dropped from it).
+    const { error: payErr } = await supabase.rpc("pay_expenses", { p_payslip: id, p_claim_ids: r.expenseIds });
+    if (payErr) console.error("Expense claims not marked paid:", payErr.message);
   }
 
   let emailed = 0;
@@ -160,6 +171,7 @@ export async function issuePayslips(_: FormState, formData: FormData): Promise<F
 
   revalidatePath("/dashboard/payroll", "layout");
   revalidatePath("/dashboard/payslips", "layout");
+  revalidatePath("/dashboard/expenses");
   const parts = [`Issued ${issued} ${issued === 1 ? "payslip" : "payslips"}`];
   if (wantEmail) parts.push(emailEnabled() ? `emailed ${emailed}` : "email isn't set up, so none were emailed");
   if (failed.length) return { error: `${parts.join(", ")}. Not issued: ${failed.join(", ")}.` };

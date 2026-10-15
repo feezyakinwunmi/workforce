@@ -198,6 +198,13 @@ const PATHS = {
       <path d="M9 8h6M9 12h6" />
     </>
   ),
+  cash: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M6 9.5v.01M18 14.5v.01" strokeWidth="2.4" />
+    </>
+  ),
   briefcase: (
     <>
       <rect x="3.5" y="7" width="17" height="12.5" rx="2.5" />
