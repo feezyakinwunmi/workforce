@@ -50,6 +50,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         ...(manager ? [{ href: "/dashboard/projects", label: "Projects", icon: "folder" as const }] : []),
         { href: "/dashboard/leave", label: "Leave", icon: "leave", badge: leaveWaiting ?? 0, tour: "leave" },
         { href: "/dashboard/expenses", label: "Expenses", icon: "receipt", badge: claimsWaiting ?? 0, tour: "expenses" },
+        { href: "/dashboard/reviews", label: "Goals and reviews", icon: "sparkle", tour: "reviews" },
       ],
     },
     {
@@ -166,6 +167,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
       { target: "tasks", title: "Give out work", body: "Assign tasks with due dates. Time is logged against the task each person picks in the app." },
       { target: "chat", title: "Talk to your team", body: "Groups, direct messages, files and announcements, in one place." },
       { target: "leave", title: "Leave requests", body: "People request time off here and you approve it. Approved leave flows into timesheets and payroll." },
+      { target: "reviews", title: "Goals and reviews", body: "Set goals and run reviews that start from the hours, tasks and leave the app already knows." },
       { target: "records", title: "Staff records", body: "Contracts, IDs, bank and pension details and a checklist for each new hire. Only admins and the person see them." },
       { target: "expenses", title: "Expense claims", body: "Staff photograph a receipt and claim it. Approved claims are paid back with their next payslip." },
       { target: "payroll", title: "Monthly payroll", body: "Set each person's rate once. Pay, PAYE, pension and payslips are worked out from hours and leave." },
@@ -182,6 +184,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
     { target: "tasks", title: "Your tasks", body: "Tasks assigned to you. Pick one in the desktop app to log time to it." },
     { target: "chat", title: "Chat", body: "Message your team, share files and follow announcements." },
     { target: "leave", title: "Time off", body: "Request leave and see how many days you have left." },
+    { target: "reviews", title: "Your goals", body: "Keep track of your goals, and write your self-assessment when a review starts." },
     { target: "expenses", title: "Spent your own money?", body: "Snap the receipt and claim it back. Approved claims come with your next pay." },
     { target: "help", title: "That's it", body: "Open this tour again from the question mark whenever you need it." },
   ];
