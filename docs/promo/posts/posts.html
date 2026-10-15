@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Workbase posts</title>
+<style>
+  @font-face { font-family: "Bricolage"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inter"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+  :root { --ink: #15123a; --violet: #6a4cf5; --violet-l: #8f7bff; --marigold: #f2a93b; --paper: #f7f6fb; --muted: #b7b2d6; --teal: #36c2b0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #333; font-family: "Inter", sans-serif; color: var(--paper); display: flex; flex-direction: column; gap: 40px; padding: 40px; align-items: flex-start; }
+  .d { font-family: "Bricolage", "Inter", sans-serif; letter-spacing: -0.03em; }
+  .post { position: relative; overflow: hidden; background: radial-gradient(110% 70% at 50% 0%, #2d2478 0%, #15123a 55%, #0b0920 100%); flex-shrink: 0; }
+  .post::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.04) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(255,255,255,0.04) 1.5px, transparent 1.5px); background-size: 72px 72px; -webkit-mask-image: radial-gradient(90% 70% at 50% 30%, #000 30%, transparent 100%); }
+  .glow { position: absolute; border-radius: 50%; filter: blur(110px); pointer-events: none; }
+  .p45 { width: 1080px; height: 1350px; }
+  .top { position: absolute; left: 72px; right: 72px; top: 64px; display: flex; align-items: center; justify-content: space-between; z-index: 5; }
+  .brand { display: flex; align-items: center; gap: 14px; font-size: 36px; font-weight: 800; }
+  .count { font-size: 22px; color: var(--muted); font-weight: 600; letter-spacing: 0.1em; }
+  .foot { position: absolute; left: 72px; right: 72px; bottom: 56px; display: flex; justify-content: space-between; align-items: center; font-size: 24px; color: var(--muted); z-index: 5; }
+  .foot b { color: #fff; font-weight: 700; }
+  .h { position: absolute; left: 72px; right: 72px; font-weight: 800; line-height: 0.98; z-index: 4; }
+  .h em { font-style: normal; color: var(--marigold); }
+  .sub { position: absolute; left: 72px; right: 72px; font-size: 34px; line-height: 1.32; color: #d9d5f0; z-index: 4; }
+  .frame { position: absolute; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 50px 100px -30px rgba(0,0,0,0.8), 0 0 0 2px rgba(255,255,255,0.1); }
+  .frame .bar { height: 34px; background: #ecebf3; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid #dddbe8; }
+  .frame .bar i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .frame .bar span { margin-left: 14px; background: #fff; border-radius: 7px; height: 22px; flex: 1; max-width: 420px; font-size: 13px; color: #4a4570; display: flex; align-items: center; padding: 0 10px; }
+  .frame.dark .bar { background: #1c1847; border-color: #2c2760; }
+  .frame.dark .bar span { background: #110e33; color: #b7b2d6; }
+  .crop { background-repeat: no-repeat; }
+  .pill { display: inline-flex; align-items: center; gap: 10px; border-radius: 999px; font-weight: 700; }
+  .chip { display: inline-flex; align-items: center; gap: 12px; padding: 16px 24px; border-radius: 20px; background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.12); font-size: 26px; font-weight: 600; }
+  .chip svg { width: 30px; height: 30px; color: var(--marigold); }
+  .phone { position: absolute; width: 418px; height: 872px; border-radius: 64px; border: 14px solid #221c55; background: #0b0920; overflow: hidden; box-shadow: 0 50px 100px -20px rgba(0,0,0,0.75), 0 0 80px rgba(106,76,245,0.4), inset 0 0 0 2px rgba(255,255,255,0.15); transform-origin: 0 0; }
+  .phone img { position: absolute; left: 0; top: 0; width: 390px; height: 844px; }
+  .phone .notch { position: absolute; left: 50%; top: 10px; width: 120px; height: 32px; margin-left: -60px; background: #0b0920; border-radius: 16px; z-index: 9; }
+  .notif { position: absolute; left: 12px; right: 12px; top: 54px; background: rgba(255,255,255,0.98); color: var(--ink); border-radius: 24px; padding: 16px; display: flex; gap: 12px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.45); z-index: 8; }
+  .notif svg { width: 48px; height: 48px; flex-shrink: 0; }
+  .notif b { display: block; font-size: 19px; }
+  .notif span { font-size: 16px; color: #555077; }
+  .notif em { font-style: normal; font-size: 13px; color: #9a95b3; float: right; }
+  .wave { position: absolute; border-radius: 50%; border: 5px solid var(--marigold); }
+  .ic { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; position: absolute; left: 72px; right: 72px; }
+  .feat div { border-radius: 24px; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.1); padding: 24px 22px 22px; height: 190px; display: flex; flex-direction: column; justify-content: space-between; font-size: 25px; font-weight: 700; line-height: 1.18; }
+  .feat .i { width: 66px; height: 66px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+  .feat .i svg { width: 38px; height: 38px; stroke-width: 2; }
+  .row { display: flex; gap: 26px; align-items: flex-start; padding: 28px 0; border-top: 2px solid rgba(255,255,255,0.1); }
+  .row:first-child { border-top: 0; }
+  .row .ck { width: 64px; height: 64px; border-radius: 20px; background: rgba(54,194,176,0.16); color: var(--teal); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .row .ck svg { width: 36px; height: 36px; }
+  .row b { display: block; font-size: 36px; font-weight: 700; }
+  .row span { display: block; font-size: 24px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+  .plan { position: absolute; left: 72px; right: 72px; border-radius: 30px; padding: 30px 36px; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.12); display: flex; justify-content: space-between; align-items: center; gap: 30px; }
+  .plan.hot { background: linear-gradient(135deg, #6a4cf5, #4f33d8); border-color: transparent; box-shadow: 0 30px 70px -20px rgba(106,76,245,0.7); }
+  .plan .nm { font-size: 30px; font-weight: 800; }
+  .plan .nm small { display: inline-block; margin-left: 12px; font-size: 17px; font-weight: 700; padding: 6px 12px; border-radius: 999px; background: var(--marigold); color: var(--ink); vertical-align: 5px; font-family: "Inter"; letter-spacing: 0; }
+  .plan ul { list-style: none; margin-top: 12px; font-size: 22px; color: #dcd8f5; line-height: 1.5; }
+  .plan ul li::before { content: "✓  "; color: var(--marigold); font-weight: 800; }
+  .plan .pr { text-align: right; white-space: nowrap; }
+  .plan .pr b { font-size: 64px; font-weight: 800; display: block; line-height: 1; }
+  .plan .pr span { font-size: 20px; color: #dcd8f5; }
+</style>
+</head>
+<body>
+<script>
+const ICONS = __ICONS__;
+const MARK = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>`;
+const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24">${ICONS[n]}</svg>`;
+const URL = "phantomire-workforce.vercel.app";
+// crop of a 1440x900 screenshot: region x,y,w,h shown at width dw
+function crop(img, x, y, w, h, dw) {
+  const k = dw / w;
+  return `<div class="crop" style="width:${dw}px;height:${Math.round(h * k)}px;background-image:url(img/${img}.png);background-size:${1440 * k}px ${900 * k}px;background-position:${-x * k}px ${-y * k}px"></div>`;
+}
+function frame(img, x, y, w, h, dw, style, path = "/dashboard", dark = false) {
+  return `<div class="frame ${dark ? "dark" : ""}" style="${style}"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span><b style="font-weight:600;color:${dark ? "#fff" : "#15123a"}">${URL}</b>${path}</span></div>${crop(img, x, y, w, h, dw)}</div>`;
+}
+function phone(img, style, notif = false) {
+  return `<div class="phone" style="${style}"><div class="notch"></div><img src="img/${img}.png">${notif ? `<div class="notif">${MARK(48)}<div style="flex:1"><em>now</em><b>Time to clock in</b><span>Your work day starts at 09:00. Tap to clock in.</span></div></div>` : ""}</div>`;
+}
+const topBar = (n) => `<div class="top"><div class="brand d">${MARK(54)}Workbase</div>${n ? `<div class="count">${n} / 8</div>` : ""}</div>`;
+const foot = (right = "Swipe →", fade = true) => `${fade ? `<div style="position:absolute;left:0;right:0;bottom:0;height:230px;background:linear-gradient(rgba(11,9,32,0),#0b0920 70%);z-index:4"></div>` : ""}<div class="foot"><b>${URL}</b><span>${right}</span></div>`;
+const glows = (a = "#6a4cf5", b = "#f2a93b") => `<div class="glow" style="width:900px;height:900px;left:-300px;top:-300px;background:${a};opacity:.35"></div><div class="glow" style="width:700px;height:700px;right:-300px;bottom:-250px;background:${b};opacity:.18"></div>`;
+
+const posts = [];
+// 1 — cover
+posts.push(["01-cover", "p45", `${glows()}${topBar(1)}
+  <div style="position:absolute;left:72px;top:190px;z-index:4" class="pill" ><span class="pill" style="background:var(--marigold);color:var(--ink);padding:10px 22px;font-size:22px;letter-spacing:.12em">● NOW LIVE</span></div>
+  <div class="h d" style="top:262px;font-size:104px">Know your team<br>is working.<br><em>Wherever they are.</em></div>
+  <div class="sub" style="top:600px;font-size:32px">Time, tasks, chat, leave and Nigerian payroll for remote teams.</div>
+  ${frame("overview", 0, 0, 1440, 900, 1180, "left:250px;top:770px;transform:perspective(2200px) rotateY(-16deg) rotateX(6deg);transform-origin:0 0")}
+  ${phone("phone_bayo", "left:70px;top:780px;transform:scale(0.62) rotate(-4deg)")}
+  ${foot()}`]);
+// 2 — live
+posts.push(["02-live", "p45", `${glows()}${topBar(2)}
+  <div class="h d" style="top:190px;font-size:96px">See who's working.<br><em>Live.</em></div>
+  <div class="sub" style="top:410px">Status, hours, activity and the app in use for everyone on the team, in their own time zone.</div>
+  ${frame("overview", 285, 60, 1135, 600, 936, "left:72px;top:590px")}
+  <div style="position:absolute;left:72px;right:72px;top:1135px;display:flex;gap:16px;z-index:5;justify-content:center">
+    <span class="chip">${icon("activity")}Checks every 10 s</span><span class="chip">${icon("globe")}Any time zone</span><span class="chip">${icon("zap")}Works offline</span></div>
+  ${foot()}`]);
+// 3 — phone
+posts.push(["03-phone", "p45", `${glows("#6a4cf5", "#36c2b0")}${topBar(3)}
+  <div class="h d" style="top:190px;font-size:96px">Clock in<br><em>from anywhere.</em></div>
+  <div class="sub" style="top:410px;right:500px;font-size:32px">A reminder rings at start time, even when the site is closed.</div>
+  <div style="position:absolute;left:72px;top:640px;display:flex;flex-direction:column;gap:16px;z-index:5;align-items:flex-start">
+    <span class="chip">${icon("bell")}Rings at 9:00</span><span class="chip">${icon("phone")}One tap on the phone</span><span class="chip">${icon("lock")}Location only if allowed</span><span class="chip">${icon("clock")}Desktop app too</span></div>
+  ${[0, 1, 2].map((i) => `<div class="wave" style="left:${790 - 260 - i * 90}px;top:${860 - 260 - i * 90}px;width:${520 + i * 180}px;height:${520 + i * 180}px;opacity:${0.55 - i * 0.16}"></div>`).join("")}
+  ${phone("phone_femi", "left:590px;top:430px;transform:scale(0.92) rotate(3deg)", true)}
+  ${foot()}`]);
+// 4 — payroll
+posts.push(["04-payroll", "p45", `${glows("#6a4cf5", "#16a34a")}${topBar(4)}
+  <div class="h d" style="top:190px;font-size:96px">Payroll that<br>knows <em>PAYE.</em></div>
+  <div class="sub" style="top:410px">Nigeria Tax Act 2025 bands, pension and NHF worked out. A PDF payslip emailed to every person.</div>
+  ${frame("payroll", 285, 60, 1135, 520, 936, "left:72px;top:620px", "/dashboard/payroll")}
+  <div style="position:absolute;left:520px;top:880px;transform:rotate(5deg);z-index:6;border-radius:16px;overflow:hidden;box-shadow:0 40px 80px -20px rgba(0,0,0,.7)">${crop("payslip", 466, 124, 763, 640, 500)}<span style="position:absolute;right:18px;top:16px;background:#e5383b;color:#fff;font:800 20px Inter;padding:5px 11px;border-radius:8px">PDF</span></div>
+  ${foot()}`]);
+// 5 — features
+const FEATS = [["clock", "Clock in, clock out", "#6a4cf5"], ["activity", "Active or just online", "#8f7bff"], ["tasks", "Tasks & daily reports", "#36c2b0"], ["globe", "Every time zone", "#3b82f6"], ["zap", "Made for patchy internet", "#f2a93b"], ["chat", "Chat & announcements", "#3b82f6"], ["leave", "Leave & public holidays", "#f2a93b"], ["wallet", "Payroll with PAYE", "#22c55e"], ["phone", "Phone clock-in", "#8f7bff"], ["receipt", "Expense claims", "#f87171"], ["briefcase", "Staff records", "#a78bfa"], ["sparkle", "Goals & reviews", "#f2a93b"]];
+posts.push(["05-features", "p45", `${glows()}${topBar(5)}
+  <div class="h d" style="top:190px;font-size:92px">Everything after<br><em>the clock-in.</em></div>
+  <div class="feat" style="top:440px">${FEATS.map(([n, t, c]) => `<div><span class="i" style="background:${c}26;color:${c}">${icon(n)}</span>${t}</div>`).join("")}</div>
+  ${foot("Swipe →", false)}`]);
+// 6 — privacy
+const PRIV = [["clock", "Only while clocked in", "Nothing is tracked before clock-in or after clock-out."], ["lock", "No keystrokes recorded", "We count that the keyboard was used, never what was typed."], ["eye", "No webcam. No microphone.", "The app never turns them on."], ["shield", "Everyone sees their own data", "They see their own hours and activity, and can delete their own screenshots."], ["check", "Screenshots off by default", "Pro plan only, after each person agrees. Blur is one switch."]];
+posts.push(["06-privacy", "p45", `${glows("#6a4cf5", "#36c2b0")}${topBar(6)}
+  <div class="h d" style="top:190px;font-size:96px">Tracks work.<br><em>Not people.</em></div>
+  <div style="position:absolute;left:72px;right:72px;top:450px;z-index:4">${PRIV.map(([n, b, s]) => `<div class="row"><span class="ck">${icon(n)}</span><div><b>${b}</b><span>${s}</span></div></div>`).join("")}</div>
+  ${foot("Swipe →", false)}`]);
+// 7 — pricing
+posts.push(["07-pricing", "p45", `${glows()}${topBar(7)}
+  <div class="h d" style="top:190px;font-size:96px">Priced in <em>naira.</em></div>
+  <div class="sub" style="top:310px">Pay for 10 months, get 12 on yearly plans.</div>
+  <div class="plan" style="top:420px"><div><div class="nm d">Free</div><ul><li>Up to 3 people, for as long as you like</li><li>Clock in/out, tasks, chat, leave</li></ul></div><div class="pr d"><b>₦0</b><span>forever</span></div></div>
+  <div class="plan hot" style="top:680px"><div><div class="nm d">Standard <small>14-DAY FREE TRIAL</small></div><ul style="color:#fff"><li>Unlimited people</li><li>Day timeline, full history, CSV</li><li>Payroll with PAYE & payslips</li></ul></div><div class="pr d"><b>₦2,500</b><span>per person / month</span></div></div>
+  <div class="plan" style="top:990px"><div><div class="nm d">Pro</div><ul><li>Everything in Standard</li><li>Screenshots, with consent and blur</li></ul></div><div class="pr d"><b>₦4,000</b><span>per person / month</span></div></div>
+  ${foot("Swipe →", false)}`]);
+// 8 — CTA
+posts.push(["08-start", "p45", `${glows("#6a4cf5", "#f2a93b")}${topBar(8)}
+  <div style="position:absolute;left:0;right:0;top:250px;text-align:center;z-index:4">${MARK(200)}</div>
+  <div class="h d" style="top:520px;font-size:112px;text-align:center">Start free<br><em>today.</em></div>
+  <div class="sub" style="top:790px;text-align:center">14 days free. No card needed.<br>Free for up to 3 people after.</div>
+  <div style="position:absolute;left:0;right:0;top:960px;text-align:center;z-index:4"><span class="pill d" style="background:var(--marigold);color:var(--ink);padding:24px 48px;font-size:44px;font-weight:800">${URL}</span></div>
+  <div style="position:absolute;left:0;right:0;top:1110px;text-align:center;font-size:24px;color:var(--muted);letter-spacing:.18em;font-weight:600;z-index:4">WINDOWS APP · ANY PHONE · BUILT IN LAGOS</div>
+  ${foot("Phantomire Workbase", false)}`]);
+// link banner 1200x627
+posts.push(["link-banner-1200x627", "", `${glows()}
+  <div class="brand d" style="position:absolute;left:60px;top:52px;z-index:5;font-size:32px">${MARK(48)}Workbase</div>
+  <div class="h d" style="left:60px;right:auto;width:560px;top:150px;font-size:66px">Know your team is working. <em>Wherever they are.</em></div>
+  <div class="sub" style="left:60px;right:auto;width:520px;top:400px;font-size:24px">Time, tasks, chat, leave & Nigerian payroll. From ₦2,500 per person.</div>
+  <div style="position:absolute;left:60px;top:510px;z-index:5"><span class="pill" style="background:var(--marigold);color:var(--ink);padding:14px 26px;font-size:22px">Start free · ${URL}</span></div>
+  ${frame("overview", 0, 0, 1440, 900, 900, "left:640px;top:110px;transform:perspective(1800px) rotateY(-18deg) rotateX(5deg);transform-origin:0 0")}`, "width:1200px;height:627px"]);
+// story 1080x1920
+posts.push(["story-1080x1920", "", `${glows()}
+  <div class="brand d" style="position:absolute;left:0;right:0;top:150px;justify-content:center;z-index:5;font-size:48px">${MARK(70)}Workbase</div>
+  <div class="h d" style="top:300px;font-size:112px;text-align:center">Know your team<br>is working.<br><em>Wherever they are.</em></div>
+  <div class="sub" style="top:690px;text-align:center;font-size:36px;left:110px;right:110px">Time, tasks, chat, leave and Nigerian payroll for remote teams.</div>
+  ${frame("overview", 285, 60, 1135, 840, 900, "left:90px;top:900px;transform:rotate(-3deg)")}
+  ${phone("phone_bayo", "left:640px;top:1120px;transform:scale(0.6) rotate(5deg)")}
+  <div style="position:absolute;left:0;right:0;top:1640px;text-align:center;z-index:6"><span class="pill d" style="background:var(--marigold);color:var(--ink);padding:24px 44px;font-size:42px;font-weight:800">From ₦2,500 / person</span></div>
+  <div style="position:absolute;left:0;right:0;top:1770px;text-align:center;font-size:34px;font-weight:700;z-index:6">${URL}</div>`, "width:1080px;height:1920px"]);
+
+document.body.innerHTML = posts.map(([id, cls, html, style]) => `<div class="post ${cls}" id="${id}" style="${style || ""}">${html}</div>`).join("");
+</script>
+</body>
+</html>
