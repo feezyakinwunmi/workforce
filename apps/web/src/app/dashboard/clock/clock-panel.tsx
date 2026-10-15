@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { phoneClock } from "./actions";
+import { phoneClock, phoneClockOut } from "./actions";
 
 type Props = {
   state: "out" | "phone" | "desktop";
@@ -12,6 +12,7 @@ type Props = {
   todaySeconds: number; // finished time today (not counting the running phone session)
   location: "off" | "ask" | "required";
   canTrack: boolean;
+  tasks: Array<{ id: string; title: string; status: string; project_name: string | null; due_date: string | null }>;
 };
 
 const two = (n: number) => String(n).padStart(2, "0");
@@ -29,12 +30,15 @@ function position(timeoutMs = 12000): Promise<{ lat: number; lng: number; accura
   );
 }
 
-export function ClockPanel({ state, startedAt, todaySeconds, location, canTrack }: Props) {
+export function ClockPanel({ state, startedAt, todaySeconds, location, canTrack, tasks }: Props) {
   const router = useRouter();
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [finishing, setFinishing] = useState(false); // the "What did you get done?" step
+  const [summary, setSummary] = useState("");
+  const [done, setDone] = useState<string[]>([]);
   const running = state === "phone" && startedAt;
 
   useEffect(() => {
@@ -45,7 +49,7 @@ export function ClockPanel({ state, startedAt, todaySeconds, location, canTrack 
 
   const runningSeconds = running ? Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000)) : 0;
 
-  function go(action: "in" | "out") {
+  function go(action: "in" | "out", report?: { summary: string; doneTaskIds: string[] }) {
     setError(null);
     start(async () => {
       let place = null;
@@ -59,10 +63,15 @@ export function ClockPanel({ state, startedAt, todaySeconds, location, canTrack 
         }
       }
       setStep(action === "in" ? "Clocking in…" : "Clocking out…");
-      const res = await phoneClock(action, place);
+      const res = action === "out" && report ? await phoneClockOut(report, place) : await phoneClock(action, place);
       setStep(null);
       if (res.error) setError(res.error);
-      else router.refresh();
+      else {
+        setFinishing(false);
+        setSummary("");
+        setDone([]);
+        router.refresh();
+      }
     });
   }
 
@@ -99,14 +108,76 @@ export function ClockPanel({ state, startedAt, todaySeconds, location, canTrack 
 
       {state === "desktop" ? (
         <p className="max-w-xs text-sm text-slate-500">Clock out in the desktop app to clock in here.</p>
+      ) : running && finishing ? (
+        <form
+          className="card w-full max-w-sm space-y-4 p-4 text-left"
+          onSubmit={(e) => {
+            e.preventDefault();
+            go("out", { summary, doneTaskIds: done });
+          }}
+        >
+          <div>
+            <label htmlFor="summary" className="label">What did you get done?</label>
+            <textarea
+              id="summary"
+              rows={4}
+              maxLength={5000}
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              className="input"
+              placeholder="Visited 3 clients in Ikeja, collected the signed forms…"
+              autoFocus
+            />
+          </div>
+          {tasks.length > 0 && (
+            <fieldset>
+              <legend className="label">Mark tasks as done</legend>
+              <ul className="max-h-56 space-y-1 overflow-y-auto">
+                {tasks.map((t) => (
+                  <li key={t.id}>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-600"
+                        checked={done.includes(t.id)}
+                        onChange={(e) => setDone((d) => (e.target.checked ? [...d, t.id] : d.filter((x) => x !== t.id)))}
+                      />
+                      <span className="min-w-0 text-sm">
+                        <span className={cn("block text-slate-900", done.includes(t.id) && "text-slate-400 line-through")}>{t.title}</span>
+                        {(t.project_name || t.status === "in_progress") && (
+                          <span className="block text-xs text-slate-500">
+                            {[t.project_name, t.status === "in_progress" ? "In progress" : null].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </fieldset>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={pending}
+              className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white disabled:opacity-60 dark:bg-brand-600"
+            >
+              <Icon name="logout" className="h-4 w-4" />
+              {pending ? (step ?? "Please wait…") : "Clock out"}
+            </button>
+            <button type="button" className="btn-secondary h-12" disabled={pending} onClick={() => setFinishing(false)}>
+              Keep working
+            </button>
+          </div>
+        </form>
       ) : (
         <button
           type="button"
-          onClick={() => go(running ? "out" : "in")}
+          onClick={() => (running ? setFinishing(true) : go("in"))}
           disabled={pending || (!running && !canTrack)}
           className={cn(
             "inline-flex h-14 w-full max-w-xs items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white shadow-lg transition disabled:opacity-60",
-            running ? "bg-slate-900 shadow-slate-900/20 hover:bg-slate-800 dark:bg-slate-700" : "bg-brand-600 shadow-brand-600/30 hover:bg-[#5638d9]",
+            running ? "bg-slate-900 shadow-slate-900/20 hover:bg-slate-800 dark:bg-brand-600 dark:hover:bg-[#7a5ffa]" : "bg-brand-600 shadow-brand-600/30 hover:bg-[#5638d9]",
           )}
         >
           <Icon name={running ? "logout" : "play"} className="h-5 w-5" />

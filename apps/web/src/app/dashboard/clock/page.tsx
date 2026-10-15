@@ -29,6 +29,8 @@ export default async function ClockPage() {
   // Day totals already include the running phone session; the panel adds its own live count on top.
   const running = state === "phone" && session ? Math.max(0, Math.floor((Date.now() - Date.parse(session.started_at)) / 1000)) : 0;
   const todaySeconds = Math.max(0, (stats.get(`${user.id}|${today}`)?.tracked_seconds ?? 0) - running);
+  // Your open tasks, for "Mark tasks as done" when clocking out.
+  const { data: taskRows } = state === "phone" ? await supabase.rpc("my_open_tasks") : { data: [] };
   const s = org.settings;
   const enabled = s.phone_clock !== false;
 
@@ -51,6 +53,7 @@ export default async function ClockPage() {
             todaySeconds={todaySeconds}
             location={s.phone_location ?? "ask"}
             canTrack={billing.can_track}
+            tasks={(taskRows ?? []) as Array<{ id: string; title: string; status: string; project_name: string | null; due_date: string | null }>}
           />
           <InstallHint />
         </>
