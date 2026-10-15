@@ -107,6 +107,10 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
             delete cur[ref.trackName];
             return { ...r, [ref.participantId]: cur };
           });
+        s.onReset = () => {
+          pulled.current.clear();
+          setRetry((n) => n + 1);
+        };
         const watch = () => {
           const bad = [p.pc.connectionState, s.pc.connectionState].some((st) => st === "failed");
           if (bad && !cancelled) {
@@ -118,7 +122,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
           }
         };
         p.pc.addEventListener("connectionstatechange", watch);
-        s.pc.addEventListener("connectionstatechange", watch);
+        s.onState = watch;
         setConnected(true);
         update({ sfu_session: p.session, tracks: [{ name: "mic", kind: "audio" }, { name: "camera", kind: "video" }], audio_on: media.micOn && !!media.mic, video_on: media.camOn });
       } catch (e) {
@@ -192,6 +196,9 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   useEffect(() => () => void (retryTimer.current && clearTimeout(retryTimer.current)), []);
 
   // ----- screen sharing -----------------------------------------------------
+  // Phones and tablets can't share their screen from a browser: hide the button there.
+  const [canShare, setCanShare] = useState(false);
+  useEffect(() => setCanShare(!!navigator.mediaDevices?.getDisplayMedia && !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)), []);
   const stopShare = useCallback(() => {
     setSharing((t) => {
       t?.stop();
@@ -503,7 +510,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       <footer className="relative flex items-center justify-center gap-1.5 px-2 pt-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-3">
         <Control icon={media.micOn ? "mic" : "micOff"} label={media.micOn ? "Mute" : "Unmute"} off={!media.micOn} disabled={!media.mic} onClick={() => media.setMicOn(!media.micOn)} />
         <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : "Start video"} off={!media.camOn} onClick={() => void media.toggleCam()} />
-        <Control icon="screenShare" label={sharing ? "Stop sharing" : "Share screen"} active={!!sharing} onClick={() => (sharing ? stopShare() : void startShare())} className="hidden sm:flex" />
+        {canShare && <Control icon="screenShare" label={sharing ? "Stop sharing" : "Share screen"} active={!!sharing} onClick={() => (sharing ? stopShare() : void startShare())} className="hidden sm:flex" />}
         <div className="relative">
           <Control icon="smile" label="React" active={showReactions} onClick={() => setShowReactions((v) => !v)} />
           {showReactions && (

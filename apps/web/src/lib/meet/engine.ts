@@ -48,6 +48,9 @@ export function blackVideoTrack(): MediaStreamTrack {
   // Keep painting so the track doesn't stall.
   const t = setInterval(() => ctx.fillRect(0, 0, 16, 9), 1000);
   track.addEventListener("ended", () => clearInterval(t));
+  // A disabled track still sends black frames, even when the tab is in the background (timers
+  // slow down there). Without packets Cloudflare would remove the track after 30 s.
+  track.enabled = false;
   return track;
 }
 
@@ -74,6 +77,7 @@ export class Publisher {
   private ticket = "";
   private tx = new Map<Source, RTCRtpTransceiver>();
   private q = new Queue();
+  private screenIdle: MediaStreamTrack | null = null;
   constructor(private api: MediaApi) {}
 
   /** Connect and publish mic + camera. */
@@ -116,7 +120,8 @@ export class Publisher {
   /** Screen sharing: the first time adds a third track; later times reuse it. */
   async shareScreen(track: MediaStreamTrack | null) {
     const existing = this.tx.get("screen");
-    if (existing) return existing.sender.replaceTrack(track);
+    // When sharing stops, keep sending a black frame: Cloudflare removes a track after 30 s without data.
+    if (existing) return existing.sender.replaceTrack(track ?? (this.screenIdle ??= blackVideoTrack()));
     if (!track) return;
     this.tx.set("screen", this.pc.addTransceiver(track, { direction: "sendonly", sendEncodings: [{ maxBitrate: 1_200_000, maxFramerate: 15 }] }));
     await this.q.run(() => this.publish(["screen"]));
@@ -156,11 +161,18 @@ export class Subscriber {
   pc!: RTCPeerConnection;
   session = "";
   private ticket = "";
+  private config: RTCConfiguration = {};
   private q = new Queue();
   private byMid = new Map<string, RemoteRef>();
   private pulled = new Map<string, string>(); // key -> mid
+  private failures = 0;
+  lastError: string | null = null;
   onTrack: (ref: RemoteRef, track: MediaStreamTrack) => void = () => {};
   onRemoved: (ref: RemoteRef) => void = () => {};
+  /** Called after the receiving connection was rebuilt: everything must be received again. */
+  onReset: () => void = () => {};
+  /** Connection state changes of the current receiving connection. */
+  onState: (state: RTCPeerConnectionState) => void = () => {};
   constructor(private api: MediaApi) {}
 
   static key(r: { sessionId: string; trackName: string }) {
@@ -168,14 +180,42 @@ export class Subscriber {
   }
 
   async start(config: RTCConfiguration) {
-    this.pc = new RTCPeerConnection(config);
-    this.pc.ontrack = (e) => {
+    this.config = config;
+    this.newConnection();
+  }
+
+  private newConnection() {
+    this.pc?.close();
+    this.pc = new RTCPeerConnection(this.config);
+    const pc = this.pc;
+    pc.ontrack = (e) => {
       const ref = e.transceiver.mid ? this.byMid.get(e.transceiver.mid) : undefined;
       if (ref) this.onTrack(ref, e.track);
     };
+    pc.addEventListener("connectionstatechange", () => pc === this.pc && this.onState(pc.connectionState));
+    this.session = "";
+    this.ticket = "";
+    this.byMid.clear();
+    this.pulled.clear();
+  }
+
+  /**
+   * Cloudflare drops a session whose connection doesn't come up within ~30 s, so the receiving
+   * session is created only when there is something to receive (and again after a failure).
+   */
+  private async ensureSession() {
+    if (this.session) return;
     const s = await this.api.post<{ session: string; ticket: string }>("session");
     this.session = s.session;
     this.ticket = s.ticket;
+  }
+
+  /** Rebuild the receiving side from scratch (new connection + session). */
+  private reset() {
+    const had = [...this.byMid.values()];
+    this.newConnection();
+    for (const ref of had) this.onRemoved(ref);
+    this.onReset();
   }
 
   has(r: { sessionId: string; trackName: string }) {
@@ -190,11 +230,25 @@ export class Subscriber {
     return this.q.run(async () => {
       const todo = refs.filter((r) => !this.pulled.has(Subscriber.key(r)));
       if (!todo.length) return [];
-      const res = await this.api.post("pull", {
-        session: this.session,
-        ticket: this.ticket,
-        remotes: todo.map((r) => ({ sessionId: r.sessionId, trackName: r.trackName })),
-      });
+      let res: Reply;
+      try {
+        await this.ensureSession();
+        res = await this.api.post("pull", {
+          session: this.session,
+          ticket: this.ticket,
+          remotes: todo.map((r) => ({ sessionId: r.sessionId, trackName: r.trackName })),
+        });
+      } catch (e) {
+        // The session may have expired or broken: after two failures in a row, start a fresh one.
+        this.lastError = e instanceof Error ? e.message : String(e);
+        if (++this.failures >= 2) {
+          this.failures = 0;
+          this.reset();
+        }
+        throw e;
+      }
+      this.failures = 0;
+      this.lastError = null;
       const ok: RemoteRef[] = [];
       for (const t of res.tracks ?? []) {
         if (t.errorCode || !t.mid) continue;
