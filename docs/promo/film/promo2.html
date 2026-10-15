@@ -1,0 +1,769 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Workbase launch film</title>
+<style>
+  @font-face { font-family: "Bricolage"; src: url("../../../../../../home/claude/workforce/apps/web/src/app/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inter"; src: url("../../../../../../home/claude/workforce/apps/web/src/app/fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+  :root { --ink: #15123a; --violet: #6a4cf5; --violet-l: #8f7bff; --marigold: #f2a93b; --paper: #f7f6fb; --muted: #b7b2d6; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0b0920; }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--paper); overflow: hidden; }
+  .d { font-family: "Bricolage", "Inter", sans-serif; letter-spacing: -0.025em; }
+  #stage { position: relative; overflow: hidden; background: #0e0b2a; }
+  .full { position: absolute; inset: 0; }
+  .abs { position: absolute; }
+  #bg { background: radial-gradient(110% 80% at 50% 10%, #2b2275 0%, #15123a 52%, #0a081d 100%); }
+  .blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.55; }
+  #grid { background-image: linear-gradient(rgba(255,255,255,0.045) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(255,255,255,0.045) 1.5px, transparent 1.5px); background-size: 80px 80px; }
+  #vignette { background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%); pointer-events: none; }
+
+  /* camera + browser */
+  #cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #browser { position: absolute; left: 0; top: 0; width: 1440px; height: 944px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 60px 120px -30px rgba(0,0,0,0.75), 0 0 0 2px rgba(255,255,255,0.08); transform-origin: 50% 50%; }
+  #chrome { position: absolute; left: 0; right: 0; top: 0; height: 44px; background: #ecebf3; display: flex; align-items: center; padding: 0 18px; gap: 9px; border-bottom: 1px solid #dddbe8; }
+  #chrome i { width: 13px; height: 13px; border-radius: 50%; display: inline-block; }
+  #url { margin-left: 22px; flex: 1; max-width: 760px; height: 28px; border-radius: 9px; background: #fff; color: #4a4570; font-size: 15px; display: flex; align-items: center; padding: 0 14px; gap: 8px; white-space: nowrap; overflow: hidden; }
+  #url b { font-weight: 500; color: #15123a; }
+  #caret { display: inline-block; width: 2px; height: 17px; background: #6a4cf5; margin-left: 1px; }
+  #vp { position: absolute; left: 0; top: 44px; width: 1440px; height: 900px; overflow: hidden; background: #f7f6fb; }
+  #vp img.pg { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; }
+  .hl { position: absolute; border: 4px solid var(--marigold); border-radius: 14px; box-shadow: 0 0 0 6px rgba(242,169,59,0.25), 0 0 40px rgba(242,169,59,0.55); opacity: 0; }
+  .rip { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 4px solid var(--violet); background: rgba(106,76,245,0.18); opacity: 0; }
+
+  /* screen-space layer */
+  #fx { position: absolute; inset: 0; pointer-events: none; }
+  #cursor { position: absolute; left: 0; top: 0; width: 52px; height: 52px; transform-origin: 6px 4px; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)); }
+  .cap { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; font-weight: 800; line-height: 1.08; white-space: nowrap; opacity: 0; }
+  .cap .in { display: inline-block; background: rgba(16,13,46,0.9); border: 2px solid rgba(255,255,255,0.12); border-radius: 26px; padding: 0.32em 0.62em 0.38em; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6); }
+  .cap .w { display: inline-block; }
+  .cap em { font-style: normal; color: var(--marigold); }
+  .giant { position: absolute; left: 50%; top: 50%; white-space: nowrap; font-weight: 800; line-height: 1; opacity: 0; }
+  .giant .o { position: absolute; left: 0; top: 0; color: transparent; -webkit-text-stroke: 4px #fff; }
+  .giant .f { color: var(--violet); opacity: 0.88; }
+  .toast { position: absolute; left: 0; top: 0; width: 470px; background: rgba(255,255,255,0.98); color: var(--ink); border-radius: 24px; padding: 18px 20px; display: flex; gap: 16px; align-items: center; box-shadow: 0 24px 50px -12px rgba(0,0,0,0.6); opacity: 0; }
+  .toast svg { width: 58px; height: 58px; flex-shrink: 0; }
+  .toast b { display: block; font-size: 23px; }
+  .toast span { font-size: 19px; color: #555077; }
+  .toast em { font-style: normal; font-size: 15px; color: #9a95b3; float: right; margin-left: 10px; }
+  #clock { position: absolute; left: 0; right: 0; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+  #clocksub { position: absolute; left: 0; right: 0; text-align: center; color: var(--muted); letter-spacing: 0.3em; text-transform: uppercase; font-weight: 600; }
+  .gl { position: absolute; left: 0; right: 0; text-align: center; font-weight: 800; white-space: nowrap; }
+  #glitch { position: absolute; left: 0; right: 0; opacity: 0; }
+  #glitchband { position: absolute; left: -10%; right: -10%; background: #0b0920; opacity: 0; }
+  .flash { position: absolute; inset: 0; opacity: 0; }
+  .spark { position: absolute; width: 14px; height: 14px; border-radius: 50%; margin: -7px 0 0 -7px; opacity: 0; }
+  .ring { position: absolute; border-radius: 50%; border: 6px solid var(--marigold); opacity: 0; }
+  #logo { position: absolute; left: 0; right: 0; text-align: center; }
+  #logo .tile { width: 260px; height: 260px; display: inline-block; }
+  #lword { position: absolute; left: 0; right: 0; text-align: center; font-weight: 800; }
+  #lword span { display: inline-block; }
+  #lbrand { position: absolute; left: 0; right: 0; text-align: center; color: var(--muted); letter-spacing: 0.42em; font-weight: 700; text-transform: uppercase; }
+  #ltag { position: absolute; left: 0; right: 0; text-align: center; font-weight: 600; color: var(--paper); }
+  #phone { position: absolute; left: 0; top: 0; width: 418px; height: 872px; border-radius: 64px; border: 14px solid #221c55; background: #0b0920; overflow: hidden; box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7), 0 0 80px rgba(106,76,245,0.45), inset 0 0 0 2px rgba(255,255,255,0.15); opacity: 0; transform-origin: 50% 50%; }
+  #phone img { position: absolute; left: 0; top: 0; width: 390px; height: 844px; }
+  #pnotch { position: absolute; left: 50%; top: 10px; width: 120px; height: 32px; margin-left: -60px; background: #0b0920; border-radius: 16px; z-index: 9; }
+  .patch { position: absolute; display: flex; align-items: center; justify-content: center; }
+  #pnotif { position: absolute; left: 12px; right: 12px; top: 54px; background: rgba(255,255,255,0.98); color: var(--ink); border-radius: 24px; padding: 16px 16px; display: flex; gap: 12px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.45); z-index: 8; opacity: 0; }
+  #pnotif svg { width: 48px; height: 48px; flex-shrink: 0; }
+  #pnotif b { display: block; font-size: 19px; }
+  #pnotif span { font-size: 16px; color: #555077; }
+  #pnotif em { font-style: normal; font-size: 13px; color: #9a95b3; float: right; margin-left: 8px; }
+  #ptap { position: absolute; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%; background: rgba(255,255,255,0.75); border: 3px solid rgba(106,76,245,0.8); opacity: 0; z-index: 9; }
+  .wave { position: absolute; border-radius: 50%; border: 5px solid var(--marigold); opacity: 0; }
+  #beam { position: absolute; inset: 0; overflow: visible; }
+  .slip { position: absolute; left: 0; top: 0; width: 763px; height: 776px; border-radius: 14px; background-repeat: no-repeat; background-size: 1440px 900px; background-position: -466px -124px; box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6); opacity: 0; background-color: #fff; }
+  .slip::after { content: "PDF"; position: absolute; right: 22px; top: 18px; background: #e5383b; color: #fff; font: 800 22px "Inter"; padding: 6px 12px; border-radius: 8px; }
+  #wall { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; }
+  #wallin { position: absolute; display: grid; grid-template-columns: repeat(6, 720px); gap: 44px; transform-origin: 50% 50%; }
+  #wallin img { width: 720px; height: 450px; border-radius: 18px; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7); display: block; }
+  #wword { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-weight: 800; line-height: 1; opacity: 0; text-shadow: 0 10px 0 var(--violet), 0 30px 60px rgba(0,0,0,0.6); }
+  #end { position: absolute; inset: 0; opacity: 0; }
+  #end > div { position: absolute; left: 0; right: 0; text-align: center; }
+  #eprice span { display: inline-block; background: var(--marigold); color: var(--ink); border-radius: 999px; font-weight: 800; }
+  #eurl span { display: inline-block; border: 3px solid rgba(255,255,255,0.25); border-radius: 999px; background: rgba(255,255,255,0.06); font-weight: 700; }
+  #vhead { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 16px; font-weight: 800; opacity: 0; }
+  .conf { position: absolute; width: 16px; height: 26px; border-radius: 4px; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="full"></div>
+  <div class="blob" id="b1" style="background:#6a4cf5"></div>
+  <div class="blob" id="b2" style="background:#f2a93b"></div>
+  <div class="blob" id="b3" style="background:#12968a"></div>
+  <div id="grid" class="full"></div>
+
+  <div id="wall"><div id="wallin"></div></div>
+
+  <div id="cam">
+    <div id="browser">
+      <div id="chrome"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+        <div id="url"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c77a3" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span id="urltext"></span><span id="caret"></span></div>
+      </div>
+      <div id="vp">
+        <img class="pg" id="pgB" alt="">
+        <img class="pg" id="pgA" alt="">
+        <div id="hls"></div>
+        <div id="rips"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="fx">
+    <svg id="beam" width="100%" height="100%"><defs><linearGradient id="bg1" x1="0" x2="1"><stop offset="0" stop-color="#f2a93b"/><stop offset="1" stop-color="#8f7bff"/></linearGradient></defs><path id="beampath" fill="none" stroke="url(#bg1)" stroke-width="8" stroke-linecap="round"/><circle id="beamdot" r="16" fill="#fff"/></svg>
+    <div id="waves"><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
+    <div id="phone">
+      <div id="pnotch"></div>
+      <img id="ph1" src="img/phone_femi.png" alt="">
+      <img id="ph2" src="img/phone_bayo.png" alt="" style="opacity:0">
+      <div class="patch" id="patchSince" style="left:8px;top:120px;width:150px;height:24px;background:#f7f6fb;justify-content:flex-start;padding-left:4px;font-size:16px;color:#6e6990;opacity:0">Since 09:00</div>
+      <div class="patch d" id="patchTimer" style="left:112px;top:274px;width:168px;height:48px;background:#ecfdf5;font-size:46px;font-weight:800;color:#15123a;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;opacity:0">0:00:00</div>
+      <div class="patch" id="patchToday" style="left:95px;top:378px;width:200px;height:26px;background:#f7f6fb;font-size:17px;color:#6e6990;opacity:0">Today so far: 0h 00m</div>
+      <div id="pnotif"><svg viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg><div style="flex:1"><em>now</em><b>Time to clock in</b><span>Your work day starts at 09:00. Tap to clock in.</span></div></div>
+      <div id="ptap"></div>
+    </div>
+    <div id="slips"></div>
+    <div id="toasts"></div>
+    <div id="clock" class="d"></div>
+    <div id="clocksub"></div>
+    <div id="glitchband"></div>
+    <div id="glitch"></div>
+    <div id="sparks"></div>
+    <div id="rings"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
+    <div id="logo"><svg class="tile" id="ltile" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><clipPath id="sailclip"><rect id="lclip" x="0" y="0" width="48" height="0"/></clipPath><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff" clip-path="url(#sailclip)"/><rect id="lbase" x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg></div>
+    <div id="lbrand">Phantomire</div>
+    <div id="lword" class="d"></div>
+    <div id="ltag"></div>
+    <div id="giants"></div>
+    <div id="wword" class="d"></div>
+    <div id="caps"></div>
+    <div id="vhead" class="d"><svg width="64" height="64" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>Workbase</div>
+    <div id="end">
+      <div id="etile"><svg width="200" height="200" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg></div>
+      <div id="ebrand" style="color:var(--muted);letter-spacing:0.4em;font-weight:700;text-transform:uppercase">Phantomire</div>
+      <div id="ename" class="d" style="font-weight:800;line-height:1">Workbase</div>
+      <div id="etag" style="font-weight:600"></div>
+      <div id="eprice" class="d"><span>From ₦2,500 / person / month</span></div>
+      <div id="etrial" style="color:var(--muted)">Free for 3 people · 14-day free trial</div>
+      <div id="eurl"><span>phantomire-workforce.vercel.app</span></div>
+      <div id="ebuilt" style="color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;font-weight:600">Built in Lagos · for teams everywhere</div>
+    </div>
+    <div id="confetti"></div>
+    <svg id="cursor" viewBox="0 0 32 32"><path d="M5 3 L5 25 L11 19.5 L15 28.5 L19 26.8 L15.2 18 L23 18 Z" fill="#fff" stroke="#15123a" stroke-width="2" stroke-linejoin="round"/></svg>
+    <div class="flash" id="flashW" style="background:#fff"></div>
+    <div class="flash" id="flashV" style="background:#6a4cf5"></div>
+    <div class="flash" id="flashM" style="background:#f2a93b"></div>
+  </div>
+  <div id="vignette" class="full"></div>
+</div>
+
+<script>
+// ============================================================ setup
+const Q = new URLSearchParams(location.search);
+const FORMAT = Q.get("format") || "wide";
+const L = FORMAT === "wide";
+const W = L ? 1920 : 1080, H = L ? 1080 : 1920;
+const DUR = 62;
+const FIT = L ? 0.86 : 0.694;
+const AY = L ? 500 : 1075;            // screen y of the camera centre
+const CH = 44;                          // browser chrome height
+const $ = (id) => document.getElementById(id);
+const stage = $("stage");
+stage.style.width = W + "px"; stage.style.height = H + "px";
+
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const prog = (t, a, d) => clamp((t - a) / d);
+const lerp = (a, b, u) => a + (b - a) * u;
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const ei = (x) => x * x * x;
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c1 = 1.9, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const elastic = (x) => x <= 0 ? 0 : x >= 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * (2 * Math.PI / 3)) + 1;
+const win = (t, a, b, fi = 0.2, fo = 0.2) => Math.min(eo(prog(t, a, fi)), 1 - eio(prog(t, b - fo, fo)));
+function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const hash = (n) => { const r = rng(n * 7919 + 13); return r(); };
+
+// audio cue sheet (read by the sound script)
+const CUES = [];
+const cue = (t, type, d = 0, v = 1) => CUES.push({ t: +t.toFixed(3), type, d, v });
+
+// ============================================================ data
+const BOX = {
+  cta: [168, 589, 179, 50], adaeze: [317, 713, 192, 36], issue: [1145, 270, 234, 36], dark: [46, 809, 32, 28],
+  nav: { tasks: 447, chat: 409, leave: 523, expenses: 561, timesheets: 255, reviews: 599, team: 715, payroll: 791 },
+};
+const center = (b) => [b[0] + b[2] / 2, b[1] + b[3] / 2];
+const navC = (k) => [118, BOX.nav[k] + 18];
+
+const URLS = { home: "", overview: "/dashboard", activity: "/dashboard/activity", tasks: "/dashboard/tasks", chat: "/dashboard/chat", leave: "/dashboard/leave", expenses: "/dashboard/expenses", timesheets: "/dashboard/timesheets", reviews: "/dashboard/reviews", team: "/dashboard/team", payroll: "/dashboard/payroll", overview_dark: "/dashboard", note_dark: "/dashboard/notes" };
+
+// pages shown in the browser: [time, image, transition, origin]
+const PAGES = [
+  [10.0, "home", "cut"],
+  [12.95, "overview", "cut"],
+  [16.95, "activity", "cut"],
+];
+const MONTAGE = ["tasks", "chat", "leave", "expenses", "timesheets", "reviews", "team", "payroll"];
+const MT0 = 20.5;
+MONTAGE.forEach((p, i) => PAGES.push([MT0 + i, p, "whip"]));
+PAGES.push([34.8, "overview", "whip"]);
+PAGES.push([44.25, "overview_dark", "circle", center(BOX.dark)]);
+PAGES.push([47.0, "note_dark", "whip"]);
+
+// camera keys: [t, cx, cy, z, {zv, cxv, cyv}]  (browser coords; 720,472 = centre)
+const C0 = [720, 472];
+const CAM = [
+  [0, 720, 472, 1], [10, 720, 472, 1],
+  [11.2, 720, 472, 1], [12.3, 520, 480, 1.12, { zv: 1.55, cxv: 470 }],
+  [12.5, 520, 480, 1.12, { zv: 1.55, cxv: 470 }], [12.95, 257, 658, 7, { zv: 9, cxv: 257 }],
+  [12.951, 850, 260, 1.9, { zv: 2.6, cxv: 700 }, "cut"], [13.6, 720, 472, 1],
+  [13.9, 720, 472, 1], [14.6, 850, 209, 1.65, { zv: 2.3, cxv: 640 }],
+  [15.2, 850, 209, 1.65, { zv: 2.3, cxv: 640 }], [15.9, 830, 730, 1.45, { zv: 1.9, cxv: 760, cyv: 620 }],
+  [16.7, 830, 730, 1.45, { zv: 1.9, cxv: 760, cyv: 620 }], [16.95, 413, 775, 3.2, { zv: 4 }],
+  [16.951, 850, 420, 2.2, { zv: 2.8 }, "cut"], [17.5, 850, 414, 1.5, { zv: 2.0, cxv: 680, cyv: 330 }],
+  [18.9, 880, 414, 1.55, { zv: 2.05, cxv: 720, cyv: 330 }], [19.4, 1120, 724, 1.9, { zv: 2.5, cxv: 1180, cyv: 620 }],
+  [19.9, 1120, 724, 1.9, { zv: 2.5, cxv: 1180, cyv: 620 }], [20.25, 720, 472, 1],
+  // montage: beat pulses added in camAt()
+  [28.5, 720, 472, 1], [29.2, 850, 209, 1.7, { zv: 2.4, cxv: 600 }],
+  [30.5, 860, 209, 1.7, { zv: 2.4, cxv: 640 }], [30.9, 1000, 209, 2.0, { zv: 2.7, cxv: 1000 }],
+  [31.3, 1000, 209, 2.0, { zv: 2.7, cxv: 1000 }], [31.7, 760, 420, 1.0, { zv: 1.2, cxv: 900 }],
+  [34.8, 760, 420, 1.0, { zv: 1.2, cxv: 900 }],
+  [35.0, 720, 472, 1], [35.7, 1180, 472, 0.8, { zv: 0.95, cxv: 720, cyv: 860 }],
+  [42.0, 1180, 472, 0.8, { zv: 0.95, cxv: 720, cyv: 860 }], [42.8, 720, 472, 1],
+  [45.1, 720, 472, 1], [46.9, 700, 500, 1.14, { zv: 1.5, cxv: 560 }],
+  [47.0, 720, 472, 1, {}, "cut"], [47.6, 848, 360, 1.55, { zv: 2.15 }],
+  [49.5, 848, 360, 1.65, { zv: 2.3 }], [50.2, 720, 472, 0.6, { zv: 0.6 }],
+  [62, 720, 472, 0.6, { zv: 0.6 }],
+];
+function camAt(t) {
+  let i = 0;
+  while (i < CAM.length - 1 && CAM[i + 1][0] <= t) i++;
+  const a = CAM[i], b = CAM[Math.min(i + 1, CAM.length - 1)];
+  const pick = (k) => {
+    const o = k[4] || {};
+    return L ? [k[1], k[2], k[3]] : [o.cxv ?? k[1], o.cyv ?? k[2], o.zv ?? (k[3] > 1.02 ? k[3] * 1.4 : k[3])];
+  };
+  const A = pick(a), B = pick(b);
+  let u = b === a || b[5] === "cut" ? 0 : eio(prog(t, a[0], b[0] - a[0]));
+  if (b[5] === "cut" && t < b[0]) u = 0;
+  // zooms feel smoother interpolated in log space
+  const z = Math.exp(lerp(Math.log(A[2]), Math.log(B[2]), u));
+  let cx = lerp(A[0], B[0], u), cy = lerp(A[1], B[1], u);
+  let zz = z;
+  if (t >= MT0 - 0.0 && t < MT0 + MONTAGE.length) {
+    const k = (t - MT0) % 1;
+    zz = z * (1 + 0.07 * Math.exp(-k * 7));
+  }
+  return { cx, cy, s: FIT * zz };
+}
+const proj = (bx, by, c) => [W / 2 + (bx - c.cx) * c.s, AY + (by - c.cy) * c.s];
+const projVp = (x, y, c) => proj(x, y + CH, c);
+
+// cursor keys (viewport coords) and visibility
+const CUR = [];
+const CURVIS = [];
+const CLICKS = [];
+function curMove(t0, t1, from, to) { CUR.push([t0, from[0], from[1]], [t1, to[0], to[1]]); }
+function click(t, p) { CLICKS.push([t, p[0], p[1]]); cue(t, "click"); }
+// home -> cta
+CURVIS.push([11.2, 12.75]);
+curMove(11.2, 12.25, [1250, 860], center(BOX.cta)); click(12.45, center(BOX.cta));
+// overview -> adaeze
+CURVIS.push([15.3, 16.95]);
+curMove(15.3, 16.3, [1150, 560], center(BOX.adaeze)); click(16.55, center(BOX.adaeze));
+// activity -> montage through the sidebar
+CURVIS.push([19.7, 28.3]);
+let prevP = [900, 640];
+curMove(19.7, 19.75, prevP, prevP);
+MONTAGE.forEach((p, i) => {
+  const cut = MT0 + i;
+  const target = navC(p);
+  const from = i === 0 ? prevP : navC(MONTAGE[i - 1]);
+  curMove(cut - (i === 0 ? 0.55 : 0.5), cut - 0.17, i === 0 ? [900, 640] : [from[0] + 170, from[1] + 60], target);
+  click(cut - 0.1, target);
+  if (i < MONTAGE.length - 1) curMove(cut + 0.05, cut + 0.3, target, [target[0] + 170, target[1] + 60]);
+});
+// payroll -> issue payslips
+CURVIS.push([31.2, 32.4]);
+curMove(31.2, 31.85, [1000, 600], center(BOX.issue)); click(32.0, center(BOX.issue));
+// dark mode toggle
+CURVIS.push([43.0, 45.0]);
+curMove(43.0, 43.95, [780, 520], center(BOX.dark)); click(44.15, center(BOX.dark));
+CUR.sort((a, b) => a[0] - b[0]);
+function curAt(t) {
+  let i = 0;
+  while (i < CUR.length - 1 && CUR[i + 1][0] <= t) i++;
+  const a = CUR[i], b = CUR[Math.min(i + 1, CUR.length - 1)];
+  if (b === a || b[0] === a[0]) return [a[1], a[2]];
+  const u = eio(prog(t, a[0], b[0] - a[0]));
+  const x = lerp(a[1], b[1], u), y = lerp(a[2], b[2], u);
+  // a slight arc, like a real hand
+  const dx = b[1] - a[1], dy = b[2] - a[2], len = Math.hypot(dx, dy) || 1;
+  const arc = Math.sin(Math.PI * u) * Math.min(80, len * 0.12);
+  return [x - (dy / len) * arc, y + (dx / len) * arc];
+}
+
+// highlights in viewport coords
+const HL = [
+  [12.2, 12.9, 160, 581, 195, 66],
+  [14.6, 15.25, 300, 112, 1100, 104],
+  [16.1, 16.95, 300, 700, 1098, 60],
+  [30.8, 31.6, 865, 110, 268, 104],
+  [39.4, 42.2, 300, 823, 1098, 60],
+];
+// captions [t0, t1, html]
+const CAPS = [
+  [13.7, 15.2, "Who's working. <em>Right now.</em>"],
+  [15.35, 16.85, "Status. Hours. Activity. <em>Live.</em>"],
+  [17.35, 18.95, "Every 10 seconds. <em>Active vs idle.</em>"],
+  [19.05, 20.25, "Plus what actually <em>got done.</em>"],
+  [20.55, 21.45, "Assign it. Track it. <em>Done.</em>"],
+  [21.55, 22.45, "Groups, DMs, files, <em>@mentions</em>"],
+  [22.55, 23.45, "Leave + <em>public holidays</em>"],
+  [23.55, 24.45, "Snap the receipt. <em>Get paid back.</em>"],
+  [24.55, 25.45, "Timesheets → <em>CSV</em>"],
+  [25.55, 26.45, "Goals & <em>reviews</em>"],
+  [26.55, 27.45, "Invite by <em>WhatsApp</em>"],
+  [27.55, 28.45, "And payroll…"],
+  [28.7, 31.4, "Nigerian <em>PAYE</em>, pension & NHF. Done."],
+  [32.1, 34.6, "Payslips as PDF, <em>straight to their inbox.</em>"],
+  [35.9, 38.3, "<em>9:00.</em> Their phone rings."],
+  [38.5, 41.9, "Clock in <em>from anywhere.</em>"],
+  [44.4, 46.85, "Late shift? <em>Dark mode.</em>"],
+  [47.3, 49.7, "And yes… <em>sticky notes.</em>"],
+];
+const GIANTS = MONTAGE.map((p, i) => [MT0 + i, p.toUpperCase()]);
+const WALLWORDS = [[50.5, "TIME"], [51.0, "TASKS"], [51.5, "CHAT"], [52.0, "LEAVE"], [52.5, "PAYROLL"], [53.0, "REVIEWS"], [53.5, "NOTES"], [54.0, "ALL IN ONE."]];
+const FLASHES = [["flashM", 4.0, 0.35, 0.85], ["flashW", 7.0, 0.5, 1], ["flashV", 12.93, 0.3, 0.9], ["flashW", 16.93, 0.2, 0.5], ["flashW", 50.0, 0.4, 0.8], ["flashV", 55.0, 0.6, 0.9]];
+const SHAKES = [[4.0, 0.9, 26], [8.5, 0.35, 14], [36.3, 1.6, 6], [50.0, 0.4, 14], [55.0, 0.45, 16]];
+
+// ============================================================ build DOM
+const toasts = $("toasts");
+const TOASTS = [];
+{
+  const r = rng(42);
+  const names = ["Time to clock in", "Time to clock in", "Adaeze, it's 9:00", "Tunde, clock in?", "Time to clock in", "Kemi, good morning", "Chiamaka, it's 9:00", "Time to clock in"];
+  for (let i = 0; i < 38; i++) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.innerHTML = `<svg viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg><div style="flex:1"><em>now</em><b>${names[i % names.length]}</b><span>Your work day starts at 09:00</span></div>`;
+    toasts.appendChild(el);
+    const t = 4.05 + Math.pow(i / 38, 1.3) * 1.25;
+    TOASTS.push({ el, t, x: r() * (W - 300) - 80, y: r() * (H - 60) - 40, rot: (r() - 0.5) * 18, s: 0.8 + r() * 0.35 });
+    if (i % 3 === 0) cue(t, "pop", 0, 0.5);
+  }
+}
+const sparks = $("sparks");
+const SPARKS = [];
+{
+  const r = rng(7);
+  for (let i = 0; i < 46; i++) {
+    const el = document.createElement("div");
+    el.className = "spark";
+    el.style.background = ["#6a4cf5", "#f2a93b", "#ffffff", "#8f7bff"][i % 4];
+    sparks.appendChild(el);
+    SPARKS.push({ el, a: r() * Math.PI * 2, d: 300 + r() * (L ? 700 : 520), s: 0.6 + r() * 1.4 });
+  }
+}
+const word = "Workbase";
+$("lword").innerHTML = [...word].map((c) => `<span>${c}</span>`).join("");
+$("ltag").textContent = "Your whole remote team. One place.";
+const caps = $("caps");
+const CAPEL = CAPS.map(([t0, t1, html]) => {
+  const el = document.createElement("div");
+  el.className = "cap d";
+  // wrap words, keeping <em> intact
+  const tmp = document.createElement("div"); tmp.innerHTML = html;
+  const out = [];
+  tmp.childNodes.forEach((n) => {
+    if (n.nodeType === 3) n.textContent.split(/(\s+)/).forEach((w) => out.push(/\s+/.test(w) ? " " : w ? `<span class="w">${w}</span>` : ""));
+    else n.textContent.split(/(\s+)/).forEach((w) => out.push(/\s+/.test(w) ? " " : w ? `<span class="w"><em>${w}</em></span>` : ""));
+  });
+  el.innerHTML = `<span class="in">${out.join("")}</span>`;
+  caps.appendChild(el);
+  return { el, t0, t1, words: [...el.querySelectorAll(".w")] };
+});
+const giants = $("giants");
+const GEL = GIANTS.map(([t, txt]) => {
+  const el = document.createElement("div");
+  el.className = "giant d";
+  el.innerHTML = `<div class="f">${txt}</div><div class="o">${txt}</div>`;
+  giants.appendChild(el);
+  return { el, t };
+});
+const hls = $("hls");
+const HLEL = HL.map(([t0, t1, x, y, w, h]) => {
+  const el = document.createElement("div"); el.className = "hl";
+  Object.assign(el.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+  hls.appendChild(el); return { el, t0, t1 };
+});
+const rips = $("rips");
+const RIPEL = CLICKS.map(([t, x, y]) => {
+  const el = document.createElement("div"); el.className = "rip";
+  el.style.left = x + "px"; el.style.top = y + "px";
+  rips.appendChild(el); return { el, t };
+});
+const SLIPS = [0, 1, 2].map((i) => { const el = document.createElement("div"); el.className = "slip"; el.style.backgroundImage = "url(img/payslip.png)"; $("slips").appendChild(el); return el; });
+{
+  const imgs = ["overview", "payroll", "chat", "tasks", "leave", "activity_dark", "expenses", "timesheets", "reviews", "team", "note_dark", "payslip", "overview_dark", "home", "activity", "note"];
+  const wi = $("wallin");
+  for (let i = 0; i < 48; i++) { const im = document.createElement("img"); im.src = "thumbs/" + imgs[(i * 7) % imgs.length] + ".jpg"; wi.appendChild(im); }
+}
+const CONF = [];
+{
+  const r = rng(99);
+  for (let i = 0; i < 70; i++) {
+    const el = document.createElement("div"); el.className = "conf";
+    el.style.background = ["#6a4cf5", "#f2a93b", "#ffffff", "#12968a", "#e5383b"][i % 5];
+    $("confetti").appendChild(el);
+    CONF.push({ el, x: r() * W, vx: (r() - 0.5) * 300, vy: -(400 + r() * 900), rot: r() * 360, vr: (r() - 0.5) * 900, delay: r() * 0.25 });
+  }
+}
+
+// static layout per format
+const S = (el, o) => Object.assign(el.style, o);
+S($("clock"), { top: (L ? 330 : 760) + "px", fontSize: (L ? 250 : 190) + "px" });
+S($("clocksub"), { top: (L ? 640 : 1020) + "px", fontSize: (L ? 34 : 34) + "px" });
+S($("logo"), { top: (L ? 220 : 620) + "px" });
+S($("lbrand"), { top: (L ? 520 : 920) + "px", fontSize: "34px" });
+S($("lword"), { top: (L ? 570 : 970) + "px", fontSize: (L ? 190 : 170) + "px" });
+S($("ltag"), { top: (L ? 810 : 1190) + "px", fontSize: (L ? 46 : 44) + "px" });
+S($("glitch"), { top: (L ? 440 : 860) + "px" });
+S($("glitchband"), { top: (L ? 400 : 820) + "px", height: (L ? 240 : 300) + "px" });
+S($("vhead"), { top: "120px", fontSize: "54px" });
+S($("wword"), { fontSize: (L ? 230 : 170) + "px", marginTop: (L ? -115 : -85) + "px" });
+const gl = ["#00e5ff", "#ff2e63", "#ffffff"].map((c) => { const d = document.createElement("div"); d.className = "gl d"; d.style.color = c; d.style.fontSize = (L ? 150 : 120) + "px"; d.style.lineHeight = "1"; d.innerHTML = L ? "WHERE IS EVERYONE?" : "WHERE IS<br>EVERYONE?"; if (c !== "#ffffff") d.style.mixBlendMode = "screen"; $("glitch").appendChild(d); return d; });
+{
+  const e = L
+    ? { etile: 150, ebrand: 380, ename: 425, etag: 580, eprice: 665, etrial: 790, eurl: 860, ebuilt: 990 }
+    : { etile: 430, ebrand: 680, ename: 730, etag: 900, eprice: 1060, etrial: 1180, eurl: 1270, ebuilt: 1460 };
+  for (const [k, v] of Object.entries(e)) $(k).style.top = v + "px";
+  $("ename").style.fontSize = (L ? 150 : 150) + "px";
+  $("ebrand").style.fontSize = "34px";
+  $("etag").style.fontSize = (L ? 44 : 42) + "px";
+  $("etag").innerHTML = L ? "Time, tasks, chat, leave & Nigerian payroll for remote teams." : "Time, tasks, chat, leave &amp;<br>Nigerian payroll for remote teams.";
+  S($("eprice").firstChild, { fontSize: (L ? 46 : 46) + "px", padding: "18px 46px" });
+  $("etrial").style.fontSize = "34px";
+  S($("eurl").firstChild, { fontSize: (L ? 40 : 40) + "px", padding: "16px 40px" });
+  $("ebuilt").style.fontSize = "24px";
+}
+CAPEL.forEach((c) => { S(c.el, { top: (L ? 930 : 300) + "px", fontSize: (L ? 58 : 62) + "px" }); if (!L) { c.el.style.whiteSpace = "normal"; c.el.style.width = "960px"; c.el.firstChild.style.maxWidth = "960px"; } });
+GEL.forEach((g) => (g.el.style.fontSize = (L ? 330 : 250) + "px"));
+
+// cue sheet for the rest
+[0, 1, 2, 3].forEach((s) => cue(s, "tick"));
+cue(2.0, "riser", 2.0); cue(4.0, "boom", 0, 1.2); cue(4.0, "alarm", 2.2);
+cue(5.0, "glitch", 1.3); cue(6.25, "suck", 0.75); cue(7.0, "boom", 0, 1); cue(7.0, "whoosh", 0.6);
+[..."Workbase"].forEach((_, i) => cue(8.0 + i * 0.05, "tick2", 0, 0.5)); cue(8.5, "slam");
+cue(9.6, "whoosh", 0.5); cue(10.0, "whoosh", 0.7);
+"phantomire-workforce.vercel.app".split("").forEach((_, i) => cue(10.4 + i * 0.032, "type", 0, 0.35));
+cue(12.55, "zoom", 0.4); cue(12.95, "boom", 0, 0.6);
+cue(16.7, "zoom", 0.25); cue(16.95, "hit", 0, 0.5); cue(18.9, "riser", 1.5, 0.6);
+MONTAGE.forEach((_, i) => cue(MT0 + i, "whip", 0.25));
+cue(30.85, "ding"); cue(32.15, "swish"); cue(32.3, "swish"); cue(32.45, "swish"); cue(34.0, "whoosh", 0.5);
+cue(34.8, "whip", 0.25); cue(35.2, "whoosh", 0.6); cue(36.2, "pop"); cue(36.3, "ring", 1.75); cue(38.3, "tap"); cue(38.65, "beam", 0.85); cue(39.45, "ding");
+cue(42.0, "whoosh", 0.6); cue(44.25, "reveal", 0.85); cue(47.0, "whip", 0.25); cue(49.5, "riser", 0.6);
+cue(50.0, "boom", 0, 0.8); WALLWORDS.forEach(([t], i) => cue(t, "hit", 0, i === WALLWORDS.length - 1 ? 1 : 0.6));
+cue(54.6, "riser", 0.4, 0.5); cue(55.0, "boom", 0, 1.2); cue(55.05, "chime");
+[55.6, 56.0, 56.4, 56.8, 57.2].forEach((t) => cue(t, "pop", 0, 0.45)); cue(58.2, "click");
+CUES.sort((a, b) => a.t - b.t);
+window.CUES = CUES;
+
+// ============================================================ render
+const pgA = $("pgA"), pgB = $("pgB");
+let lastA = "", lastB = "";
+function setImg(el, name, key) { if (key === name) return name; el.src = "img/" + name + ".png"; return name; }
+
+function render(t) {
+  // ---------- background
+  const bgPulse = t >= MT0 && t < MT0 + 8 ? Math.exp(-((t - MT0) % 0.5) * 8) * 0.15 : 0;
+  S($("b1"), { width: W * 0.9 + "px", height: W * 0.9 + "px", left: W * (0.1 + 0.25 * Math.sin(t * 0.21)) - W * 0.45 + "px", top: H * (0.15 + 0.2 * Math.cos(t * 0.17)) - W * 0.45 + "px", opacity: 0.42 + bgPulse * 2 });
+  S($("b2"), { width: W * 0.6 + "px", height: W * 0.6 + "px", left: W * (0.85 + 0.15 * Math.cos(t * 0.23)) - W * 0.3 + "px", top: H * (0.85 + 0.1 * Math.sin(t * 0.19)) - W * 0.3 + "px", opacity: 0.22 + bgPulse });
+  S($("b3"), { width: W * 0.5 + "px", height: W * 0.5 + "px", left: W * (0.2 + 0.1 * Math.sin(t * 0.3)) - W * 0.25 + "px", top: H * (0.9) - W * 0.25 + "px", opacity: 0.12 });
+  $("grid").style.backgroundPosition = `${-t * 20}px ${-t * 34}px`;
+  $("grid").style.opacity = t < 4 ? 0.3 : 1;
+
+  // ---------- shake
+  let sx = 0, sy = 0;
+  for (const [a, d, amp] of SHAKES) if (t >= a && t < a + d) { const k = 1 - (t - a) / d; const f = Math.floor(t * 30); sx += (hash(f) - 0.5) * 2 * amp * k; sy += (hash(f + 999) - 0.5) * 2 * amp * k; }
+  stage.style.transform = `translate(${sx}px, ${sy}px)`;
+
+  // ---------- cold open clock (0 - 4.6)
+  const clockOn = t < 6.4;
+  const sec = t < 4 ? 56 + Math.floor(t) : 0;
+  $("clock").textContent = t < 4 ? `08:59:${sec}` : "09:00:00";
+  const tickK = t < 4 ? Math.exp(-(t % 1) * 9) : Math.exp(-(t - 4) * 5);
+  const clockIn = eo(prog(t, 0.05, 0.5));
+  S($("clock"), { opacity: clockOn ? clockIn * (1 - eio(prog(t, 5.0, 0.5))) : 0, color: t < 4 ? "#f7f6fb" : "#f2a93b", transform: `scale(${(t < 4 ? 1 + 0.035 * tickK : 1 + 0.18 * tickK) * (0.9 + 0.1 * clockIn)})`, textShadow: t >= 4 ? "0 0 80px rgba(242,169,59,0.6)" : "0 0 50px rgba(143,123,255,0.35)" });
+  S($("clocksub"), { opacity: clockOn ? eo(prog(t, 0.6, 0.6)) * (1 - eio(prog(t, 4.0, 0.3))) : 0 });
+  $("clocksub").textContent = "Monday morning · Lagos";
+
+  // ---------- toast storm (4.05 - 7)
+  for (const o of TOASTS) {
+    if (t < o.t || t > 7.1) { o.el.style.opacity = 0; continue; }
+    const p = back(prog(t, o.t, 0.3));
+    const suck = ei(prog(t, 6.25 + (o.t - 4) * 0.12, 0.6));
+    const cx = W / 2 - 235, cy = H / 2 - 50;
+    const x = lerp(o.x, cx, suck), y = lerp(o.y, cy, suck);
+    const ang = o.rot + suck * 540;
+    o.el.style.opacity = Math.min(1, prog(t, o.t, 0.08)) * (1 - prog(t, 6.7, 0.3));
+    o.el.style.transform = `translate(${x}px, ${y}px) rotate(${ang}deg) scale(${o.s * (0.4 + 0.6 * p) * (1 - suck * 0.95)})`;
+  }
+
+  // ---------- glitch title (5.0 - 6.4)
+  const gOn = t >= 5.0 && t < 6.45;
+  const gA = gOn ? Math.min(1, prog(t, 5.0, 0.06)) * (1 - prog(t, 6.2, 0.25)) : 0;
+  $("glitch").style.opacity = gA;
+  $("glitchband").style.opacity = gA * 0.9;
+  $("glitchband").style.transform = `scaleY(${eo(prog(t, 5.0, 0.15))})`;
+  if (gOn) {
+    const f = Math.floor(t * 30);
+    gl.forEach((d, i) => {
+      const j = (hash(f * 3 + i) - 0.5) * (i === 2 ? 6 : 28);
+      const sl = hash(f * 5 + i) * 70, sh = 8 + hash(f * 11 + i) * 30;
+      d.style.transform = `translate(${j}px, ${(hash(f + i * 7) - 0.5) * 8}px)`;
+      d.style.clipPath = i === 2 || hash(f + 3) > 0.6 ? "none" : `inset(${sl}% 0 ${Math.max(0, 100 - sl - sh)}% 0)`;
+    });
+  }
+
+  // ---------- flashes
+  for (const id of ["flashW", "flashV", "flashM"]) $(id).style.opacity = 0;
+  for (const [id, a, d, pk] of FLASHES) if (t >= a - 0.05 && t < a + d) { const k = t < a ? (t - a + 0.05) / 0.05 : 1 - (t - a) / d; $(id).style.opacity = Math.max(+$(id).style.opacity, pk * k * k); }
+
+  // ---------- logo (7 - 10)
+  const logoOn = t >= 6.95 && t < 10.3;
+  const out = eio(prog(t, 9.6, 0.6));
+  const tile = back(prog(t, 7.0, 0.65));
+  const lcy = L ? 350 : 750;
+  S($("logo"), { opacity: logoOn ? Math.min(1, prog(t, 7.0, 0.1)) * (1 - out) : 0, transform: `translateY(${-out * 60}px) scale(${1 + out * 2.5})` });
+  $("ltile").style.transform = `scale(${tile}) rotate(${(1 - tile) * -200}deg)`;
+  const sail = eo(prog(t, 7.35, 0.55));
+  $("lclip").setAttribute("height", 48 * sail); $("lclip").setAttribute("y", 28 - 28 * sail);
+  $("lbase").setAttribute("width", 30 * eo(prog(t, 7.7, 0.45)));
+  [...$("lword").children].forEach((s, i) => {
+    const p = prog(t, 8.0 + i * 0.05, 0.28);
+    s.style.transform = `translateY(${(1 - eo(p)) * -260}px) scale(${1 + (1 - eo(p)) * 0.6})`;
+    s.style.opacity = Math.min(1, p * 3);
+  });
+  S($("lword"), { opacity: logoOn ? 1 - out : 0, transform: `scale(${1 + out * 0.6})` });
+  S($("lbrand"), { opacity: logoOn ? eo(prog(t, 8.45, 0.4)) * (1 - out) : 0, letterSpacing: lerp(0.9, 0.42, eo(prog(t, 8.45, 0.6))) + "em" });
+  S($("ltag"), { opacity: logoOn ? eo(prog(t, 8.9, 0.45)) * (1 - out) : 0, transform: `translateY(${(1 - eo(prog(t, 8.9, 0.45))) * 30}px)` });
+  [...$("rings").children].forEach((r, i) => {
+    const a = [7.55, 8.5, 8.75][i];
+    const p = prog(t, a, 0.9);
+    const R = eo(p) * (L ? 900 : 700);
+    S(r, { left: W / 2 - R + "px", top: lcy - R + "px", width: 2 * R + "px", height: 2 * R + "px", opacity: t >= a && p < 1 ? (1 - p) * 0.8 : 0, borderWidth: 2 + (1 - p) * 10 + "px", borderColor: i === 1 ? "#8f7bff" : "#f2a93b" });
+  });
+  for (const o of SPARKS) {
+    const p = prog(t, 7.5, 1.4);
+    const d = eo(p) * o.d;
+    S(o.el, { left: W / 2 + Math.cos(o.a) * d + "px", top: lcy + Math.sin(o.a) * d + "px", opacity: t >= 7.5 && p < 1 ? (1 - p) : 0, transform: `scale(${o.s * (1 - p * 0.6)})` });
+  }
+
+  // ---------- camera + browser
+  const c = camAt(t);
+  $("cam").style.transform = `translate(${W / 2 - c.cx * c.s}px, ${AY - c.cy * c.s}px) scale(${c.s})`;
+  let bOp = 0, bT = "";
+  if (t >= 10 && t < 51) {
+    const fin = eo(prog(t, 10.0, 1.0));
+    bOp = Math.min(1, prog(t, 10.0, 0.25));
+    bT = `perspective(2400px) translateZ(${-2600 * (1 - fin)}px) rotateX(${62 * (1 - fin)}deg) rotateZ(${-8 * (1 - fin)}deg)`;
+    // phone scene: turn towards the phone
+    const turn = eio(prog(t, 35.0, 0.7)) * (1 - eio(prog(t, 42.0, 0.8)));
+    if (turn > 0) bT += ` perspective(2400px) rotateY(${(L ? 16 : 10) * turn}deg)`;
+    // wall: the browser flies back into the wall
+    const go = eio(prog(t, 49.9, 0.7));
+    if (go > 0) { bT += ` translateZ(${-1200 * go}px) rotateX(${30 * go}deg)`; bOp *= 1 - go; }
+  }
+  S($("browser"), { opacity: bOp, transform: bT });
+
+  // pages
+  let pi = -1;
+  for (let i = 0; i < PAGES.length; i++) if (t >= PAGES[i][0]) pi = i;
+  if (pi >= 0) {
+    const [pt, name, tr, origin] = PAGES[pi];
+    const prev = pi > 0 ? PAGES[pi - 1][1] : null;
+    lastA = setImg(pgA, name, lastA);
+    const k = t - pt;
+    S(pgA, { transform: "none", filter: "none", opacity: 1, clipPath: "none" });
+    pgB.style.opacity = 0;
+    if (tr === "whip" && k < 0.24 && prev) {
+      const u = eio(k / 0.24);
+      lastB = setImg(pgB, prev, lastB);
+      S(pgB, { opacity: 1 - u, transform: `translateX(${-u * 700}px) skewX(${u * 8}deg)`, filter: `blur(${u * 18}px)` });
+      S(pgA, { transform: `translateX(${(1 - u) * 700}px) skewX(${(1 - u) * 8}deg)`, filter: `blur(${(1 - u) * 18}px)`, opacity: Math.min(1, u * 2) });
+    }
+    if (tr === "circle" && k < 0.85 && prev) {
+      const u = eio(k / 0.85);
+      lastB = setImg(pgB, prev, lastB);
+      S(pgB, { opacity: 1, transform: "none", filter: "none" });
+      pgA.style.clipPath = `circle(${u * 1750}px at ${origin[0]}px ${origin[1]}px)`;
+    }
+    // address bar
+    const dark = name.endsWith("_dark") && (tr !== "circle" || k > 0.4);
+    $("chrome").style.background = dark ? "#1c1847" : "#ecebf3";
+    $("chrome").style.borderBottomColor = dark ? "#2c2760" : "#dddbe8";
+    $("url").style.background = dark ? "#110e33" : "#fff";
+    $("url").style.color = dark ? "#b7b2d6" : "#4a4570";
+    const host = "phantomire-workforce.vercel.app";
+    let txt = host + (URLS[name] ?? "");
+    if (name === "home") txt = host.slice(0, Math.floor(clamp((t - 10.4) / 0.032, 0, host.length)));
+    $("urltext").innerHTML = `<b>${txt.slice(0, host.length)}</b>${txt.slice(host.length)}`;
+    $("caret").style.opacity = name === "home" && t < 11.9 && Math.floor(t * 3) % 2 === 0 ? 1 : 0;
+  }
+
+  // highlights + ripples
+  for (const h of HLEL) {
+    const on = t >= h.t0 && t < h.t1;
+    const pulse = 1 + 0.025 * Math.sin((t - h.t0) * 9);
+    h.el.style.opacity = on ? win(t, h.t0, h.t1, 0.15, 0.2) : 0;
+    h.el.style.transform = `scale(${on ? pulse * (0.94 + 0.06 * eo(prog(t, h.t0, 0.25))) : 1})`;
+  }
+  for (const r of RIPEL) {
+    const p = prog(t, r.t, 0.55);
+    r.el.style.opacity = t >= r.t && p < 1 ? 1 - p : 0;
+    r.el.style.transform = `scale(${1 + eo(p) * 3.2})`;
+  }
+
+  // cursor (screen space)
+  let cv = 0;
+  for (const [a, b] of CURVIS) if (t >= a && t < b) cv = win(t, a, b, 0.15, 0.2);
+  const [ux, uy] = curAt(t);
+  const [sx2, sy2] = projVp(ux, uy, c);
+  let press = 1;
+  for (const [ct] of CLICKS) if (t >= ct - 0.06 && t < ct + 0.16) press = 0.8;
+  const cs = L ? 1 : 1.15;
+  S($("cursor"), { opacity: cv, transform: `translate(${sx2 - 6}px, ${sy2 - 4}px) scale(${press * cs})` });
+
+  // captions
+  for (const cp of CAPEL) {
+    const on = t >= cp.t0 - 0.05 && t < cp.t1 + 0.05;
+    if (!on) { cp.el.style.opacity = 0; continue; }
+    const o = 1 - eio(prog(t, cp.t1 - 0.18, 0.18));
+    cp.el.style.opacity = o;
+    cp.el.style.transform = `translateX(-50%) translateY(${-eio(prog(t, cp.t1 - 0.18, 0.18)) * 30}px) scale(${0.92 + 0.08 * back(prog(t, cp.t0, 0.3))})`;
+    cp.words.forEach((w, i) => {
+      const p = prog(t, cp.t0 + i * 0.045, 0.22);
+      w.style.opacity = eo(p);
+      w.style.transform = `translateY(${(1 - eo(p)) * 28}px)`;
+      w.style.filter = `blur(${(1 - eo(p)) * 8}px)`;
+    });
+  }
+
+  // giant montage words
+  for (const g of GEL) {
+    const k = t - g.t;
+    if (k < 0 || k > 1.0) { g.el.style.opacity = 0; continue; }
+    const u = k / 1.0;
+    const m = 0.5 + 4 * Math.pow(u - 0.5, 3);       // fast - slow - fast
+    const x = lerp(W * 0.9, -W * 0.9, m);
+    g.el.style.opacity = Math.min(1, k * 8) * (1 - prog(k, 0.85, 0.15));
+    g.el.style.transform = `translate(calc(-50% + ${x}px), -50%) rotate(-6deg)`;
+    g.el.querySelector(".f").style.transform = `translate(${12 + 6 * Math.sin(k * 20)}px, 14px)`;
+  }
+
+  // vertical header
+  $("vhead").style.opacity = !L && t > 10.2 && t < 50 ? win(t, 10.2, 50, 0.4, 0.4) * 0.95 : 0;
+
+  // ---------- payslips fly out (32.1 - 34.6)
+  SLIPS.forEach((el, i) => {
+    const a = 32.1 + i * 0.15;
+    if (t < a || t > 34.8) { el.style.opacity = 0; return; }
+    const p = back(prog(t, a, 0.7));
+    const gone = ei(prog(t, 33.9 + i * 0.08, 0.6));
+    const tx = L ? [-560, 0, 560][i] : [-300, 0, 300][i];
+    const ty = L ? [30, -20, 30][i] : [80, -40, 80][i];
+    const rz = [-12, 2, 14][i];
+    const sc = (L ? 0.62 : 0.55) * (0.25 + 0.75 * eo(prog(t, a, 0.6)));
+    const x = W / 2 + tx * p + gone * (L ? 1400 : 900), y = (L ? 470 : 1000) + ty * p - gone * 600;
+    el.style.opacity = Math.min(1, prog(t, a, 0.1));
+    el.style.transform = `translate(${x - 381}px, ${y - 388}px) perspective(1600px) rotateY(${(1 - p) * 70}deg) rotateZ(${rz * p + gone * 40}deg) scale(${sc})`;
+  });
+
+  // ---------- phone (35.2 - 42.8)
+  const phIn = eo(prog(t, 35.2, 0.75)), phOut = ei(prog(t, 41.9, 0.7));
+  const phOn = t >= 35.2 && t < 42.7;
+  const pcx = L ? 1470 : 740, pcy = L ? 540 : 1370, psc = L ? 0.93 : 0.98;
+  let shake = 0;
+  if (t > 36.3 && t < 38.05) shake = Math.sin(t * 80) * 7 * (0.6 + 0.4 * Math.sin(t * 6));
+  const phx = pcx + (1 - phIn) * 700 + phOut * 800 + shake, phy = pcy + (1 - phIn) * 300 + phOut * 200;
+  S($("phone"), { opacity: phOn ? 1 : 0, transform: `translate(${phx - 209}px, ${phy - 436}px) rotate(${(1 - phIn) * 25 + phOut * 20 + shake * 0.4}deg) scale(${psc})` });
+  const nIn = back(prog(t, 36.2, 0.45)), nOut = eio(prog(t, 38.05, 0.3));
+  S($("pnotif"), { opacity: Math.min(1, prog(t, 36.2, 0.15)) * (1 - nOut), transform: `translateY(${-140 * (1 - nIn) - 160 * nOut}px)` });
+  const tapP = prog(t, 38.3, 0.45);
+  S($("ptap"), { left: "195px", top: "450px", opacity: t >= 38.25 && tapP < 1 ? 1 - tapP : 0, transform: `scale(${0.6 + tapP * 2})` });
+  const on2 = t >= 38.45;
+  $("ph2").style.opacity = on2 ? Math.min(1, prog(t, 38.45, 0.12)) : 0;
+  const secs = Math.max(0, Math.floor(t - 38.45));
+  $("patchTimer").textContent = `0:00:${String(secs).padStart(2, "0")}`;
+  for (const id of ["patchSince", "patchTimer", "patchToday"]) $(id).style.opacity = $("ph2").style.opacity;
+  $("patchToday").textContent = "Today so far: 0h 00m";
+  [...$("waves").children].forEach((w, i) => {
+    const a = 36.35 + i * 0.4;
+    const p = ((t - a) % 1.2) / 1.2;
+    const R = 220 + p * 380;
+    S(w, { left: phx - R + "px", top: phy - R + "px", width: 2 * R + "px", height: 2 * R + "px", opacity: t > a && t < 38.1 ? (1 - p) * 0.75 : 0 });
+  });
+  // beam from the phone to Bayo's row
+  const bp = prog(t, 38.65, 0.85);
+  const beamOn = t >= 38.65 && t < 39.9;
+  const A = [phx + (195 - 195) * psc, phy + (450 - 422) * psc];
+  const Bp = projVp(560, 853, c);
+  const mx = (A[0] + Bp[0]) / 2, my = Math.min(A[1], Bp[1]) - (L ? 260 : 300);
+  const qb = (u) => [(1 - u) * (1 - u) * A[0] + 2 * (1 - u) * u * mx + u * u * Bp[0], (1 - u) * (1 - u) * A[1] + 2 * (1 - u) * u * my + u * u * Bp[1]];
+  const head = eio(bp), tail = eio(prog(t, 38.9, 0.9));
+  let d = "";
+  for (let k = 0; k <= 30; k++) { const u = lerp(tail, head, k / 30); const [x, y] = qb(u); d += (k ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1); }
+  $("beampath").setAttribute("d", d);
+  $("beampath").style.opacity = beamOn ? 1 : 0;
+  const [dx2, dy2] = qb(head);
+  $("beamdot").setAttribute("cx", dx2); $("beamdot").setAttribute("cy", dy2);
+  $("beamdot").style.opacity = beamOn && bp < 1 ? 1 : 0;
+  $("beamdot").style.filter = "drop-shadow(0 0 18px #f2a93b)";
+
+  // ---------- wall (50 - 62)
+  const wallOn = t >= 49.9;
+  const wIn = eo(prog(t, 49.9, 0.8));
+  const wDim = eio(prog(t, 54.7, 0.6));
+  $("wall").style.opacity = wallOn ? wIn * (1 - wDim * 0.82) : 0;
+  const scroll = (t - 49.9) * 260;
+  const wz = lerp(1.25, 0.82, eio(prog(t, 49.9, 5)));
+  $("wallin").style.transform = `translate(-50%, -50%) perspective(2600px) rotateX(${L ? 48 : 40}deg) rotateZ(-24deg) translateY(${-scroll}px) scale(${wz * (L ? 1 : 0.95)})`;
+  const ww = WALLWORDS.filter(([a]) => t >= a).pop();
+  if (ww && t < 54.75) {
+    const k = t - ww[0];
+    const last = ww[1] === "ALL IN ONE.";
+    $("wword").textContent = ww[1];
+    $("wword").style.opacity = 1 - (last ? eio(prog(t, 54.5, 0.25)) : 0);
+    $("wword").style.transform = `scale(${1 + 0.35 * Math.exp(-k * 10)}) rotate(${last ? 0 : (hash(Math.floor(ww[0] * 10)) - 0.5) * 8}deg)`;
+    $("wword").style.color = last ? "#f2a93b" : "#ffffff";
+  } else $("wword").style.opacity = 0;
+
+  // ---------- end card (55 - 62)
+  const eOn = t >= 54.95;
+  $("end").style.opacity = eOn ? 1 : 0;
+  const el = (id, a, dy = 40) => { const p = eo(prog(t, a, 0.55)); S($(id), { opacity: p, transform: `translateY(${(1 - p) * dy}px)` }); };
+  const et = back(prog(t, 55.0, 0.7));
+  S($("etile"), { opacity: Math.min(1, prog(t, 55.0, 0.15)), transform: `scale(${et}) rotate(${(1 - et) * 120}deg)` });
+  el("ebrand", 55.35); el("ename", 55.5, 60); el("etag", 55.9);
+  const pp = back(prog(t, 56.4, 0.6));
+  S($("eprice"), { opacity: Math.min(1, prog(t, 56.4, 0.2)), transform: `scale(${0.6 + 0.4 * pp})` });
+  el("etrial", 56.8); el("eurl", 57.2); el("ebuilt", 57.7, 20);
+  // a little click on the URL
+  if (t > 58.2 && t < 58.5) $("eurl").style.transform = "scale(0.96)";
+  for (const o of CONF) {
+    const k = t - 55.0 - o.delay;
+    if (k < 0 || k > 4) { o.el.style.opacity = 0; continue; }
+    const x = o.x + o.vx * k, y = H + 40 + o.vy * k + 700 * k * k;
+    o.el.style.opacity = 1 - prog(k, 3, 1);
+    o.el.style.transform = `translate(${x}px, ${y}px) rotate(${o.rot + o.vr * k}deg)`;
+  }
+}
+window.render = render;
+window.DURATION = DUR;
+render(0);
+</script>
+</body>
+</html>
