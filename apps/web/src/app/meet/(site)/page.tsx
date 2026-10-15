@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons";
 import { SubmitButton } from "@/components/form";
-import { Notice } from "@/components/ui";
+import { InfoTip, Notice } from "@/components/ui";
 import { meetingLink } from "@/lib/meet/paths";
 import { getMeetUser, requestBase, requestOrigin } from "@/lib/meet/server";
 import type { MeetPlan, MyMeeting } from "@/lib/meet/types";
@@ -14,9 +14,9 @@ export const metadata: Metadata = { title: { absolute: "Workbase Meet: free vide
 const FEATURES: Array<[IconName, string, string]> = [
   ["zap", "Data saver", "Audio-first, light video, and a live meter of the MB you've used."],
   ["globe", "Nothing to install", "Join from any browser or phone. Guests just type their name."],
-  ["screenShare", "Share your screen", "Show slides, a website or a design, in good quality."],
+  ["screenShare", "Share, react, chat", "Share your screen, react with 👍 ❤️ 😂 👏, raise your hand, chat beside the call."],
   ["sparkle", "Backgrounds", "Blur the room behind you or pick a picture. Done on your device."],
-  ["smile", "Reactions and hands", "👍 ❤️ 😂 👏, raise your hand, chat beside the call."],
+  ["trash", "Nothing kept", "Chat is deleted when the meeting ends; the meeting itself after 7 days. No recordings."],
   ["shield", "You're in control", "Waiting room, mute everyone, remove, lock the meeting."],
 ];
 
@@ -121,7 +121,10 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
 
       {recent.length > 0 && (
         <section className="card overflow-hidden">
-          <h2 className="border-b border-slate-100 px-5 py-3 font-semibold text-slate-900">Recent</h2>
+          <h2 className="flex items-center gap-1.5 border-b border-slate-100 px-5 py-3 font-semibold text-slate-900">
+            Recent
+            <InfoTip>Meetings are cleared 7 days after they end. In-meeting chat is deleted as soon as a meeting ends.</InfoTip>
+          </h2>
           <ul className="divide-y divide-slate-100">
             {recent.map((m) => (
               <MeetingRow key={m.id} m={m} when={fmt(m.started_at ?? m.starts_at ?? new Date().toISOString())} href={`${base}/${m.code}`} link={meetingLink(m.code, origin, base)} ended={!!m.ended_at} />

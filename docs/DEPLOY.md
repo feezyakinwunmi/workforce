@@ -164,6 +164,8 @@ Meet is part of the same Vercel project but has its own address. Video and sound
 
 **A. Database (once).** Supabase → **SQL Editor** → paste all of `supabase/migrations/20261015000033_meet.sql` → **Run**. (Run it here, not through Claude: it contains a clean-up step that the Supabase connector refuses to apply.) Check: `select to_regprocedure('public.meet_join(text,text)');` returns a name, not empty.
 
+**A2. Short memory (once).** Also run `supabase/migrations/20261015000035_meet_short_memory.sql` in the SQL Editor: meeting chat is deleted when a meeting ends, meetings and guest logins 7 days later.
+
 **B. Guests without an account.** First run `supabase/migrations/20261015000034_meet_guests_stay_out.sql` in the SQL Editor (it stops guest logins from ever creating or joining a Workbase company). Then Supabase → **Authentication → Sign In / Providers** → turn on **Allow anonymous sign-ins** → Save. Guests then join with just a name; they can't open the dashboard.
 
 **C. Cloudflare keys.**
