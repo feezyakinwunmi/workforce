@@ -92,6 +92,17 @@ Supabase dashboard → **Authentication → Emails → SMTP Settings** → enabl
 
 Then **Authentication → Sign In / Providers → Email** → turn **Confirm email** back on, and in **Authentication → Rate Limits** raise "emails per hour" (e.g. 100).
 
+**B2. Codes instead of links (sign-up, password reset, "email me a code")**
+The app asks for a code typed on the page, so every email must show `{{ .Token }}`. Supabase dashboard → **Authentication → Emails → Templates**, paste the HTML from `docs/email-templates/` (Subject in brackets):
+
+| Template | File | Subject |
+| --- | --- | --- |
+| Confirm signup | `confirm-signup.html` | Your Workbase sign-up code |
+| Magic link | `magic-link.html` | Your Workbase sign-in code |
+| Reset password | `reset-password.html` | Your Workbase password reset code |
+
+Codes last 1 hour (Authentication → Sign In / Providers → Email → "Email OTP Expiration"). Also set **Authentication → URL Configuration → Site URL** to `https://phantomire-workforce.vercel.app` and add `https://phantomire-workforce.vercel.app/**` to Redirect URLs (old links in already-sent emails still land on `/auth/confirm`).
+
 **C. Vercel (task emails: "assigned to you", new comments)**
 Vercel → your project → **Settings → Environment Variables**, add for Production:
 

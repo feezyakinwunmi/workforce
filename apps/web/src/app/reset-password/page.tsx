@@ -22,8 +22,8 @@ export default async function ResetPasswordPage() {
         </>
       ) : (
         <>
-          <AuthHeading title="This link has expired">Reset links work once, in the browser where you asked for them.</AuthHeading>
-          <Link href="/forgot-password" className="btn-primary w-full py-2.5">Send a new link</Link>
+          <AuthHeading title="This link has expired">Get a code by email instead. It works on any device.</AuthHeading>
+          <Link href="/forgot-password" className="btn-primary w-full py-2.5">Send me a code</Link>
         </>
       )}
     </AuthShell>
