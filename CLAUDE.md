@@ -73,10 +73,11 @@ Built solo by Femi (full-stack JS/TS developer, Lagos). Explain changes in plain
 - **Email codes instead of links (15 Oct 2026):** sign-up, password reset and "Email me a code instead" on the login page use a 6-digit code typed on the page (`app/(auth)/actions.ts`: `signup` → `verifyCode` (`verifyOtp` type email, then signup); `requestPasswordReset` → `resetWithCode` (checks the new password before using the code); `sendLoginCode` (`signInWithOtp`, `shouldCreateUser: false`); `resendCode`; a login with an unconfirmed email sends a new code and shows the code box). Supabase email templates must show `{{ .Token }}`: HTML in `docs/email-templates/` (pasted by Femi, DEPLOY.md §7 B2). `/auth/confirm` and `/reset-password` stay for old links.
 - **Public homepage** (`app/page.tsx` + `app/_landing/timeline.tsx`): hero = the product's own day timeline for a team across time zones (one load animation, reduced-motion safe), set-up steps, features, privacy ("it never records"), naira pricing from `lib/billing.ts`, FAQ. Font: Bricolage Grotesque (next/font) on this page only. Logged-in visitors get "Open dashboard". Redesigned 14 Oct 2026 (hero = team timeline + desktop app card, facts strip, steps, features, privacy band, 3 plans, FAQ accordion).
 - **Migrations applied to Supabase:** 0001–0032 (0020–0032 on 15 Oct 2026; 0032 also enables pg_net; the MCP cancels migrations containing DELETE statements or DROP FUNCTION, so add new functions instead of dropping). Earlier notes: 0001–0009, all live (0009 was applied live in parts named `chat_tables`, `chat_helpers`, `chat_message_rules`, `chat_rpcs`, `chat_policies`, `chat_default_channels`, `chat_notification_kinds`, `chat_realtime`: the Supabase MCP cancels any migration containing a DELETE statement in this setup, so `public.remove_channel_member` must be run by Femi in the SQL Editor; check with `select to_regprocedure('public.remove_channel_member(uuid,uuid)')`). 0010–0019 are live too. 0004, 0007, 0008 and 0014 schedule pg_cron jobs.
-- **Manual Supabase settings (not possible via MCP):**
-  - Site URL `http://localhost:3000`, Redirect URL `http://localhost:3000/**`
-  - "Confirm email" off during development
-  - custom SMTP needed before password-reset emails reach non-team addresses: Gmail app password steps in docs/DEPLOY.md §7 (also set the same SMTP_* env vars on Vercel for task emails)
+- **Manual Supabase/Vercel/Paystack settings (done by Femi, 15 Oct 2026):**
+  - Site URL `https://phantomire-workforce.vercel.app`, Redirect URL `https://phantomire-workforce.vercel.app/**`
+  - "Confirm email" on; custom SMTP (Gmail app password) in Supabase Auth and `SMTP_*`/`MAIL_FROM` on Vercel (docs/DEPLOY.md §7)
+  - email templates with `{{ .Token }}` pasted (Confirm signup, Magic link, Reset password; docs/email-templates)
+  - Paystack live: live secret key in Vercel `PAYSTACK_SECRET_KEY`, live callback `/dashboard/billing/callback` and webhook `/api/paystack/webhook`
 
 ## Design system (redesign, 14 Oct 2026)
 
@@ -185,7 +186,7 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 ## Next steps
 
 0. Femi: try the new modules end to end (issue a payslip, clock in from a phone, claim an expense, fill in a staff record, run a review). Have an accountant check the PAYE figures for a few real salaries before paying with them.
-1. Femi: push tag `agent-v0.8.0` (includes 0.6.0's name change, 0.7.0 screenshots and 0.8.0 ringing reminders); Paystack test setup (docs/DEPLOY.md §8), email (§7) and `CRON_SECRET` (§9) if not done. Try Pro end to end: pay Pro with the test card, switch screenshots on, agree in the app.
+1. Done 15 Oct 2026: agent v0.8.0 released, Paystack live, email + codes. Femi: check `CRON_SECRET` (§9) is set; launched publicly 15 Oct (posting daily); first real payment test (₦2,500, refund in Paystack).
 2. Chat extras when pilots ask: message search, typing indicators, reactions/threads.
 3. Mac build (Apple Developer account; macOS needs Screen Recording permission for screenshots); per-company screenshot retention; deduct time for deleted screenshots if customers ask.
 4. Later (parked 15 Oct 2026, after pilots): "Workbase AI" on Pro, off until an admin switches it on. Order: Monday manager summary (hours, tasks, reports, leave; one call per company per week via the existing cron + email), receipt scanning for expenses, review first drafts, chat "catch me up", then "Ask Workbase" through RLS. Never productivity scores; never send screenshots or window titles to the AI provider; update /privacy (NDPA) first. Voice/video team calls also parked (would live in Chat).
@@ -200,5 +201,4 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 - Payroll: no year-to-date tax adjustment (each month is annualised on its own), no remittance files for PFAs or the state tax office (the CSV has the totals), payslips in NGN/USD only.
 - Phone clock-in is a web page (PWA), not a store app; location only at clock-in/out, no geofence.
 - Supabase "leaked password protection" is off (a paid-plan setting).
-- Custom SMTP before real users (docs/DEPLOY.md §7); turn "Confirm email" back on.
 - Before launch: lawyer review of /privacy and /terms, a DPA for company customers; a Windows code-signing certificate; an Apple Developer account.
