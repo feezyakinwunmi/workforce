@@ -5,7 +5,8 @@ import { requireMember } from "@/lib/session";
 import { EMAIL_KINDS, emailEnabled } from "@/lib/email";
 import { isAdminRole, ROLE_LABELS } from "@/lib/types";
 import { changePassword } from "./actions";
-import { EmailPrefsForm, ProfileForm } from "./form";
+import { PushToggle } from "@/components/push-toggle";
+import { EmailPrefsForm, ProfileForm, ScheduleForm } from "./form";
 
 export const metadata: Metadata = { title: "My profile" };
 
@@ -28,6 +29,19 @@ export default async function ProfilePage() {
       <section className="card p-5">
         <h2 className="section-title mb-4 text-base">Details</h2>
         <ProfileForm fullName={profile?.full_name ?? ""} timezone={member.timezone} />
+      </section>
+      <section className="card p-5">
+        <h2 className="section-title mb-4 text-base">Work hours and reminders</h2>
+        <ScheduleForm
+          start={member.work_start ?? null}
+          end={member.work_end ?? null}
+          reminders={member.reminders !== false}
+          companyStart={org.settings.work_start ?? "09:00"}
+          companyEnd={org.settings.work_end ?? "17:00"}
+        />
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <PushToggle />
+        </div>
       </section>
       <section className="card p-5">
         <h2 className="section-title mb-2 text-base">Emails</h2>

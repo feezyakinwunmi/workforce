@@ -52,6 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         { href: "/dashboard/leave", label: "Leave", icon: "leave", badge: leaveWaiting ?? 0, tour: "leave" },
         { href: "/dashboard/expenses", label: "Expenses", icon: "receipt", badge: claimsWaiting ?? 0, tour: "expenses" },
         { href: "/dashboard/reviews", label: "Goals and reviews", icon: "sparkle", tour: "reviews" },
+        { href: "/dashboard/notes", label: "Notes", icon: "note", tour: "notes" },
       ],
     },
     {

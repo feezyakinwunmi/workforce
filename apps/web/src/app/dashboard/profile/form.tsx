@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { FormMessage, SubmitButton, Switch, TimezoneSelect } from "@/components/form";
-import { updateEmailPrefs, updateProfile } from "./actions";
+import { updateEmailPrefs, updateMySchedule, updateProfile } from "./actions";
 
 export function ProfileForm({ fullName, timezone }: { fullName: string; timezone: string }) {
   const [state, action] = useActionState(updateProfile, undefined);
@@ -38,6 +38,38 @@ export function EmailPrefsForm({ kinds, off, enabled }: { kinds: Array<{ key: st
       {!enabled && <p className="mt-3 text-xs text-slate-500">Your company hasn&apos;t set up email yet, so none are sent for now.</p>}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Saving…" className="btn-secondary">Save email settings</SubmitButton>
+        <FormMessage state={state} />
+      </div>
+    </form>
+  );
+}
+
+export function ScheduleForm({ start, end, reminders, companyStart, companyEnd }: {
+  start: string | null;
+  end: string | null;
+  reminders: boolean;
+  companyStart: string;
+  companyEnd: string;
+}) {
+  const [state, action] = useActionState(updateMySchedule, undefined);
+  return (
+    <form action={action} className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="label" htmlFor="work_start">I start at</label>
+          <input id="work_start" name="work_start" type="time" defaultValue={start?.slice(0, 5) ?? ""} className="input w-36" />
+        </div>
+        <div>
+          <label className="label" htmlFor="work_end">and finish at</label>
+          <input id="work_end" name="work_end" type="time" defaultValue={end?.slice(0, 5) ?? ""} className="input w-36" />
+        </div>
+        <p className="pb-2 text-xs text-slate-500">Empty = company hours ({companyStart}–{companyEnd})</p>
+      </div>
+      <div className="border-y border-slate-100">
+        <Switch name="reminders" label="Remind me to clock in and out" hint="A pop-up with a sound in the desktop app, and on this phone if notifications are on" defaultChecked={reminders} />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <SubmitButton pendingText="Saving…" className="btn-secondary">Save work hours</SubmitButton>
         <FormMessage state={state} />
       </div>
     </form>

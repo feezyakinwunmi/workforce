@@ -4,6 +4,7 @@ import { requireMember } from "@/lib/session";
 import { formatClock, localDateIn } from "@/lib/time";
 import { loadDayStats } from "@/lib/tracking";
 import { Notice, PageHeader } from "@/components/ui";
+import { PushToggle } from "@/components/push-toggle";
 import { ClockPanel, InstallHint } from "./clock-panel";
 
 export const metadata: Metadata = { title: "Clock in" };
@@ -56,6 +57,7 @@ export default async function ClockPage() {
             tasks={(taskRows ?? []) as Array<{ id: string; title: string; status: string; project_name: string | null; due_date: string | null }>}
           />
           <InstallHint />
+          <PushToggle compact />
         </>
       )}
     </div>

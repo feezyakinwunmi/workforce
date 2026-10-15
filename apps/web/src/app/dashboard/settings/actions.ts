@@ -12,6 +12,9 @@ export async function updateCompanySettings(_prev: FormState, formData: FormData
   const idle = Number(formData.get("idle_timeout_minutes"));
 
   if (name.length < 2) return { error: "Enter the company name." };
+  if (formData.get("hours_form") === "1" && String(formData.get("work_end")) <= String(formData.get("work_start"))) {
+    return { error: "The work day must end after it starts." };
+  }
   if (!Number.isInteger(idle) || idle < 1 || idle > 60) {
     return { error: "Idle timeout must be a whole number of minutes between 1 and 60." };
   }
@@ -21,6 +24,14 @@ export async function updateCompanySettings(_prev: FormState, formData: FormData
     idle_timeout_minutes: idle,
     track_apps: formData.get("track_apps") === "on",
     track_urls: formData.get("track_urls") === "on",
+    ...(formData.get("hours_form") === "1"
+      ? {
+          work_start: /^\d{2}:\d{2}$/.test(String(formData.get("work_start"))) ? String(formData.get("work_start")) : "09:00",
+          work_end: /^\d{2}:\d{2}$/.test(String(formData.get("work_end"))) ? String(formData.get("work_end")) : "17:00",
+          work_days: [1, 2, 3, 4, 5, 6, 7].filter((d) => formData.get(`day_${d}`) === "on"),
+          clock_reminders: formData.get("clock_reminders") === "on",
+        }
+      : {}),
     ...(formData.get("phone_form") === "1"
       ? {
           phone_clock: formData.get("phone_clock") === "on",

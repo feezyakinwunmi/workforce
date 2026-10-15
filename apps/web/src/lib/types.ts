@@ -10,6 +10,10 @@ export type OrgSettings = {
   blur_screenshots: boolean;
   phone_clock?: boolean; // default on
   phone_location?: "off" | "ask" | "required"; // default "ask"
+  work_start?: string; // "09:00" company working hours (people can set their own)
+  work_end?: string; // "17:00"
+  work_days?: number[]; // ISO weekdays, 1 = Monday; default [1,2,3,4,5]
+  clock_reminders?: boolean; // default on
   screenshots_changed_at?: string | null; // set by the database; the desktop app asks workers to agree to this version
 };
 
@@ -39,6 +43,9 @@ export type Membership = {
   timezone: string;
   expected_hours_per_day: number;
   joined_at: string;
+  work_start?: string | null; // "09:00:00"; null = the company's hours
+  work_end?: string | null;
+  reminders?: boolean; // clock-in / clock-out reminders
 };
 
 export type Profile = {

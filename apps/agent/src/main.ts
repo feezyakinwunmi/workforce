@@ -123,6 +123,8 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Clock reminders ring even if nobody has clicked in the window yet.
+      autoplayPolicy: "no-user-gesture-required",
     },
   });
   win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
@@ -360,7 +362,10 @@ async function checkNotifications() {
     if (!items.length) return;
     tracker.state.notifiedUntil = items[items.length - 1].created_at;
     tracker.save();
-    for (const n of items.slice(-3)) {
+    // "Time to clock in / out": a pop-up that stays, the window comes up and the app rings.
+    const reminder = items.filter((n) => n.kind === "clock_reminder" && tracker.now() - Date.parse(n.created_at) < 30 * 60_000).pop();
+    if (reminder) ringReminder(reminder.title, reminder.body ?? "");
+    for (const n of items.filter((x) => x.kind !== "clock_reminder").slice(-3)) {
       if (!Notification.isSupported()) break;
       const note = new Notification({ title: n.title, body: n.body ?? "", icon: path.join(assets, "icon.png") });
       const link = n.link && n.link.startsWith("/dashboard") ? n.link : "/dashboard/notifications";
@@ -667,6 +672,20 @@ app.on("before-quit", (e) => {
 app.on("window-all-closed", () => {
   // Keep running in the tray.
 });
+
+/** A clock-in / clock-out reminder: a pop-up that stays until clicked, the window, and a ring. */
+function ringReminder(title: string, body: string) {
+  if (Notification.isSupported()) {
+    const note = new Notification({ title, body, icon: path.join(assets, "icon.png"), timeoutType: "never", urgency: "critical" });
+    note.on("click", showWindow);
+    note.show();
+    shownNotes.push(note);
+    if (shownNotes.length > 10) shownNotes.shift();
+  }
+  showWindow();
+  win?.flashFrame(true);
+  win?.webContents.send("ring");
+}
 
 function notify(title: string, body: string) {
   if (Notification.isSupported()) new Notification({ title, body, icon: path.join(assets, "icon.png") }).show();

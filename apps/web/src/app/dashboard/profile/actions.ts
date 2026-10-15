@@ -25,6 +25,22 @@ export async function updateProfile(_prev: FormState, formData: FormData): Promi
   return { success: "Profile saved." };
 }
 
+/** My own work hours (blank = the company's) and whether I get clock reminders. */
+export async function updateMySchedule(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase } = await requireMember();
+  const time = (name: string) => {
+    const v = String(formData.get(name) ?? "");
+    return /^\d{2}:\d{2}$/.test(v) ? v : null;
+  };
+  const start = time("work_start");
+  const end = time("work_end");
+  if ((start && !end) || (!start && end)) return { error: "Set both times, or leave both empty to use the company's hours." };
+  const { error } = await supabase.rpc("update_my_schedule", { p_start: start, p_end: end, p_reminders: formData.get("reminders") === "on" });
+  if (error) return { error: error.message.endsWith(".") ? error.message : `${error.message}.` };
+  revalidatePath("/dashboard", "layout");
+  return { success: "Work hours saved." };
+}
+
 /** Which emails this person gets (unticked kinds go into profiles.email_opt_out). */
 export async function updateEmailPrefs(_prev: FormState, formData: FormData): Promise<FormState> {
   const { supabase, user } = await requireMember();

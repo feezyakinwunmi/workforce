@@ -380,3 +380,44 @@ window.agent.getView().then((v) => {
   render();
 });
 setInterval(updateLive, 1000);
+
+// ---------------------------------------------------------------------
+// Clock reminders: a short ringing tone (made here, no sound file), stops on any click or key.
+// ---------------------------------------------------------------------
+let ringing = null;
+function stopRing() {
+  if (!ringing) return;
+  clearInterval(ringing.timer);
+  ringing.ctx.close().catch(() => {});
+  ringing = null;
+}
+function ring() {
+  stopRing();
+  const ctx = new AudioContext();
+  const beep = (at, freq) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.35, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(at);
+    osc.stop(at + 0.4);
+  };
+  const burst = () => {
+    const t = ctx.currentTime + 0.05;
+    [0, 0.45, 0.9].forEach((d, i) => beep(t + d, i % 2 ? 660 : 880));
+  };
+  burst();
+  let count = 1;
+  const timer = setInterval(() => {
+    if (++count > 6) return stopRing(); // about 12 seconds
+    burst();
+  }, 2000);
+  ringing = { ctx, timer };
+}
+window.agent.onRing(ring);
+window.addEventListener("pointerdown", stopRing);
+window.addEventListener("keydown", stopRing);

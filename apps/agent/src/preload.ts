@@ -3,6 +3,9 @@ import { contextBridge, ipcRenderer } from "electron";
 // The only things the window can ask the app to do.
 contextBridge.exposeInMainWorld("agent", {
   getView: () => ipcRenderer.invoke("get-view"),
+  onRing: (callback: () => void) => {
+    ipcRenderer.on("ring", () => callback());
+  },
   onView: (callback: (view: unknown) => void) => {
     ipcRenderer.on("view", (_event, view) => callback(view));
   },
