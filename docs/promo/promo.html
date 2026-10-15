@@ -1,0 +1,367 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Workbase promo</title>
+<style>
+  @font-face { font-family: "Bricolage"; src: url("../../apps/web/src/app/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inter"; src: url("../../apps/web/src/app/fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+  :root {
+    --ink: #15123a; --ink2: #1f1a52; --violet: #6a4cf5; --violet-l: #8f7bff; --marigold: #f2a93b;
+    --paper: #f7f6fb; --muted: #b7b2d6; --green: #34d399; --line: rgba(255,255,255,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--ink); }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--paper); overflow: hidden; }
+  #stage { position: relative; overflow: hidden; background: radial-gradient(120% 70% at 50% 0%, #2a2170 0%, var(--ink) 55%, #0e0c26 100%); }
+  .abs { position: absolute; }
+  .center { left: 50%; top: 50%; }
+  .display { font-family: "Bricolage", "Inter", sans-serif; letter-spacing: -0.02em; }
+  #box { position: absolute; width: 1000px; height: 1000px; left: 50%; top: 50%; margin: -500px 0 0 -500px; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+
+  /* grid dots */
+  #dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.07) 1.5px, transparent 1.5px); background-size: 44px 44px; }
+
+  /* S1 logo */
+  #s1 .tile { position: absolute; left: 50%; top: 360px; width: 220px; height: 220px; margin-left: -110px; }
+  #s1 .word { position: absolute; width: 100%; text-align: center; top: 615px; font-size: 104px; font-weight: 800; }
+  #s1 .by { position: absolute; width: 100%; text-align: center; top: 745px; font-size: 30px; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; }
+
+  /* S2 hook */
+  #s2 .clock { position: absolute; width: 100%; text-align: center; top: 170px; font-size: 64px; color: var(--marigold); font-weight: 700; }
+  #s2 .l { position: absolute; width: 100%; text-align: center; font-size: 104px; line-height: 1.04; font-weight: 800; }
+  #s2 .hl { position: relative; display: inline-block; color: var(--marigold); }
+  #s2 .ul { position: absolute; left: 0; bottom: 4px; height: 14px; background: var(--marigold); border-radius: 7px; opacity: 0.35; }
+  #s2 .sub { position: absolute; width: 100%; text-align: center; top: 760px; font-size: 38px; color: var(--muted); }
+
+  /* S3 team */
+  #s3 .title { position: absolute; width: 100%; text-align: center; top: 40px; font-size: 76px; font-weight: 800; }
+  #s3 .card { position: absolute; left: 30px; right: 30px; top: 190px; background: #fbfaff; color: var(--ink); border-radius: 36px; padding: 36px 36px 30px; box-shadow: 0 40px 80px -30px rgba(0,0,0,0.6); }
+  #s3 .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26px; }
+  #s3 .head b { font-family: "Bricolage"; font-size: 40px; }
+  #s3 .live { display: flex; align-items: center; gap: 12px; font-size: 26px; color: #5b5680; }
+  #s3 .live i { width: 14px; height: 14px; border-radius: 50%; background: #10b981; display: inline-block; }
+  #s3 .count { font-family: "Bricolage"; font-size: 30px; color: var(--violet); font-weight: 700; }
+  #s3 .row { display: grid; grid-template-columns: 74px 1fr 120px; gap: 18px; align-items: center; padding: 18px 0; border-top: 2px solid #eeecf6; }
+  #s3 .av { width: 74px; height: 74px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 26px; position: relative; }
+  #s3 .av s { position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%; border: 4px solid #fbfaff; }
+  #s3 .nm { font-weight: 600; font-size: 30px; display: flex; gap: 12px; align-items: baseline; }
+  #s3 .nm em { font-style: normal; font-weight: 400; font-size: 22px; color: #8c87ab; }
+  #s3 .bar { margin-top: 12px; height: 22px; border-radius: 11px; background: #efedf6; position: relative; overflow: hidden; }
+  #s3 .seg { position: absolute; top: 0; bottom: 0; }
+  #s3 .hrs { font-family: "Bricolage"; font-size: 34px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  #s3 .legend { display: flex; gap: 26px; margin-top: 18px; font-size: 22px; color: #6e6990; }
+  #s3 .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  #s3 .legend i { width: 16px; height: 16px; border-radius: 4px; display: inline-block; }
+
+  /* S4 features */
+  #s4 .title { position: absolute; width: 100%; text-align: center; top: 30px; font-size: 76px; font-weight: 800; line-height: 1.05; }
+  #s4 .grid { position: absolute; left: 30px; right: 30px; top: 270px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  #s4 .chip { display: flex; align-items: center; gap: 20px; padding: 26px 28px; border-radius: 26px; background: rgba(255,255,255,0.07); border: 2px solid var(--line); font-size: 32px; font-weight: 600; }
+  #s4 .chip .ic { width: 64px; height: 64px; border-radius: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  #s4 .chip svg { width: 36px; height: 36px; }
+  #s4 .chip small { display: block; font-size: 22px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+
+  /* S5 phone */
+  #s5 .title { position: absolute; width: 100%; text-align: center; top: 20px; font-size: 70px; font-weight: 800; line-height: 1.05; }
+  #s5 .phone { position: absolute; left: 50%; top: 230px; width: 430px; height: 760px; margin-left: -215px; border-radius: 64px; background: #0b0920; border: 12px solid #2b2560; box-shadow: 0 40px 90px -20px rgba(106,76,245,0.55); overflow: hidden; }
+  #s5 .screen { position: absolute; inset: 0; background: #f7f6fb; color: var(--ink); }
+  #s5 .notch { position: absolute; left: 50%; top: 14px; width: 120px; height: 32px; margin-left: -60px; background: #0b0920; border-radius: 16px; z-index: 5; }
+  #s5 .apphead { position: absolute; top: 80px; left: 34px; font-family: "Bricolage"; font-size: 40px; font-weight: 800; }
+  #s5 .appsub { position: absolute; top: 132px; left: 34px; font-size: 20px; color: #6e6990; }
+  #s5 .ring { position: absolute; left: 50%; top: 210px; width: 270px; height: 270px; margin-left: -135px; border-radius: 50%; border: 14px solid #efedf6; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #s5 .ring small { font-size: 22px; color: #6e6990; }
+  #s5 .ring b { font-family: "Bricolage"; font-size: 56px; font-variant-numeric: tabular-nums; }
+  #s5 .btn { position: absolute; left: 40px; right: 40px; top: 530px; height: 86px; border-radius: 24px; display: flex; align-items: center; justify-content: center; gap: 14px; color: #fff; font-size: 30px; font-weight: 700; }
+  #s5 .tap { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.6); left: 50%; top: 543px; margin-left: -30px; }
+  #s5 .notif { position: absolute; left: 18px; right: 18px; top: 60px; background: rgba(255,255,255,0.97); color: var(--ink); border-radius: 28px; padding: 20px 22px; display: flex; gap: 16px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.45); z-index: 6; }
+  #s5 .notif .ic { width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0; }
+  #s5 .notif b { display: block; font-size: 24px; }
+  #s5 .notif span { font-size: 20px; color: #555077; }
+  #s5 .notif em { font-style: normal; font-size: 16px; color: #9a95b3; float: right; margin-left: 10px; }
+  #s5 .waves { position: absolute; left: 50%; top: 280px; margin-left: -215px; width: 430px; height: 430px; }
+  #s5 .wave { position: absolute; inset: 0; border-radius: 50%; border: 4px solid var(--marigold); }
+  #s5 .side { position: absolute; font-size: 30px; color: var(--muted); width: 100%; text-align: center; top: 1012px; }
+
+  /* S6 end */
+  #s6 .tile { position: absolute; left: 50%; top: 150px; width: 170px; height: 170px; margin-left: -85px; }
+  #s6 .name { position: absolute; width: 100%; text-align: center; top: 360px; font-size: 92px; font-weight: 800; line-height: 1; }
+  #s6 .name small { display: block; font-size: 34px; font-weight: 600; color: var(--muted); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 18px; font-family: "Inter"; }
+  #s6 .tag { position: absolute; width: 100%; text-align: center; top: 520px; font-size: 38px; color: var(--paper); line-height: 1.35; padding: 0 60px; }
+  #s6 .price { position: absolute; left: 50%; top: 680px; transform: translateX(-50%); white-space: nowrap; background: var(--marigold); color: var(--ink); border-radius: 999px; padding: 20px 44px; font-size: 38px; font-weight: 800; font-family: "Bricolage"; }
+  #s6 .trial { position: absolute; width: 100%; text-align: center; top: 790px; font-size: 32px; color: var(--muted); }
+  #s6 .url { position: absolute; width: 100%; text-align: center; top: 880px; font-size: 40px; font-weight: 700; color: #fff; }
+
+  /* frame chrome */
+  #top { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 16px; font-family: "Bricolage"; font-size: 44px; font-weight: 800; }
+  #top svg { width: 58px; height: 58px; }
+  #bottom { position: absolute; left: 0; right: 0; text-align: center; font-size: 32px; color: var(--muted); }
+  #bottom b { color: #fff; }
+  #progress { position: absolute; left: 0; height: 8px; bottom: 0; background: linear-gradient(90deg, var(--violet), var(--marigold)); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="dots"></div>
+  <div id="top"><svg viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>Workbase</div>
+  <div id="box">
+    <!-- 1 logo -->
+    <div class="scene" id="s1">
+      <svg class="tile" viewBox="0 0 48 48">
+        <rect id="s1tile" width="48" height="48" rx="12" fill="#6A4CF5"/>
+        <clipPath id="sailclip"><rect id="s1clip" x="0" y="0" width="48" height="0"/></clipPath>
+        <path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff" clip-path="url(#sailclip)"/>
+        <rect id="s1base" x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/>
+      </svg>
+      <div class="word display" id="s1word">Workbase</div>
+      <div class="by" id="s1by">by Phantomire</div>
+    </div>
+
+    <!-- 2 hook -->
+    <div class="scene" id="s2">
+      <div class="clock display" id="s2clock">9:00 am</div>
+      <div class="l display" id="s2a" style="top:300px">Is your remote</div>
+      <div class="l display" id="s2b" style="top:410px">team <span class="hl">actually<span class="ul" id="s2ul"></span></span></div>
+      <div class="l display" id="s2c" style="top:520px">working?</div>
+      <div class="sub" id="s2sub">Lagos · Abuja · London · Toronto</div>
+    </div>
+
+    <!-- 3 team -->
+    <div class="scene" id="s3">
+      <div class="title display" id="s3title">See who's working. <span style="color:var(--marigold)">Live.</span></div>
+      <div class="card" id="s3card">
+        <div class="head"><b>Team today</b><span class="live"><i id="s3dot"></i>Working now <span class="count" id="s3count">0/5</span></span></div>
+        <div id="s3rows"></div>
+        <div class="legend"><span><i style="background:#6a4cf5"></i>Active</span><span><i style="background:#cc7a12"></i>Idle</span><span><i style="background:#12968a"></i>On phone</span></div>
+      </div>
+    </div>
+
+    <!-- 4 features -->
+    <div class="scene" id="s4">
+      <div class="title display" id="s4title">Everything after<br>the clock-in</div>
+      <div class="grid" id="s4grid"></div>
+    </div>
+
+    <!-- 5 phone -->
+    <div class="scene" id="s5">
+      <div class="title display" id="s5title">Reminders that <span style="color:var(--marigold)">ring.</span><br>Clock in from anywhere.</div>
+      <div class="waves" id="s5waves"><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
+      <div class="phone" id="s5phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="apphead">Clock in</div>
+          <div class="appsub" id="s5sub">Thursday 16 October</div>
+          <div class="ring" id="s5ring"><small id="s5label">Today</small><b id="s5time">0h 00m</b></div>
+          <div class="btn" id="s5btn"><svg viewBox="0 0 24 24" width="30" height="30" fill="#fff"><path id="s5icon" d="M8 5.5v13l10.5-6.5z"/></svg><span id="s5btntext">Clock in</span></div>
+          <div class="tap" id="s5tap"></div>
+        </div>
+        <div class="notif" id="s5notif">
+          <svg class="ic" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>
+          <div style="flex:1"><em>now</em><b>Time to clock in</b><span>Your work day starts at 09:00. Tap to clock in.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 end -->
+    <div class="scene" id="s6">
+      <svg class="tile" id="s6tile" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>
+      <div class="name display" id="s6name"><small>Phantomire</small>Workbase</div>
+      <div class="tag" id="s6tag">Time, tasks, chat, leave and Nigerian payroll for remote teams.</div>
+      <div class="price" id="s6price">From ₦2,500 / person / month</div>
+      <div class="trial" id="s6trial">Free plan for 3 people · 14-day free trial</div>
+      <div class="url" id="s6url">phantomire-workforce.vercel.app</div>
+    </div>
+  </div>
+  <div id="bottom"></div>
+  <div id="progress"></div>
+</div>
+
+<script>
+const P = new URLSearchParams(location.search);
+const FORMAT = P.get("format") || "vertical";
+const W = 1080, H = FORMAT === "square" ? 1080 : FORMAT === "feed" ? 1350 : 1920;
+const DURATION = 22;
+const stage = document.getElementById("stage");
+stage.style.width = W + "px"; stage.style.height = H + "px";
+// Fit the 1000px content box: full size in tall formats, a little smaller in the square one.
+const box = document.getElementById("box");
+const boxScale = FORMAT === "square" ? 0.9 : 1;
+box.style.transform = `scale(${boxScale})`;
+box.style.top = FORMAT === "vertical" ? "50%" : "52%";
+const topEl = document.getElementById("top");
+topEl.style.top = FORMAT === "vertical" ? "150px" : "26px";
+if (FORMAT === "square") topEl.style.transform = "scale(0.75)";
+const bottom = document.getElementById("bottom");
+bottom.style.bottom = FORMAT === "vertical" ? "150px" : "26px";
+bottom.innerHTML = FORMAT === "square" ? "" : "<b>phantomire-workforce.vercel.app</b>";
+
+// ---------- helpers ----------
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const prog = (t, start, dur) => clamp((t - start) / dur);
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const $ = (id) => document.getElementById(id);
+const set = (el, o, tx = 0, ty = 0, s = 1) => { el.style.opacity = o; el.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`; };
+// in at a, out at b (fade + rise)
+const io = (t, a, b, d = 0.45) => Math.min(easeOut(prog(t, a, d)), 1 - easeInOut(prog(t, b - d, d)));
+
+// ---------- data ----------
+const PEOPLE = [
+  { n: "Adaeze", c: "Lagos", tz: 1, bg: "#e8e2ff", fg: "#5638d9", st: "#10b981", segs: [[0, .36, "#6a4cf5"], [.36, .44, "#cc7a12"], [.44, .78, "#6a4cf5"]], h: 6.4 },
+  { n: "Tunde", c: "London", tz: 1, bg: "#feedc7", fg: "#9a5a0b", st: "#10b981", segs: [[.05, .5, "#6a4cf5"], [.5, .58, "#cc7a12"], [.58, .72, "#6a4cf5"]], h: 5.6 },
+  { n: "Chiamaka", c: "Nairobi", tz: 3, bg: "#d1fae5", fg: "#047857", st: "#f59e0b", segs: [[0, .3, "#6a4cf5"], [.3, .42, "#cc7a12"], [.42, .66, "#6a4cf5"], [.66, .74, "#cc7a12"]], h: 6.0 },
+  { n: "Bayo", c: "Abuja", tz: 1, bg: "#e0f2fe", fg: "#0369a1", st: "#10b981", segs: [[.1, .74, "#12968a"]], h: 5.1 },
+  { n: "Kemi", c: "Toronto", tz: -4, bg: "#ede9fe", fg: "#6d28d9", st: "#9ca3af", segs: [[0, .22, "#6a4cf5"]], h: 1.8 },
+];
+const rows = $("s3rows");
+PEOPLE.forEach((p, i) => {
+  rows.insertAdjacentHTML("beforeend", `<div class="row" id="r${i}"><div class="av" style="background:${p.bg};color:${p.fg}">${p.n.slice(0, 2).toUpperCase()}<s style="background:${p.st}"></s></div>
+    <div><div class="nm">${p.n} <em>${p.c}</em></div><div class="bar">${p.segs.map((s, j) => `<div class="seg" id="r${i}s${j}" style="background:${s[2]};left:${s[0] * 100}%;width:0"></div>`).join("")}</div></div>
+    <div class="hrs" id="r${i}h">0.0h</div></div>`);
+});
+
+const ICONS = {
+  phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',
+  tasks: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  chat: '<path d="M20 11.5a7.5 7.5 0 0 1-11 6.6L4 19.5l1.4-4.6A7.5 7.5 0 1 1 20 11.5z"/>',
+  leave: '<path d="M12 21V11"/><path d="M4 11a8 8 0 0 1 16 0z"/>',
+  wallet: '<path d="M19 8V6.5A1.5 1.5 0 0 0 17.5 5H6a2 2 0 0 0 0 4h13a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V7"/>',
+  receipt: '<path d="M6 3.5h12v17l-2.5-1.5-2 1.5-1.5-1.5-1.5 1.5-2-1.5L6 20.5z"/><path d="M9 8h6M9 12h6"/>',
+  case: '<rect x="3.5" y="7" width="17" height="12.5" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17"/>',
+  spark: '<path d="M12 3.5 13.8 10l6.7 2-6.7 2L12 20.5 10.2 14 3.5 12l6.7-2z"/>',
+};
+const FEATURES = [
+  ["phone", "Phone clock-in", "with location", "#6a4cf5"],
+  ["tasks", "Tasks & reports", "what got done", "#12968a"],
+  ["chat", "Team chat", "groups, files, DMs", "#3b82f6"],
+  ["leave", "Leave & holidays", "Nigerian holidays in", "#cc7a12"],
+  ["wallet", "Payroll with PAYE", "pension, NHF, payslips", "#16a34a"],
+  ["receipt", "Expense claims", "snap the receipt", "#e5383b"],
+  ["case", "Staff records", "contracts, bank, IDs", "#8b5cf6"],
+  ["spark", "Goals & reviews", "from real hours", "#f2a93b"],
+];
+const grid = $("s4grid");
+FEATURES.forEach((f, i) => {
+  grid.insertAdjacentHTML("beforeend", `<div class="chip" id="f${i}"><div class="ic" style="background:${f[3]}26;color:${f[3]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[f[0]]}</svg></div><div>${f[1]}<small>${f[2]}</small></div></div>`);
+});
+
+// ---------- render one frame ----------
+function render(t) {
+  // persistent chrome
+  const chrome = clamp(prog(t, 2.4, 0.5)) * (1 - prog(t, 18.2, 0.4));
+  topEl.style.opacity = chrome;
+  bottom.style.opacity = FORMAT === "square" ? 0 : chrome;
+  $("progress").style.width = (t / DURATION) * 100 + "%";
+
+  // S1 logo 0 - 2.7
+  const s1 = $("s1");
+  s1.style.opacity = 1 - prog(t, 2.3, 0.4);
+  const tp = back(prog(t, 0.05, 0.6));
+  $("s1").querySelector(".tile").style.transform = `scale(${tp}) rotate(${(1 - tp) * -12}deg)`;
+  $("s1clip").setAttribute("height", 48 * easeOut(prog(t, 0.45, 0.6)));
+  $("s1clip").setAttribute("y", 28 - 28 * easeOut(prog(t, 0.45, 0.6)));
+  const bp = easeOut(prog(t, 0.75, 0.45));
+  $("s1base").setAttribute("width", 30 * bp);
+  set($("s1word"), easeOut(prog(t, 1.0, 0.5)), 0, 40 * (1 - easeOut(prog(t, 1.0, 0.5))));
+  set($("s1by"), easeOut(prog(t, 1.4, 0.5)), 0, 20 * (1 - easeOut(prog(t, 1.4, 0.5))));
+  s1.style.transform = `translateY(${-80 * easeInOut(prog(t, 2.3, 0.4))}px)`;
+
+  // S2 hook 2.6 - 6.3
+  const s2 = $("s2");
+  s2.style.opacity = t >= 2.5 && t < 6.4 ? 1 : 0;
+  const k = (a) => io(t, a, 6.3);
+  set($("s2clock"), k(2.6), 0, 30 * (1 - easeOut(prog(t, 2.6, 0.5))));
+  set($("s2a"), k(2.9), 0, 60 * (1 - easeOut(prog(t, 2.9, 0.5))));
+  set($("s2b"), k(3.15), 0, 60 * (1 - easeOut(prog(t, 3.15, 0.5))));
+  set($("s2c"), k(3.4), 0, 60 * (1 - easeOut(prog(t, 3.4, 0.5))));
+  $("s2ul").style.width = 100 * easeInOut(prog(t, 4.0, 0.6)) + "%";
+  set($("s2sub"), k(4.5), 0, 20 * (1 - easeOut(prog(t, 4.5, 0.5))));
+
+  // S3 team 6.3 - 11.2
+  const s3 = $("s3");
+  s3.style.opacity = t >= 6.2 && t < 11.3 ? 1 : 0;
+  set($("s3title"), io(t, 6.3, 11.2), 0, 40 * (1 - easeOut(prog(t, 6.3, 0.5))));
+  const cardIn = easeOut(prog(t, 6.55, 0.6));
+  set($("s3card"), io(t, 6.55, 11.2), 0, 120 * (1 - cardIn), 0.94 + 0.06 * cardIn);
+  let working = 0;
+  PEOPLE.forEach((p, i) => {
+    const r0 = 7.0 + i * 0.18;
+    set($("r" + i), easeOut(prog(t, r0, 0.4)), 30 * (1 - easeOut(prog(t, r0, 0.4))), 0);
+    const g = easeInOut(prog(t, r0 + 0.25, 2.6));
+    p.segs.forEach((s, j) => {
+      const end = s[0] + (s[1] - s[0]) * clamp((g * p.segs[p.segs.length - 1][1] - s[0]) / (s[1] - s[0]));
+      $(`r${i}s${j}`).style.width = Math.max(0, (end - s[0]) * 100) + "%";
+    });
+    $("r" + i + "h").textContent = (p.h * g).toFixed(1) + "h";
+    if (p.st !== "#9ca3af" && t > r0 + 0.3) working++;
+  });
+  $("s3count").textContent = `${Math.min(working, 4)}/5`;
+  $("s3dot").style.opacity = 0.4 + 0.6 * Math.abs(Math.sin(t * 3));
+
+  // S4 features 11.2 - 15
+  const s4 = $("s4");
+  s4.style.opacity = t >= 11.1 && t < 15.1 ? 1 : 0;
+  set($("s4title"), io(t, 11.2, 15.0), 0, 40 * (1 - easeOut(prog(t, 11.2, 0.5))));
+  FEATURES.forEach((f, i) => {
+    const a = 11.6 + i * 0.16;
+    const p = back(prog(t, a, 0.45));
+    set($("f" + i), Math.min(easeOut(prog(t, a, 0.3)), 1 - easeInOut(prog(t, 14.55, 0.45))), 0, 40 * (1 - p), 0.85 + 0.15 * p);
+  });
+
+  // S5 phone 15 - 18.6
+  const s5 = $("s5");
+  s5.style.opacity = t >= 14.9 && t < 18.7 ? 1 : 0;
+  set($("s5title"), io(t, 15.0, 18.6), 0, 40 * (1 - easeOut(prog(t, 15.0, 0.5))));
+  const ph = easeOut(prog(t, 15.15, 0.6));
+  set($("s5phone"), io(t, 15.15, 18.6), 0, 160 * (1 - ph));
+  // notification drops in at 15.7, rings, is tapped away at 16.9
+  const nIn = back(prog(t, 15.7, 0.5));
+  const nOut = easeInOut(prog(t, 16.8, 0.35));
+  const shake = t > 15.9 && t < 16.7 ? Math.sin(t * 60) * 6 * (1 - prog(t, 15.9, 0.8)) : 0;
+  set($("s5notif"), Math.min(easeOut(prog(t, 15.7, 0.3)), 1 - nOut), shake, -160 * (1 - nIn) - 140 * nOut);
+  [...$("s5waves").children].forEach((w, i) => {
+    const wt = prog(t, 15.8 + i * 0.25, 1.0);
+    w.style.opacity = t > 15.8 && t < 17.2 ? (1 - wt) * 0.8 : 0;
+    w.style.transform = `scale(${0.6 + wt * 0.7})`;
+  });
+  // tap the button at 17.15, then the timer runs
+  const tap = prog(t, 17.1, 0.4);
+  $("s5tap").style.opacity = t > 17.1 && t < 17.5 ? 1 - tap : 0;
+  $("s5tap").style.transform = `scale(${1 + tap * 3})`;
+  const on = t >= 17.25;
+  const btn = $("s5btn");
+  btn.style.background = on ? "#15123a" : "#6a4cf5";
+  btn.style.transform = `scale(${t > 17.1 && t < 17.3 ? 0.96 : 1})`;
+  $("s5btntext").textContent = on ? "Clock out" : "Clock in";
+  $("s5icon").setAttribute("d", on ? "M7 7h10v10H7z" : "M8 5.5v13l10.5-6.5z");
+  const ring = $("s5ring");
+  ring.style.borderColor = on ? "#d1fae5" : "#efedf6";
+  ring.style.background = on ? "#ecfdf5" : "#fff";
+  $("s5label").textContent = on ? "● Clocked in" : "Today";
+  $("s5label").style.color = on ? "#047857" : "#6e6990";
+  const secs = on ? Math.floor((t - 17.25) * 1) : 0;
+  $("s5time").textContent = on ? `0:00:${String(secs).padStart(2, "0")}` : "0h 00m";
+
+  // S6 end 18.6 - 22
+  const s6 = $("s6");
+  s6.style.opacity = t >= 18.5 ? 1 : 0;
+  const e = (a) => easeOut(prog(t, a, 0.55));
+  const tb = back(prog(t, 18.6, 0.6));
+  $("s6tile").style.opacity = easeOut(prog(t, 18.6, 0.3));
+  $("s6tile").style.transform = `scale(${tb})`;
+  set($("s6name"), e(18.85), 0, 40 * (1 - e(18.85)));
+  set($("s6tag"), e(19.15), 0, 30 * (1 - e(19.15)));
+  const pp = back(prog(t, 19.5, 0.55));
+  $("s6price").style.opacity = easeOut(prog(t, 19.5, 0.3));
+  $("s6price").style.transform = `translateX(-50%) scale(${0.7 + 0.3 * pp})`;
+  set($("s6trial"), e(19.85), 0, 20 * (1 - e(19.85)));
+  set($("s6url"), e(20.15), 0, 20 * (1 - e(20.15)));
+}
+window.render = render;
+window.DURATION = DURATION;
+render(0);
+</script>
+</body>
+</html>
