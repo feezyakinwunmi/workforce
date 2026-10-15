@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/icons";
-import { blackVideoTrack, connectMedia, readStats, signalScore, silentAudioTrack, watchLevel, type Publisher, type RemoteRef, type Source, type Subscriber } from "@/lib/meet/engine";
+import { blackVideoTrack, connectMedia, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
 import { meetingLink } from "@/lib/meet/paths";
 import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo } from "@/lib/meet/types";
 import { leaveOnUnload, useRoom } from "@/lib/meet/use-room";
@@ -100,13 +100,15 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         sub.current = s;
         pulled.current.clear();
         setRemote({});
-        s.onTrack = (ref, track) => setRemote((r) => ({ ...r, [ref.participantId]: { ...r[ref.participantId], [ref.trackName]: track } }));
+        s.onTrack = (ref, track) => setRemote((r) => ({ ...r, [ref.participantId]: { ...r[ref.participantId], [ref.source]: track } }));
         s.onRemoved = (ref) =>
           setRemote((r) => {
             const cur = { ...r[ref.participantId] };
-            delete cur[ref.trackName];
+            delete cur[ref.source];
             return { ...r, [ref.participantId]: cur };
           });
+        // A track published again under a new name: tell the others so they receive the new one.
+        p.onTracksChanged = () => update({ tracks: p.tracks() });
         s.onReset = () => {
           pulled.current.clear();
           setRetry((n) => n + 1);
@@ -124,7 +126,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         p.pc.addEventListener("connectionstatechange", watch);
         s.onState = watch;
         setConnected(true);
-        update({ sfu_session: p.session, tracks: [{ name: "mic", kind: "audio" }, { name: "camera", kind: "video" }], audio_on: media.micOn && !!media.mic, video_on: media.camOn });
+        update({ sfu_session: p.session, tracks: p.tracks(), audio_on: media.micOn && !!media.mic, video_on: media.camOn });
       } catch (e) {
         if (!cancelled) setConnectError(e instanceof Error ? e.message : "Couldn't connect to the meeting.");
       }
@@ -172,11 +174,13 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     const want = new Map<string, RemoteRef>();
     for (const p of people) {
       if (p.id === meId || !p.sfu_session) continue;
-      const names = new Set((p.tracks ?? []).map((t) => t.name));
-      const add = (trackName: Source) => want.set(`${p.sfu_session}/${trackName}`, { participantId: p.id, sessionId: p.sfu_session!, trackName });
-      if (names.has("mic")) add("mic");
-      if (names.has("camera") && !media.dataSaver) add("camera");
-      if (names.has("screen") && p.screen_on) add("screen");
+      for (const t of p.tracks ?? []) {
+        const source = sourceOf(t.name);
+        if (source === "camera" && media.dataSaver) continue;
+        if (source === "screen" && !p.screen_on) continue;
+        if (!["mic", "camera", "screen"].includes(source)) continue;
+        want.set(`${p.sfu_session}/${t.name}`, { participantId: p.id, sessionId: p.sfu_session!, trackName: t.name, source });
+      }
     }
     const drop = [...pulled.current.entries()].filter(([k]) => !want.has(k)).map(([, r]) => r);
     const fresh = [...want.entries()].filter(([k]) => !pulled.current.has(k)).map(([, r]) => r);
@@ -194,6 +198,29 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     }
   }, [connected, people, meId, media.dataSaver, retry]);
   useEffect(() => () => void (retryTimer.current && clearTimeout(retryTimer.current)), []);
+
+  // Ask Cloudflare every 10 s whether it still has my tracks; publish again any it lost.
+  useEffect(() => {
+    if (!connected) return;
+    const t = setInterval(() => void pub.current?.checkHealth(), 10_000);
+    return () => clearInterval(t);
+  }, [connected]);
+
+  // Phones stop the camera while the browser is in the background; after 30 s Cloudflare forgets
+  // the track. Coming back after that long: publish camera and mic again straight away.
+  useEffect(() => {
+    if (!connected || !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return;
+    let hiddenAt = 0;
+    const onVis = () => {
+      if (document.visibilityState === "hidden") hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt > 25_000) {
+        void pub.current?.republish("camera").catch(() => undefined);
+        void pub.current?.republish("mic").catch(() => undefined);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [connected]);
 
   // ----- screen sharing -----------------------------------------------------
   // Phones and tablets can't share their screen from a browser: hide the button there.
@@ -221,7 +248,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       t.addEventListener("ended", () => stopShareRef.current());
       await pub.current?.shareScreen(t);
       setSharing(t);
-      update({ screen_on: true, tracks: [{ name: "mic", kind: "audio" }, { name: "camera", kind: "video" }, { name: "screen", kind: "video" }] });
+      update({ screen_on: true, tracks: pub.current?.tracks() ?? [] });
     } catch {
       // Cancelled the picker: nothing to do.
     }
@@ -371,6 +398,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       pinned={pinned === p.id}
       onPin={() => setPinned((x) => (x === p.id ? null : p.id))}
       big={big}
+      note={p.id !== meId && p.video_on && media.dataSaver ? "Video paused (data saver)" : p.id !== meId && p.video_on && !remote[p.id]?.camera ? "Connecting video…" : undefined}
     />
   );
 
@@ -487,6 +515,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
             {panel === "settings" && (
               <div className="flex-1 space-y-5 overflow-y-auto p-4">
                 <DeviceSettings media={media} />
+                <ConnectionDetails pub={pub} sub={sub} people={others} remote={remote} dataSaver={media.dataSaver} />
                 <div>
                   <p className="mb-2 text-xs text-white/60">Layout</p>
                   <div className="flex gap-2">
@@ -555,6 +584,79 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   );
 }
 
+type RecvRow = { name: string; camera: string; mic: string; screen?: string };
+
+/** Live sending/receiving details, to find out why someone can't be seen or heard. */
+function ConnectionDetails({ pub, sub, people, remote, dataSaver }: {
+  pub: React.RefObject<Publisher | null>; sub: React.RefObject<Subscriber | null>; people: Participant[]; remote: RemoteMedia; dataSaver: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [send, setSend] = useState<SendInfo[]>([]);
+  const [recv, setRecv] = useState<RecvRow[]>([]);
+  const [state, setState] = useState("");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const read = async () => {
+      const p = pub.current, s = sub.current;
+      setState(`Sending: ${p?.pc.connectionState ?? "none"} · Receiving: ${s?.pc.connectionState ?? "none"}${s?.lastError ? ` (${s.lastError})` : ""}${dataSaver ? " · Data saver ON (cameras not received)" : ""}`);
+      setSend(p ? await p.info() : []);
+      const rows: RecvRow[] = [];
+      for (const person of people) {
+        const describe = async (source: Source) => {
+          const t = (person.tracks ?? []).find((x) => sourceOf(x.name) === source);
+          if (!t) return "not published";
+          const track = remote[person.id]?.[source];
+          if (track && s) {
+            const i = await s.info(track);
+            return `${t.name}: ${i.live ? "live" : "ended"}${i.muted ? ", no data" : ""} · ${(i.bytes / 1e6).toFixed(2)} MB${i.frames !== null ? ` · ${i.frames} frames` : ""}${i.size ? ` · ${i.size}` : ""}${i.codec ? ` · ${i.codec}` : ""}`;
+          }
+          const why = s?.problems.get(`${person.sfu_session}/${t.name}`);
+          return `${t.name}: not received${why ? ` (${why})` : source === "camera" && dataSaver ? " (data saver)" : ""}`;
+        };
+        rows.push({
+          name: `${person.display_name} · camera ${person.video_on ? "on" : "off"} · mic ${person.audio_on ? "on" : "off"}`,
+          camera: await describe("camera"),
+          mic: await describe("mic"),
+          screen: person.screen_on ? await describe("screen") : undefined,
+        });
+      }
+      setRecv(rows);
+    };
+    void read();
+    const t = setInterval(() => void read(), 2000);
+    return () => clearInterval(t);
+  }, [open, pub, sub, people, remote, dataSaver]);
+
+  const text = () =>
+    [state, "Me:", ...send.map((x) => `  ${x.name}: cloudflare ${x.cloudflare} · ${(x.bytes / 1e6).toFixed(2)} MB${x.frames !== null ? ` · ${x.frames} frames` : ""}${x.size ? ` · ${x.size}` : ""}${x.codec ? ` · ${x.codec}` : ""}`),
+      ...recv.flatMap((r) => [r.name, `  ${r.camera}`, `  ${r.mic}`, ...(r.screen ? [`  ${r.screen}`] : [])])].join("\n");
+
+  return (
+    <div>
+      <button className="text-xs text-white/60 underline underline-offset-2 hover:text-white" onClick={() => setOpen((o) => !o)}>
+        {open ? "Hide connection details" : "Connection details"}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <pre className="max-h-72 overflow-auto rounded-lg bg-black/40 p-2 text-[11px] leading-relaxed whitespace-pre-wrap text-white/80">{text()}</pre>
+          <button
+            className="rounded-lg bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15"
+            onClick={() => {
+              void navigator.clipboard?.writeText(text()).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              });
+            }}
+          >
+            {copied ? "Copied" : "Copy details"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function gridClass(n: number) {
   if (n <= 1) return "grid-cols-1 mx-auto w-full max-w-4xl";
   if (n === 2) return "grid-cols-1 sm:grid-cols-2";
@@ -597,16 +699,17 @@ function Control({ icon, label, onClick, off, active, disabled, badge, className
   );
 }
 
-function Tile({ p, me, track, speaking, micOn, pinned, onPin, big }: { p: Participant; me: boolean; track: MediaStreamTrack | null | undefined; speaking: boolean; micOn: boolean; pinned: boolean; onPin: () => void; big?: boolean }) {
+function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note }: { p: Participant; me: boolean; track: MediaStreamTrack | null | undefined; speaking: boolean; micOn: boolean; pinned: boolean; onPin: () => void; big?: boolean; note?: string }) {
   return (
     <div className={cn("group relative h-full w-full overflow-hidden rounded-2xl bg-[#1b1842] ring-2 transition", speaking ? "ring-emerald-400" : "ring-transparent")}>
       {track ? (
         <VideoView track={track} mirror={me} />
       ) : (
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full flex-col items-center justify-center gap-2">
           <span className={cn("flex items-center justify-center rounded-full font-display font-bold", big ? "h-28 w-28 text-4xl" : "h-14 w-14 text-xl")} style={{ background: avatarColour(p.user_id) }}>
             {initialsOf(p.display_name)}
           </span>
+          {note && <span className="text-xs text-white/55">{note}</span>}
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-3 pt-6 pb-2 text-sm">

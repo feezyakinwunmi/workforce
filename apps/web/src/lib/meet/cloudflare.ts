@@ -68,6 +68,8 @@ export const sfu = {
     call(`/sessions/${encodeURIComponent(sessionId)}/tracks/new`, "POST", {
       tracks: remotes.map((r) => ({ location: "remote", sessionId: r.sessionId, trackName: r.trackName })),
     }),
+  /** What Cloudflare knows about a session (its tracks and their status). */
+  state: (sessionId: string) => call(`/sessions/${encodeURIComponent(sessionId)}`, "GET"),
   renegotiate: (sessionId: string, answer: Sdp) =>
     call(`/sessions/${encodeURIComponent(sessionId)}/renegotiate`, "PUT", { sessionDescription: answer }),
   close: (sessionId: string, mids: string[], offer?: Sdp) =>

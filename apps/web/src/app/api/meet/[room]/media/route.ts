@@ -12,9 +12,11 @@ import { createClient } from "@/lib/supabase/server";
  *   { op: "pull", session, ticket, remotes }                 → subscribe to others' tracks
  *   { op: "renegotiate", session, ticket, answer }
  *   { op: "close", session, ticket, mids, offer? }
+ *   { op: "state", session, ticket }                         → my session's tracks as Cloudflare sees them
  */
 const UUID = /^[0-9a-f-]{36}$/i;
-const NAME = /^(mic|camera|screen|screen-audio)$/;
+// "camera", or "camera.2" after a track was published again.
+const NAME = /^(mic|camera|screen|screen-audio)(\.[0-9]{1,4})?$/;
 
 type Check = { ok: boolean; participant_id?: string; sessions?: string[] };
 
@@ -73,6 +75,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           return bad("That person isn't in this meeting.", 403);
         }
         return NextResponse.json(await sfu.pull(session, remotes));
+      }
+      case "state": {
+        // Only the tracks' names and status go back to the browser.
+        const st = await sfu.state(session);
+        const tracks = (st.tracks ?? []).map((t) => ({ trackName: t.trackName, location: t.location, status: (t as { status?: string }).status, mid: t.mid }));
+        return NextResponse.json({ tracks });
       }
       case "renegotiate":
         if (!isSdp(body.answer, "answer")) return bad("Bad answer");

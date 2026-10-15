@@ -8,7 +8,7 @@
 
 export type Sdp = { type: "offer" | "answer"; sdp: string };
 export type Source = "mic" | "camera" | "screen";
-export type RemoteRef = { participantId: string; sessionId: string; trackName: Source };
+export type RemoteRef = { participantId: string; sessionId: string; trackName: string; source: Source };
 type CfTrack = { mid?: string; trackName?: string; sessionId?: string; errorCode?: string };
 type Reply = { sessionDescription?: Sdp; tracks?: CfTrack[]; requiresImmediateRenegotiation?: boolean; error?: string };
 
@@ -71,32 +71,55 @@ async function iceConfig(api: MediaApi): Promise<RTCConfiguration> {
   return { iceServers, bundlePolicy: "max-bundle" };
 }
 
+export type PublishedTrack = { name: string; kind: "audio" | "video" };
+export type SendInfo = { source: Source; name: string; cloudflare: string; bytes: number; frames: number | null; size: string | null; codec: string | null };
+
+/** "camera.3" → "camera". Track names get a number when a track is published again. */
+export const sourceOf = (trackName: string) => trackName.split(".")[0] as Source;
+
 export class Publisher {
   pc!: RTCPeerConnection;
   session = "";
   private ticket = "";
   private tx = new Map<Source, RTCRtpTransceiver>();
+  private names = new Map<Source, string>();
+  private version = 0;
+  private lowData = false;
   private q = new Queue();
   private screenIdle: MediaStreamTrack | null = null;
+  private misses = new Map<Source, number>();
+  private lastRepublish = new Map<Source, number>();
+  /** What Cloudflare last said about each of my tracks (for "Connection details"). */
+  cloudflare = new Map<string, string>();
+  /** Called when a track was published again under a new name: tell the others. */
+  onTracksChanged: () => void = () => {};
   constructor(private api: MediaApi) {}
 
   /** Connect and publish mic + camera. */
   async start(config: RTCConfiguration, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean) {
+    this.lowData = lowData;
     this.pc = new RTCPeerConnection(config);
     const s = await this.api.post<{ session: string; ticket: string }>("session");
     this.session = s.session;
     this.ticket = s.ticket;
     this.tx.set("mic", this.pc.addTransceiver(mic, { direction: "sendonly" }));
     this.tx.set("camera", this.pc.addTransceiver(camera, { direction: "sendonly", sendEncodings: [videoEncoding(lowData)] }));
+    this.names.set("mic", "mic");
+    this.names.set("camera", "camera");
     await this.q.run(() => this.publish(["mic", "camera"]));
     // Others can only receive my tracks once this connection is up, so wait for it (max 15 s).
     await connectedOrTimeout(this.pc, 15_000);
   }
 
+  /** The tracks to announce to the others. */
+  tracks(): PublishedTrack[] {
+    return [...this.names.entries()].map(([source, name]) => ({ name, kind: source === "mic" ? "audio" : "video" }));
+  }
+
   private async publish(sources: Source[]) {
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
-    const tracks = sources.map((s) => ({ mid: this.tx.get(s)!.mid!, trackName: s }));
+    const tracks = sources.map((s) => ({ mid: this.tx.get(s)!.mid!, trackName: this.names.get(s)! }));
     const res = await this.api.post("push", { session: this.session, ticket: this.ticket, offer: this.pc.localDescription!.toJSON(), tracks });
     if (!res.sessionDescription) throw new Error("No answer from the call service");
     await this.pc.setRemoteDescription(res.sessionDescription);
@@ -109,6 +132,7 @@ export class Publisher {
   }
 
   async setLowData(lowData: boolean) {
+    this.lowData = lowData;
     const sender = this.tx.get("camera")?.sender;
     if (!sender) return;
     const p = sender.getParameters();
@@ -123,7 +147,8 @@ export class Publisher {
     // When sharing stops, keep sending a black frame: Cloudflare removes a track after 30 s without data.
     if (existing) return existing.sender.replaceTrack(track ?? (this.screenIdle ??= blackVideoTrack()));
     if (!track) return;
-    this.tx.set("screen", this.pc.addTransceiver(track, { direction: "sendonly", sendEncodings: [{ maxBitrate: 1_200_000, maxFramerate: 15 }] }));
+    this.tx.set("screen", this.pc.addTransceiver(track, { direction: "sendonly", sendEncodings: [SCREEN_ENCODING] }));
+    this.names.set("screen", "screen");
     await this.q.run(() => this.publish(["screen"]));
   }
 
@@ -131,10 +156,94 @@ export class Publisher {
     return this.tx.has("screen");
   }
 
+  /**
+   * Publish a track again under a new name. Used when Cloudflare lost it (e.g. a phone stopped
+   * the camera while the browser was in the background for more than 30 s).
+   */
+  republish(source: Source) {
+    const now = Date.now();
+    if (now - (this.lastRepublish.get(source) ?? 0) < 20_000) return Promise.resolve(false);
+    this.lastRepublish.set(source, now);
+    return this.q.run(async () => {
+      const old = this.tx.get(source);
+      if (!old || this.pc.connectionState === "closed") return false;
+      const track = old.sender.track;
+      const oldMid = old.mid;
+      await old.sender.replaceTrack(null);
+      old.stop();
+      if (oldMid) {
+        const offer = await this.pc.createOffer();
+        await this.pc.setLocalDescription(offer);
+        const res = await this.api
+          .post("close", { session: this.session, ticket: this.ticket, mids: [oldMid], offer: this.pc.localDescription!.toJSON() })
+          .catch(() => null);
+        if (res?.sessionDescription?.type === "answer") await this.pc.setRemoteDescription(res.sessionDescription);
+      }
+      const replacement = track ?? (source === "mic" ? silentAudioTrack() : blackVideoTrack());
+      const sendEncodings = source === "camera" ? [videoEncoding(this.lowData)] : source === "screen" ? [SCREEN_ENCODING] : undefined;
+      this.tx.set(source, this.pc.addTransceiver(replacement, { direction: "sendonly", sendEncodings }));
+      this.names.set(source, `${source}.${++this.version}`);
+      await this.publish([source]);
+      this.onTracksChanged();
+      return true;
+    });
+  }
+
+  /**
+   * Asks Cloudflare which of my tracks it has. A track missing twice in a row (≈20 s) is
+   * published again. Call every ~10 s.
+   */
+  async checkHealth() {
+    if (!this.session || this.pc.connectionState !== "connected") return;
+    let state: { tracks?: Array<{ trackName?: string; location?: string; status?: string }> };
+    try {
+      state = await this.api.post("state", { session: this.session, ticket: this.ticket });
+    } catch {
+      return;
+    }
+    const list = Array.isArray(state.tracks) ? state.tracks : null;
+    this.cloudflare.clear();
+    for (const t of list ?? []) if (t.trackName) this.cloudflare.set(t.trackName, t.status ?? "listed");
+    // Only act when Cloudflare clearly lists my tracks (so an unexpected answer never triggers this).
+    if (!list || !list.some((t) => [...this.names.values()].includes(t.trackName ?? ""))) return;
+    for (const [source, name] of this.names) {
+      const found = list.some((t) => t.trackName === name);
+      const n = found ? 0 : (this.misses.get(source) ?? 0) + 1;
+      this.misses.set(source, n);
+      if (n >= 2) {
+        this.misses.set(source, 0);
+        void this.republish(source).catch(() => undefined);
+      }
+    }
+  }
+
+  /** Sending details for "Connection details". */
+  async info(): Promise<SendInfo[]> {
+    const out: SendInfo[] = [];
+    for (const [source, t] of this.tx) {
+      const name = this.names.get(source) ?? source;
+      const stats = await t.sender.getStats().catch(() => null);
+      let bytes = 0, frames: number | null = null, size: string | null = null, codec: string | null = null;
+      stats?.forEach((r) => {
+        if (r.type === "outbound-rtp") {
+          bytes += r.bytesSent ?? 0;
+          if (typeof r.framesEncoded === "number") frames = r.framesEncoded;
+          if (r.frameWidth) size = `${r.frameWidth}×${r.frameHeight}`;
+          if (r.codecId) codec = (stats.get(r.codecId) as { mimeType?: string } | undefined)?.mimeType ?? null;
+        }
+      });
+      out.push({ source, name, cloudflare: this.cloudflare.get(name) ?? "?", bytes, frames, size, codec });
+    }
+    return out;
+  }
+
   close() {
     this.pc?.close();
+    this.screenIdle?.stop();
   }
 }
+
+const SCREEN_ENCODING: RTCRtpEncodingParameters = { maxBitrate: 1_200_000, maxFramerate: 15 };
 
 /** Resolves when the connection is up, or after the timeout (later retries cover slow networks). */
 function connectedOrTimeout(pc: RTCPeerConnection, ms: number) {
@@ -167,6 +276,8 @@ export class Subscriber {
   private pulled = new Map<string, string>(); // key -> mid
   private failures = 0;
   lastError: string | null = null;
+  /** Why a track isn't being received yet (for "Connection details"). */
+  problems = new Map<string, string>();
   onTrack: (ref: RemoteRef, track: MediaStreamTrack) => void = () => {};
   onRemoved: (ref: RemoteRef) => void = () => {};
   /** Called after the receiving connection was rebuilt: everything must be received again. */
@@ -241,6 +352,7 @@ export class Subscriber {
       } catch (e) {
         // The session may have expired or broken: after two failures in a row, start a fresh one.
         this.lastError = e instanceof Error ? e.message : String(e);
+        for (const r of todo) this.problems.set(Subscriber.key(r), this.lastError);
         if (++this.failures >= 2) {
           this.failures = 0;
           this.reset();
@@ -251,7 +363,12 @@ export class Subscriber {
       this.lastError = null;
       const ok: RemoteRef[] = [];
       for (const t of res.tracks ?? []) {
-        if (t.errorCode || !t.mid) continue;
+        const k = `${t.sessionId}/${t.trackName}`;
+        if (t.errorCode || !t.mid) {
+          this.problems.set(k, [t.errorCode, (t as { errorDescription?: string }).errorDescription].filter(Boolean).join(": ") || "not available yet");
+          continue;
+        }
+        this.problems.delete(k);
         const ref = todo.find((r) => r.sessionId === t.sessionId && r.trackName === t.trackName);
         if (!ref) continue;
         this.byMid.set(t.mid, ref);
@@ -294,6 +411,22 @@ export class Subscriber {
       const res = await this.api.post("close", { session: this.session, ticket: this.ticket, mids, offer: this.pc.localDescription!.toJSON() });
       if (res.sessionDescription?.type === "answer") await this.pc.setRemoteDescription(res.sessionDescription);
     });
+  }
+
+  /** Receiving details for one track (for "Connection details"). */
+  async info(track: MediaStreamTrack) {
+    const r = this.pc.getReceivers().find((x) => x.track === track);
+    const stats = await r?.getStats().catch(() => null);
+    let bytes = 0, frames: number | null = null, size: string | null = null, codec: string | null = null;
+    stats?.forEach((s) => {
+      if (s.type === "inbound-rtp") {
+        bytes += s.bytesReceived ?? 0;
+        if (typeof s.framesDecoded === "number") frames = s.framesDecoded;
+        if (s.frameWidth) size = `${s.frameWidth}×${s.frameHeight}`;
+        if (s.codecId) codec = (stats.get(s.codecId) as { mimeType?: string } | undefined)?.mimeType ?? null;
+      }
+    });
+    return { bytes, frames, size, codec, live: track.readyState === "live", muted: track.muted };
   }
 
   close() {
