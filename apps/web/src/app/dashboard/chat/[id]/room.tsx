@@ -38,6 +38,20 @@ const dayLabel = (iso: string, timeZone: string) => {
 };
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** Web links in a message become clickable (http/https only). */
+const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
+function linkify(text: string, mine: boolean, keyBase: string | number = "") {
+  return text.split(URL_RE).map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a key={`${keyBase}-${i}`} href={part} target="_blank" rel="noopener noreferrer" className={cn("break-all underline underline-offset-2", mine ? "text-white" : "text-brand-700")}>
+        {part}
+      </a>
+    ) : (
+      <Fragment key={`${keyBase}-${i}`}>{part}</Fragment>
+    ),
+  );
+}
+
 /** Rows from Realtime may miss the new columns for a moment; fill them in. */
 const normalize = (m: ChatMessage): ChatMessage => ({ ...m, attachments: m.attachments ?? [], mentions: m.mentions ?? [] });
 /** A message shown straight away while it is still being sent. */
@@ -379,11 +393,11 @@ export function ChatRoom({
       .map((id) => ({ id, name: people[id]?.name }))
       .filter((x): x is { id: string; name: string } => Boolean(x.name))
       .sort((a, b) => b.name.length - a.name.length);
-    if (!named.length) return m.body;
+    if (!named.length) return linkify(m.body, mine);
     const re = new RegExp(`(@(?:${named.map((n) => escapeRegExp(n.name)).join("|")}))`, "g");
     return m.body.split(re).map((part, i) => {
       const who = part.startsWith("@") ? named.find((n) => `@${n.name}` === part) : undefined;
-      if (!who) return <Fragment key={i}>{part}</Fragment>;
+      if (!who) return <Fragment key={i}>{linkify(part, mine, i)}</Fragment>;
       return (
         <span key={i} className={cn("rounded px-0.5 font-medium", mine ? "bg-white/20 text-white" : who.id === meId ? "bg-amber-100 text-amber-900" : "bg-brand-50 text-brand-700")}>
           {part}

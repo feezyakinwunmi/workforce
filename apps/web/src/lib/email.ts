@@ -35,8 +35,9 @@ export const emailEnabled = () => Boolean(host && user && pass);
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-type Message = { subject: string; heading: string; text?: string | null; link: string; button?: string };
-export type Attachment = { filename: string; content: Buffer; contentType: string };
+/** `link` is a dashboard path; `url` (full address, e.g. a Meet link) takes its place when given. */
+type Message = { subject: string; heading: string; text?: string | null; link: string; url?: string; button?: string; footer?: string };
+export type Attachment = { filename: string; content: Buffer | string; contentType: string };
 
 /** Kinds of email a person can turn off on their profile (profiles.email_opt_out). */
 export const EMAIL_KINDS = {
@@ -47,7 +48,7 @@ export const EMAIL_KINDS = {
 export type EmailKind = keyof typeof EMAIL_KINDS;
 
 function render(message: Message) {
-  const url = `${siteUrl()}${message.link}`;
+  const url = message.url ?? `${siteUrl()}${message.link}`;
   const body = message.text ? message.text.slice(0, 1000) : "";
   const button = message.button ?? "Open";
   return {
@@ -57,7 +58,7 @@ function render(message: Message) {
   <p style="font-size:17px;font-weight:600;margin:0 0 12px">${escapeHtml(message.heading)}</p>
   ${body ? `<p style="white-space:pre-wrap;margin:0 0 16px;color:#334155">${escapeHtml(body)}</p>` : ""}
   <p style="margin:0 0 24px"><a href="${escapeHtml(url)}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">${escapeHtml(button)}</a></p>
-  <p style="font-size:12px;color:#94a3b8;margin:0">Sent by ${escapeHtml(APP_NAME)} because you are a member of a company that uses it.</p>
+  <p style="font-size:12px;color:#94a3b8;margin:0">${escapeHtml(message.footer ?? `Sent by ${APP_NAME} because you are a member of a company that uses it.`)}</p>
 </div>`,
   };
 }

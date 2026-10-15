@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isMeetHost, MEET_PASSTHROUGH } from "@/lib/meet/paths";
 import { safeNext } from "@/lib/utils";
 
 const PROTECTED = ["/dashboard", "/onboarding"];
@@ -31,7 +32,8 @@ export async function updateSession(request: NextRequest) {
   // Do not put code between createServerClient and getClaims: it keeps the session fresh
   // (an expired token is renewed here and the new cookie is written to the response).
   const { data } = await supabase.auth.getClaims();
-  const user = data?.claims?.sub ? data.claims : null;
+  // Meet guests sign in anonymously: they count as signed out for the dashboard and login pages.
+  const user = data?.claims?.sub && !data.claims.is_anonymous ? data.claims : null;
 
   const path = request.nextUrl.pathname;
 
@@ -45,6 +47,15 @@ export async function updateSession(request: NextRequest) {
   if (user && AUTH_PAGES.some((p) => path.startsWith(p))) {
     const url = request.nextUrl.clone();
     return NextResponse.redirect(new URL(safeNext(request.nextUrl.searchParams.get("next")), request.url));
+  }
+
+  // The Meet address serves the /meet pages at its root (workbase-meet…/abc-defg-hij → /meet/abc-defg-hij).
+  if (isMeetHost(request.headers.get("host")) && !MEET_PASSTHROUGH.test(path)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/meet${path === "/" ? "" : path}`;
+    const rewritten = NextResponse.rewrite(url, { request });
+    response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
+    return rewritten;
   }
 
   return response;

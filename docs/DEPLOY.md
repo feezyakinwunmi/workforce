@@ -158,6 +158,33 @@ The same secret protects the second daily job, `/api/cron/screenshot-cleanup` (0
 
 Receipts: Plan and billing → Payments → **Receipt** on any successful payment (print or save as PDF).
 
+## 10. Workbase Meet (video meetings)
+
+Meet is part of the same Vercel project but has its own address. Video and sound travel through Cloudflare Realtime (free for the first 1,000 GB a month, then $0.05 per GB).
+
+**A. Database (once).** Supabase → **SQL Editor** → paste all of `supabase/migrations/20261015000033_meet.sql` → **Run**. (Run it here, not through Claude: it contains a clean-up step that the Supabase connector refuses to apply.) Check: `select to_regprocedure('public.meet_join(text,text)');` returns a name, not empty.
+
+**B. Guests without an account.** Supabase → **Authentication → Sign In / Providers** → turn on **Allow anonymous sign-ins** → Save. Guests then join with just a name; they can't open the dashboard.
+
+**C. Cloudflare keys.**
+1. Cloudflare dashboard (a free account is enough) → **Realtime** → **SFU** → **Create application**. Copy the **App ID** and the **App secret**.
+2. Realtime → **TURN** → **Create TURN key**. Copy the **Key ID** and the **API token**. (TURN lets calls work behind strict office or mobile networks.)
+3. Vercel → project → **Settings → Environment Variables** (Production and Preview), add:
+   - `CF_REALTIME_APP_ID`, `CF_REALTIME_APP_SECRET`
+   - `CF_TURN_KEY_ID`, `CF_TURN_KEY_API_TOKEN`
+
+   These are secrets: never add them with a `NEXT_PUBLIC_` name and never paste them in a chat.
+
+**D. Its own address.**
+1. Vercel → project → **Settings → Domains** → **Add** `workbase-meet.vercel.app` (or later `meet.yourdomain.com`). Any address starting with `workbase-meet` or `meet.` opens Meet at its root.
+2. Environment Variables: `NEXT_PUBLIC_MEET_URL` = `https://workbase-meet.vercel.app` (no slash at the end). Meeting links in emails and chat then use this address.
+3. Supabase → **Authentication → URL Configuration** → Redirect URLs: add `https://workbase-meet.vercel.app/**`.
+4. Redeploy.
+
+**E. Test.** Open the Meet address, sign in, **New meeting**, then open the link on your phone (mobile data, not Wi-Fi) as a guest. You should see and hear each other. Try screen sharing, a reaction and **End for everyone**.
+
+**Plans.** Free: meetings up to 60 minutes and 25 people. Meet Pro ₦1,000 per host a month: up to 24 hours and 50 people. Meet Business ₦10,000 a month: Pro for 20 hosts in one company (owner first). A company on Workbase Standard or Pro gets Meet Pro for everyone. Meet payments use the same Paystack keys and webhook as §8 (references start with `meet_`).
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

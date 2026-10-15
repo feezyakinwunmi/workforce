@@ -72,3 +72,19 @@ export async function archiveChannel(formData: FormData) {
   revalidatePath(PATH, "layout");
   redirect(PATH);
 }
+
+/** "Start meeting": a Workbase Meet call for this chat, with the link posted in the conversation. */
+export async function startChatMeeting(channelId: string, title: string): Promise<{ link?: string; error?: string }> {
+  const { supabase } = await requireMember();
+  const { linkFor } = await import("@/lib/meet/server");
+  const { data, error } = await supabase.rpc("meet_create", {
+    p_title: title.slice(0, 120),
+    p_waiting_room: false, // people from the chat come straight in
+    p_allow_guests: false,
+  });
+  if (error || !data) return { error: error?.message ?? "Couldn't start a meeting." };
+  const link = await linkFor((data as { code: string }).code);
+  const { error: msgError } = await supabase.from("messages").insert({ channel_id: channelId, body: `📹 I started a meeting. Join here: ${link}` });
+  if (msgError) return { link, error: "The meeting started, but the link couldn't be posted here." };
+  return { link };
+}

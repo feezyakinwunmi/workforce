@@ -10,6 +10,7 @@ import { Icon } from "@/components/icons";
 import { ConfirmSubmit } from "../../team/forms";
 import { addMembers, archiveChannel, removeMember } from "../actions";
 import { ChatRoom, type Person } from "./room";
+import { MeetButton } from "../meet-button";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -87,6 +88,8 @@ export default async function ChannelPage({
           {channel.kind === "direct" && <p className="flex items-center gap-1 text-xs text-slate-500"><Icon name="lock" className="h-3 w-3" />Only the two of you can read this</p>}
         </div>
         </div>
+        <div className="flex items-center gap-2">
+        {canPost && channel.kind !== "announcements" && <MeetButton channelId={id} title={channel.kind === "direct" ? `Call with ${title}` : `${title} call`} />}
         {(channel.kind === "private" || (manager && channel.kind !== "direct" && channel.kind !== "announcements")) && (
           <details className="relative">
             <summary className="btn-secondary btn-sm cursor-pointer list-none">
@@ -146,6 +149,7 @@ export default async function ChannelPage({
             </div>
           </details>
         )}
+        </div>
       </header>
 
       {error && <p role="alert" className="bg-red-50 px-5 py-2 text-sm text-red-700">{error}</p>}

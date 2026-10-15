@@ -72,6 +72,13 @@ export function validSignature(rawBody: string, signature: string | null) {
 export async function recordSuccess(tx: Transaction) {
   if (tx.status !== "success") return { ok: false, error: `payment ${tx.status}` };
   const admin = createAdminClient();
+  // Workbase Meet plans (references start with "meet_").
+  if (tx.reference.startsWith("meet_")) {
+    if (tx.currency !== "NGN") return { ok: false, error: "unexpected currency" };
+    const { data, error } = await admin.rpc("meet_confirm_payment", { p_reference: tx.reference, p_amount_kobo: tx.amount });
+    if (error) return { ok: false, error: error.message };
+    return data ? { ok: true } : { ok: false, error: "amount or reference didn't match" };
+  }
   const { data, error } = await admin.rpc("confirm_payment", {
     p_reference: tx.reference,
     p_amount_kobo: tx.amount,
