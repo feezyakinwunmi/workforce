@@ -146,7 +146,7 @@ apps/web/                 Next.js 16 (App Router) dashboard
   src/app/book            Workbase Book ((site) host area + landing, (public) booking pages); src/lib/book (paths, types, server, mail); src/app/api/book/mail
   src/app/admin           Owner console (overview, companies, support page); src/lib/admin (paths, server gate, types)
   src/app/meet            Workbase Meet ((site) home/schedule/pricing, [code] lobby + room); src/lib/meet (engine, background, use-room, cloudflare, paths, server); src/app/api/meet/[room]/media
-supabase/migrations/      SQL migrations, in order (applied: 0001–0038; 0039 waiting for Femi)
+supabase/migrations/      SQL migrations, in order (applied: 0001–0039)
 docs/SPEC.md              product spec and roadmap
 ```
 
@@ -206,7 +206,7 @@ Release the desktop app: bump `apps/agent/package.json` version, commit, `git ta
 ## Next steps
 
 0. Femi: try the new modules end to end (issue a payslip, clock in from a phone, claim an expense, fill in a staff record, run a review). Have an accountant check the PAYE figures for a few real salaries before paying with them.
-0d. Owner console (pushed 16 Oct 2026): Femi sets `ADMIN_EMAILS`, `ADMIN_URL`, the workbase-admin domain and the Supabase redirect URL, runs 0039, then sets up the authenticator on first visit (DEPLOY.md §12). Offered, not started: "Continue with Google" on login/sign-up (needs a Google OAuth client in Supabase).
+0d. Owner console (pushed 16 Oct 2026): Femi sets `ADMIN_EMAILS`, `ADMIN_URL`, the workbase-admin domain and the Supabase redirect URL, then sets up the authenticator on first visit (DEPLOY.md §12; 0039 applied 16 Oct 2026). Offered, not started: "Continue with Google" on login/sign-up (needs a Google OAuth client in Supabase).
 0c. Workbase Book (pushed 16 Oct 2026): Femi does DEPLOY.md §11 (migration 0036 in the SQL Editor, `workbase-book` domain + `NEXT_PUBLIC_BOOK_URL`, Supabase redirect URL) and checks Paystack allows subaccounts.
 0b. Workbase Meet (pushed 15 Oct 2026): Femi does DEPLOY.md §10 (migration 0033 in the SQL Editor, anonymous sign-ins, Cloudflare keys, `workbase-meet` domain + `NEXT_PUBLIC_MEET_URL`) and test a real call on phone data.
 1. Done 15 Oct 2026: agent v0.8.0 released, Paystack live, email + codes. Femi: check `CRON_SECRET` (§9) is set; launched publicly 15 Oct (posting daily); first real payment test (₦2,500, refund in Paystack).
