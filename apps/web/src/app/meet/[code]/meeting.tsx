@@ -10,6 +10,7 @@ import { MEET_NAME } from "@/lib/meet/paths";
 import type { JoinResult, PingResult, RoomInfo } from "@/lib/meet/types";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { AttendanceButton } from "../attendance";
 import { Room } from "./room";
 
 // ---------------------------------------------------------------------------
@@ -433,15 +434,20 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
         title={text[0]!}
         base={base}
         action={
-          reason === "left" && !info.ended ? (
-            <button className="rounded-xl bg-[#6a4cf5] px-5 py-2.5 font-medium hover:bg-[#5b3fe0]" onClick={() => setPhase({ kind: "lobby" })}>
-              Rejoin
-            </button>
-          ) : reason === "limit" && info.is_host ? (
-            <Link href={`${base}/pricing`} className="rounded-xl bg-[#f2a93b] px-5 py-2.5 font-semibold text-[#15123a] hover:bg-[#f5b85c]">
-              See Meet Pro
-            </Link>
-          ) : undefined
+          <>
+            {(reason === "left" || reason === "ended" || reason === "limit") && (info.is_host || info.my_status === "left" || info.my_status === "admitted") && (
+              <AttendanceButton code={info.code} dark />
+            )}
+            {reason === "left" && !info.ended ? (
+              <button className="rounded-xl bg-[#6a4cf5] px-5 py-2.5 font-medium hover:bg-[#5b3fe0]" onClick={() => setPhase({ kind: "lobby" })}>
+                Rejoin
+              </button>
+            ) : reason === "limit" && info.is_host ? (
+              <Link href={`${base}/pricing`} className="rounded-xl bg-[#f2a93b] px-5 py-2.5 font-semibold text-[#15123a] hover:bg-[#f5b85c]">
+                See Meet Pro
+              </Link>
+            ) : null}
+          </>
         }
       >
         {text[1]}

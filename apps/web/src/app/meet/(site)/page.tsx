@@ -6,6 +6,7 @@ import { InfoTip, Notice } from "@/components/ui";
 import { meetingLink } from "@/lib/meet/paths";
 import { getMeetUser, requestBase, requestOrigin } from "@/lib/meet/server";
 import type { MeetPlan, MyMeeting } from "@/lib/meet/types";
+import { AttendanceButton } from "../attendance";
 import { newMeeting } from "./actions";
 import { CopyLink, JoinForm } from "./join-form";
 
@@ -123,7 +124,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
         <section className="card overflow-hidden">
           <h2 className="flex items-center gap-1.5 border-b border-slate-100 px-5 py-3 font-semibold text-slate-900">
             Recent
-            <InfoTip>Meetings are cleared 7 days after they end. In-meeting chat is deleted as soon as a meeting ends.</InfoTip>
+            <InfoTip>Download who attended (join and leave times, minutes in the meeting) until a meeting is cleared, 7 days after it ends. In-meeting chat is deleted as soon as a meeting ends.</InfoTip>
           </h2>
           <ul className="divide-y divide-slate-100">
             {recent.map((m) => (
@@ -145,7 +146,10 @@ function MeetingRow({ m, when, href, link, ended }: { m: MyMeeting; when: string
         <span className="block text-sm text-slate-500">{when}{m.is_host ? "" : ` · ${m.host_name}`}{m.invites ? ` · ${m.invites} invited` : ""}</span>
       </span>
       {ended ? (
-        <span className="badge bg-slate-100 text-slate-500">Ended</span>
+        <span className="flex items-center gap-2">
+          <span className="badge bg-slate-100 text-slate-500">Ended</span>
+          <AttendanceButton code={m.code} />
+        </span>
       ) : (
         <span className="flex gap-2">
           <CopyLink link={link} />
