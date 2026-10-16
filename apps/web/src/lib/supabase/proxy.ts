@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ADMIN_PASSTHROUGH, isAdminHost } from "@/lib/admin/paths";
 import { BOOK_PASSTHROUGH, isBookHost } from "@/lib/book/paths";
 import { isMeetHost, MEET_PASSTHROUGH } from "@/lib/meet/paths";
 import { safeNext } from "@/lib/utils";
@@ -63,6 +64,15 @@ export async function updateSession(request: NextRequest) {
   if (isBookHost(request.headers.get("host")) && !BOOK_PASSTHROUGH.test(path)) {
     const url = request.nextUrl.clone();
     url.pathname = `/book${path === "/" ? "" : path}`;
+    const rewritten = NextResponse.rewrite(url, { request });
+    response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
+    return rewritten;
+  }
+
+  // The owner console's address serves the /admin pages at its root (workbase-admin…/companies → /admin/companies).
+  if (isAdminHost(request.headers.get("host")) && !ADMIN_PASSTHROUGH.test(path)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/admin${path === "/" ? "" : path}`;
     const rewritten = NextResponse.rewrite(url, { request });
     response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
     return rewritten;

@@ -76,3 +76,20 @@ export async function reopenCompany() {
   await supabase.rpc("reopen_company");
   revalidatePath("/dashboard", "layout");
 }
+
+/** Owner/admin: let Workbase support take a closer look for 1–7 days (every look is logged). */
+export async function allowSupport(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase } = await requireAdmin();
+  const days = Number(formData.get("days"));
+  const { error } = await supabase.rpc("grant_support_access", { p_days: days });
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/settings");
+  return { success: `Support can look until ${days === 1 ? "this time tomorrow" : `${days} days from now`}.` };
+}
+
+/** Owner/admin: switch support access off now. */
+export async function stopSupport() {
+  const { supabase } = await requireAdmin();
+  await supabase.rpc("revoke_support_access");
+  revalidatePath("/dashboard/settings");
+}

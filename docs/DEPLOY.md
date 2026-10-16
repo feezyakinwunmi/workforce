@@ -205,6 +205,22 @@ Book is part of the same Vercel project with its own address, like Meet. Custome
 
 **E. Test.** Open the Book address, sign in, create your page, add your bank account (Settings → Payouts), then book a free call and a paid one from your phone. Refunds: the host refunds the customer directly (for example by bank transfer).
 
+## 12. Owner console (growth, money, support)
+
+A private console for the people who run Workbase: sign-ups, companies using it, money in by product, where people drop off, trials ending, app versions, and a support page for each company. It has its own address and only opens for the emails you list.
+
+**A. Database (once).** Supabase → **SQL Editor** → paste all of `supabase/migrations/20261016000038_owner_console.sql` → **Run**. Check: `select to_regprocedure('public.admin_overview(integer)');` returns a name. If `20261015000035_meet_short_memory.sql` (§10 A2) hasn't been run yet, run that first.
+
+**B. Who can open it.** Vercel → **Settings → Environment Variables** (Production): `ADMIN_EMAILS` = your sign-in email (several: separate with commas). Server only: never `NEXT_PUBLIC_`. Anyone else who opens the address gets "page not found".
+
+**C. Its own address.**
+1. Vercel → **Settings → Domains** → **Add** `workbase-admin.vercel.app` (pick any free name starting with `workbase-admin`, or later `admin.yourdomain.com`).
+2. Environment Variables: `ADMIN_URL` = `https://workbase-admin.vercel.app` (no slash at the end).
+3. Supabase → **Authentication → URL Configuration** → Redirect URLs: add `https://workbase-admin.vercel.app/**`.
+4. Redeploy, open the address and sign in with that email.
+
+**Support access.** You always see a company's plan, payments, people, last clock-ins, app versions and warnings. For a closer look (hours, clock-ins, task counts, leave, recent changes) the company's owner or an admin clicks **Allow support access** in Company settings (1, 3 or 7 days). Each closer look is listed for them there. Chats, notes, screenshots, pay and staff records are never shown in the console. Support notes you add are seen only in the console.
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.
