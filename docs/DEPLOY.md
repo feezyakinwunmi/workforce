@@ -228,6 +228,17 @@ A private console for the people who run Workbase: sign-ups, companies using it,
 
 **Support access.** You always see a company's plan, payments, people, last clock-ins, app versions and warnings. For a closer look (hours, clock-ins, task counts, leave, recent changes) the company's owner or an admin clicks **Allow support access** in Company settings (1, 3 or 7 days). Each closer look is listed for them there. Chats, notes, screenshots, pay and staff records are never shown in the console. Support notes you add are seen only in the console.
 
+## 13. "Continue with Google" (login and sign-up)
+
+The button appears on the login and sign-up pages by itself once Google is switched on in Supabase (the site checks every 5 minutes). Same email = same account, so existing users can use it too.
+
+1. Google Cloud Console (console.cloud.google.com, no card needed: skip any free-trial offer): new project "Workbase" → **Google Auth Platform → Get started** (app name Workbase, External) → **Branding** (home page, /privacy, /terms) → **Audience → Publish app**.
+2. **Clients → Create client → Web application**. Authorized redirect URI: `https://eacdtfbntkxrpfibblak.supabase.co/auth/v1/callback`. Copy the Client ID and secret (keep the secret private).
+3. Supabase → **Authentication → Sign In / Providers → Google**: switch on, paste both, Save.
+4. Supabase → **Authentication → URL Configuration → Redirect URLs**: the site's own addresses must be there (`https://phantomire-workforce.vercel.app/**`, and the Meet, Book and console addresses). After Google, people come back to `/auth/callback` on the same address.
+
+The desktop app still signs in with email and password: people who signed up with Google set a password once in Profile → Password.
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { googleSignInEnabled } from "@/lib/auth-providers";
 import { safeNext } from "@/lib/utils";
 import { SignupForm } from "../forms";
 
@@ -10,5 +11,5 @@ export default async function SignupPage({
   searchParams: Promise<{ next?: string; email?: string }>;
 }) {
   const { next, email } = await searchParams;
-  return <SignupForm next={safeNext(next)} email={email} />;
+  return <SignupForm next={safeNext(next)} email={email} google={await googleSignInEnabled()} />;
 }

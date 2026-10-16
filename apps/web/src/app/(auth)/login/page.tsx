@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Notice } from "@/components/ui";
+import { googleSignInEnabled } from "@/lib/auth-providers";
 import { safeNext } from "@/lib/utils";
 import { LoginForm } from "../forms";
 
@@ -16,7 +17,7 @@ export default async function LoginPage({
       {error && (
         <Notice tone="error" className="mb-6">{error}</Notice>
       )}
-      <LoginForm next={safeNext(next)} email={email} />
+      <LoginForm next={safeNext(next)} email={email} google={await googleSignInEnabled()} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { NewPasswordForm } from "@/components/password-form";
-import { Avatar, PageHeader } from "@/components/ui";
+import { Avatar, PageHeader, InfoTip } from "@/components/ui";
 import { requireMember } from "@/lib/session";
 import { EMAIL_KINDS, emailEnabled } from "@/lib/email";
 import { isAdminRole, ROLE_LABELS } from "@/lib/types";
@@ -48,7 +48,10 @@ export default async function ProfilePage() {
         <EmailPrefsForm kinds={kinds} off={(prefs as { email_opt_out: string[] } | null)?.email_opt_out ?? []} enabled={emailEnabled()} />
       </section>
       <section className="card p-5">
-        <h2 className="section-title mb-4 text-base">Password</h2>
+        <h2 className="section-title mb-4 flex items-center gap-1.5 text-base">
+          Password
+          <InfoTip>Signed up with Google? Set a password here to log in to the desktop app, which uses your email and password.</InfoTip>
+        </h2>
         <NewPasswordForm action={changePassword} submitLabel="Change password" />
       </section>
       <form action="/auth/signout" method="post">

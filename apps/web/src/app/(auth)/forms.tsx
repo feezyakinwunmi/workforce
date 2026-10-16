@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { AuthHeading } from "@/components/auth-shell";
 import { FormMessage, PasswordInput, SubmitButton } from "@/components/form";
+import { GoogleButton, OrDivider } from "@/components/google-button";
 import { Icon } from "@/components/icons";
 import {
   login,
@@ -91,7 +92,7 @@ function CodeStep({ purpose, email, next = "/dashboard", message, onBack }: { pu
   );
 }
 
-export function LoginForm({ next, email }: { next: string; email?: string }) {
+export function LoginForm({ next, email, google = false }: { next: string; email?: string; google?: boolean }) {
   const [state, action] = useActionState(login, undefined);
   const step = useCodeStep(state);
   const [withCode, setWithCode] = useState(false);
@@ -103,6 +104,12 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
     <form action={action} className="space-y-5">
       <AuthHeading title="Welcome back">Log in to your Workbase.</AuthHeading>
       <input type="hidden" name="next" value={next} />
+      {google && (
+        <>
+          <GoogleButton next={next} />
+          <OrDivider />
+        </>
+      )}
       <div>
         <label className="label" htmlFor="email">Email</label>
         <input className="input" id="email" name="email" type="email" autoComplete="email" defaultValue={email} required />
@@ -152,7 +159,7 @@ function LoginCodeForm({ next, email, onPassword }: { next: string; email?: stri
   );
 }
 
-export function SignupForm({ next, email }: { next: string; email?: string }) {
+export function SignupForm({ next, email, google = false }: { next: string; email?: string; google?: boolean }) {
   const [state, action] = useActionState(signup, undefined);
   const step = useCodeStep(state);
 
@@ -162,6 +169,12 @@ export function SignupForm({ next, email }: { next: string; email?: string }) {
     <form action={action} className="space-y-5">
       <AuthHeading title="Create your account">14 days of Standard free. No card needed.</AuthHeading>
       <input type="hidden" name="next" value={next} />
+      {google && (
+        <>
+          <GoogleButton next={next} />
+          <OrDivider />
+        </>
+      )}
       <div>
         <label className="label" htmlFor="full_name">Full name</label>
         <input className="input" id="full_name" name="full_name" autoComplete="name" required />
