@@ -30,3 +30,13 @@ export async function addNote(_: FormState, form: FormData): Promise<FormState> 
   revalidatePath("/admin", "layout");
   return { success: "Note saved." };
 }
+
+/** Mark feedback as new / read / done (one, or every id sent). */
+export async function setFeedbackStatus(form: FormData) {
+  const { db } = await requireAdmin();
+  const ids = form.getAll("id").map(String).filter((v) => UUID.test(v)).slice(0, 500);
+  const status = String(form.get("status") ?? "");
+  if (!ids.length || !["new", "read", "done"].includes(status)) return;
+  await db.rpc("admin_feedback_status", { p_ids: ids, p_status: status });
+  revalidatePath("/admin", "layout");
+}

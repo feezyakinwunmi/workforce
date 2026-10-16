@@ -203,3 +203,30 @@ export type MoneyReport = {
 };
 
 export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_business", "book_pro", "book_fees"] as const;
+
+export type FeedbackItem = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  product: "workbase" | "meet" | "book";
+  rating: number | null;
+  tags: string[];
+  message: string;
+  is_guest: boolean;
+  name: string;
+  email: string | null;
+  organization_id: string | null;
+  company: string | null;
+  meet: { minutes: number; people: number; guests: number; tier: string; role: string; reason: string } | null;
+  page: string;
+  device: string;
+  status: "new" | "read" | "done";
+};
+
+export type FeedbackReport = {
+  new: number;
+  products: Record<"workbase" | "meet" | "book", {
+    count: number; rated: number; average: number | null; stars: number[]; messages: number; tags: Array<{ tag: string; count: number }>;
+  }>;
+  items: FeedbackItem[];
+};

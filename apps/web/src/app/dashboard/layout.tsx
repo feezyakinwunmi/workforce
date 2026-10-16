@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Logo } from "@/components/logo";
 import { companyLogoUrl } from "@/lib/company-logo";
+import { FeedbackButton } from "@/components/feedback";
 import { AppNav, type NavGroup } from "@/components/nav";
 import { LiveUpdates } from "@/components/live-updates";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -112,6 +113,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   <Icon name="download" />
                   <span className="sr-only">Download the desktop app</span>
                 </Link>
+                <span data-tour="feedback">
+                  <FeedbackButton product="workbase" className="btn-ghost px-2" />
+                </span>
                 <span data-tour="help">
                   <TourButton className="btn-ghost px-2">
                     <Icon name="help" />
@@ -196,6 +200,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
       { target: "expenses", title: "Expense claims", body: "Staff photograph a receipt and claim it. Approved claims are paid back with their next payslip." },
       { target: "payroll", title: "Monthly payroll", body: "Set each person's rate once. Pay, PAYE, pension and payslips are worked out from hours and leave." },
       { target: "settings", title: "Your rules", body: "Idle time, app tracking and screenshots are set here for the whole company." },
+      { target: "feedback", title: "Ideas or problems?", body: "Send them here. They go straight to the Workbase team." },
       { target: "help", title: "That's it", body: "Open this tour again from the question mark whenever you need it." },
     ];
   }
@@ -210,6 +215,7 @@ function tourSteps(admin: boolean, manager: boolean, first: string): TourStep[] 
     { target: "leave", title: "Time off", body: "Request leave and see how many days you have left." },
     { target: "reviews", title: "Your goals", body: "Keep track of your goals, and write your self-assessment when a review starts." },
     { target: "expenses", title: "Spent your own money?", body: "Snap the receipt and claim it back. Approved claims come with your next pay." },
+    { target: "feedback", title: "Ideas or problems?", body: "Send them here. They go straight to the Workbase team." },
     { target: "help", title: "That's it", body: "Open this tour again from the question mark whenever you need it." },
   ];
 }

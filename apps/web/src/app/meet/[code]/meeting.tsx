@@ -10,6 +10,7 @@ import { MEET_NAME } from "@/lib/meet/paths";
 import type { JoinResult, PingResult, RoomInfo } from "@/lib/meet/types";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { FeedbackForm } from "@/components/feedback";
 import { AttendanceButton } from "../attendance";
 import { Room } from "./room";
 
@@ -292,7 +293,7 @@ function MeetShell({ children, base }: { children: React.ReactNode; base: string
   );
 }
 
-function Notice({ title, children, base, action }: { title: string; children?: React.ReactNode; base: string; action?: React.ReactNode }) {
+function Notice({ title, children, base, action, below }: { title: string; children?: React.ReactNode; base: string; action?: React.ReactNode; below?: React.ReactNode }) {
   return (
     <MeetShell base={base}>
       <div className="max-w-md text-center">
@@ -304,6 +305,7 @@ function Notice({ title, children, base, action }: { title: string; children?: R
             Start your own free meeting
           </Link>
         </div>
+        {below}
       </div>
     </MeetShell>
   );
@@ -321,6 +323,8 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const media = useLocalMedia();
+  const [feedbackDone, setFeedbackDone] = useState(false);
+  useEffect(() => setFeedbackDone(!!read(`meet-feedback:${code}`)), [code]);
 
   const loadInfo = useCallback(async () => {
     const { data } = await createClient().rpc("meet_room_info", { p_code: code });
@@ -422,6 +426,8 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
 
   if (phase.kind === "out" || info.ended) {
     const reason = phase.kind === "out" ? phase.reason : "ended";
+    // Ask how the call went (optional), only to people who were in it, once per meeting on this device.
+    const askFeedback = phase.kind === "out" && (reason === "left" || reason === "ended" || reason === "limit") && !feedbackDone;
     const text = {
       left: ["You left the meeting", null],
       ended: ["This meeting has ended", "Thanks for joining."],
@@ -448,6 +454,23 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
               </Link>
             ) : null}
           </>
+        }
+        below={
+          askFeedback ? (
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
+              <FeedbackForm
+                product="meet"
+                room={info.id}
+                reason={reason}
+                dark
+                onDone={() => write(`meet-feedback:${code}`, "1")}
+                onSkip={() => {
+                  write(`meet-feedback:${code}`, "skip");
+                  setFeedbackDone(true);
+                }}
+              />
+            </div>
+          ) : null
         }
       >
         {text[1]}

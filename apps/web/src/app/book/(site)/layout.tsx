@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FeedbackButton } from "@/components/feedback";
 import { LogoMark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { OPERATOR_NAME } from "@/lib/config";
@@ -21,6 +22,11 @@ export default async function BookSiteLayout({ children }: { children: React.Rea
           </Link>
           <nav className="flex items-center gap-1 text-sm sm:gap-2">
             {!user && <Link href={`${base}/pricing`} className="rounded-lg px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">Pricing</Link>}
+            {user && (
+              <FeedbackButton product="book" className="rounded-lg px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                Feedback
+              </FeedbackButton>
+            )}
             <span className="hidden sm:block"><ThemeToggle /></span>
             {user ? (
               <form action="/auth/signout" method="post">

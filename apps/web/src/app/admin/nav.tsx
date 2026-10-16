@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export function AdminNav({ base }: { base: string }) {
+export function AdminNav({ base, newFeedback = 0 }: { base: string; newFeedback?: number }) {
   const path = usePathname();
   const items = [
     ["", "Overview"],
@@ -14,6 +14,7 @@ export function AdminNav({ base }: { base: string }) {
     ["/money", "Money"],
     ["/companies", "Companies"],
     ["/accounts", "Accounts"],
+    ["/feedback", "Feedback"],
   ] as const;
   const here = (p: string) => {
     const full = `${base}${p}` || "/";
@@ -31,6 +32,9 @@ export function AdminNav({ base }: { base: string }) {
           )}
         >
           {label}
+          {p === "/feedback" && newFeedback > 0 && (
+            <span className="ml-1.5 rounded-full bg-brand-600 px-1.5 py-0.5 text-[11px] font-semibold text-white tabular-nums">{newFeedback > 99 ? "99+" : newFeedback}</span>
+          )}
         </Link>
       ))}
     </nav>
