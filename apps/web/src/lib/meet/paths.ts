@@ -8,13 +8,28 @@
  */
 export const MEET_NAME = "Workbase Meet";
 
-const meetUrl = () => (process.env.NEXT_PUBLIC_MEET_URL || "").replace(/\/$/, "");
+/**
+ * The configured address, cleaned up: "workbase-x.vercel.app", " https://…/ " and similar typos
+ * all become "https://workbase-x.vercel.app". A value that still isn't an address is ignored, so a
+ * typo in Vercel can never take the whole site down.
+ */
+const meetUrl = () => cleanUrl(process.env.NEXT_PUBLIC_MEET_URL);
+function cleanUrl(raw: string | undefined) {
+  const v = (raw || "").trim().replace(/\/+$/, "");
+  if (!v) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return "";
+  }
+}
 
 /** Is this request host the Meet address? (Also anything starting with "meet." or "workbase-meet".) */
 export function isMeetHost(host: string | null | undefined) {
   if (!host) return false;
   const h = host.toLowerCase().split(":")[0];
-  const configured = meetUrl() ? new URL(meetUrl()).hostname : "";
+  const configured = meetUrl() ? new URL(meetUrl()).hostname.toLowerCase() : "";
   return (configured && h === configured) || h.startsWith("meet.") || h.startsWith("workbase-meet");
 }
 

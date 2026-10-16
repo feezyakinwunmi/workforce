@@ -8,13 +8,28 @@
  */
 export const BOOK_NAME = "Workbase Book";
 
-const bookUrl = () => (process.env.NEXT_PUBLIC_BOOK_URL || "").replace(/\/$/, "");
+/**
+ * The configured address, cleaned up: "workbase-x.vercel.app", " https://…/ " and similar typos
+ * all become "https://workbase-x.vercel.app". A value that still isn't an address is ignored, so a
+ * typo in Vercel can never take the whole site down.
+ */
+const bookUrl = () => cleanUrl(process.env.NEXT_PUBLIC_BOOK_URL);
+function cleanUrl(raw: string | undefined) {
+  const v = (raw || "").trim().replace(/\/+$/, "");
+  if (!v) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return "";
+  }
+}
 
 /** Is this request host the Book address? (Also anything starting with "book." or "workbase-book".) */
 export function isBookHost(host: string | null | undefined) {
   if (!host) return false;
   const h = host.toLowerCase().split(":")[0];
-  const configured = bookUrl() ? new URL(bookUrl()).hostname : "";
+  const configured = bookUrl() ? new URL(bookUrl()).hostname.toLowerCase() : "";
   return (configured && h === configured) || h.startsWith("book.") || h.startsWith("workbase-book");
 }
 
