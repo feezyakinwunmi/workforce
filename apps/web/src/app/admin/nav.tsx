@@ -8,7 +8,12 @@ export function AdminNav({ base }: { base: string }) {
   const path = usePathname();
   const items = [
     ["", "Overview"],
+    ["/workbase", "Workbase"],
+    ["/meet", "Meet"],
+    ["/book", "Book"],
+    ["/money", "Money"],
     ["/companies", "Companies"],
+    ["/accounts", "Accounts"],
   ] as const;
   const here = (p: string) => {
     const full = `${base}${p}` || "/";

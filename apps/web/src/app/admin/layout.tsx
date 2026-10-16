@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LogoMark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { requireAdmin } from "@/lib/admin/server";
-import { AdminNav } from "./nav";
+import { requireAdminAccount } from "@/lib/admin/server";
 
 export const metadata: Metadata = {
   title: { default: "Workbase Console", template: "%s · Workbase Console" },
   robots: { index: false, follow: false },
 };
 
+/** Header for every console page. The pages themselves sit in (console), behind the authenticator code. */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { email, base } = await requireAdmin();
+  const { email, base } = await requireAdminAccount();
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
       <header className="border-b border-slate-200 bg-surface/80 backdrop-blur">
@@ -30,9 +30,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </form>
           </div>
         </div>
-        <AdminNav base={base} />
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      {children}
     </div>
   );
 }

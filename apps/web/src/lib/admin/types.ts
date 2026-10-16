@@ -149,3 +149,57 @@ export function ago(iso: string | null | undefined, now = Date.now()) {
   if (text === "just now") return text;
   return diff >= 0 ? `${text} ago` : `in ${text}`;
 }
+
+export type WorkbaseReport = {
+  days: number;
+  plans: { free: number; trial: number; standard: number; pro: number; paid_seats: number; monthly_value_kobo: number; closing: number };
+  people: { members: number; tracking_7d: number; working_now: number; not_reporting: number; desktop_sessions: number; phone_sessions: number; lost_sessions: number; pending_invites: number };
+  daily: Array<{ day: string; new_companies: number; active_companies: number; people: number; hours: number }>;
+  features: Record<"clock_in" | "phone_clock_in" | "tasks" | "chat" | "leave" | "payslips" | "expenses" | "reviews" | "screenshots_on" | "clock_reminders", number>;
+  top_companies: Array<{ id: string; name: string; tier: Tier; members: number; people_7d: number; hours_7d: number }>;
+  quiet_companies: Array<{ id: string; name: string; created_at: string; tier: Tier; members: number; invited: number; last_clock_in: string | null }>;
+  funnel: { created_company: number; invited_team: number; first_clock_in: number; paid: number };
+  trials_ending: Overview["trials_ending"];
+  app_versions: Overview["app_versions"];
+  os: Array<{ os: string; devices: number }>;
+};
+
+export type MeetReport = {
+  days: number;
+  totals: { meetings: number; minutes: number; people: number; guests: number };
+  live: Array<{ host: string; started_at: string; ends_at: string | null; people: number; guests: number; tier: "free" | "pro" }>;
+  upcoming: number;
+  hosts_7d: number;
+  daily: Array<{ day: string; meetings: number; minutes: number; people: number; guests: number }>;
+  recent: Array<{ host: string; started_at: string; ended_at: string | null; minutes: number; people: number; guests: number; scheduled: boolean; tier: "free" | "pro" }>;
+  subscribers: Array<{ plan: "pro" | "business"; who: string | null; email: string | null; company: string | null; organization_id: string | null; period_end: string; amount_kobo: number; months: number }>;
+  revenue: { all_time: number; last_30_days: number };
+  workbase_included: number;
+};
+
+export type BookReport = {
+  days: number;
+  pages: { total: number; live: number; payouts: number; pro: number; services: number };
+  bookings: { made: number; confirmed: number; completed: number; no_show: number; cancelled_customer: number; cancelled_host: number; unpaid_released: number; waiting_payment: number; paid: number; video: number; upcoming: number };
+  money: { customers_paid_kobo: number; fees_kobo: number; fees_all_time_kobo: number; pro_kobo: number };
+  daily: Array<{ day: string; bookings: number; paid_kobo: number; fees_kobo: number }>;
+  page_list: Array<{
+    id: string; handle: string; name: string; active: boolean; created_at: string; owner_email: string | null; owner: string | null;
+    tier: "free" | "pro"; payouts: boolean; bank_name: string | null; services: number; bookings_period: number; paid_period_kobo: number; last_booking: string | null;
+  }>;
+};
+
+export type AccountsReport = {
+  totals: { accounts: number; confirmed: number; in_company: number; active_7d: number; new_7d: number };
+  rows: Array<{
+    id: string; email: string; name: string; created_at: string; last_sign_in_at: string | null; confirmed: boolean; provider: string;
+    company_role: string | null; organization_id: string | null; company: string | null; meetings_7d: number; meet_tier: "free" | "pro"; book_handle: string | null;
+  }>;
+};
+
+export type MoneyReport = {
+  months: Array<{ month: string; by_product: Record<string, number> }>;
+  payments: Array<{ product: string; status: "success" | "failed" | "pending"; amount_kobo: number; at: string; reference: string | null; who: string | null; organization_id: string | null; failure_reason: string | null; detail: string | null }>;
+};
+
+export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_business", "book_pro", "book_fees"] as const;

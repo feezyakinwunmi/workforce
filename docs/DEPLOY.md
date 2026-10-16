@@ -219,6 +219,13 @@ A private console for the people who run Workbase: sign-ups, companies using it,
 3. Supabase → **Authentication → URL Configuration** → Redirect URLs: add `https://workbase-admin.vercel.app/**`.
 4. Redeploy, open the address and sign in with that email.
 
+**D. Tabs (migration 0039).** Supabase → **SQL Editor** → paste all of `supabase/migrations/20261016000039_console_tabs.sql` → **Run**. It adds the Workbase, Meet, Book, Money and Accounts tabs. Check: `select to_regprocedure('public.admin_workbase(integer)');` returns a name.
+
+**E. Your authenticator (second step).** The console asks for a 6-digit code from an authenticator app on your phone, as well as your password, and asks again every 12 hours.
+1. Supabase → **Authentication → Sign In / Providers → Multi-Factor Authentication** (or **Authentication → MFA**): make sure **TOTP (App Authenticator)** is enabled. It is on by default.
+2. Open the console address and sign in. The first time, it shows a QR code: scan it with Google Authenticator or Microsoft Authenticator and type the code. After that it only asks for the code.
+3. Lost your phone? Supabase → **Authentication → Users** → your account → delete its MFA factor (or ask Claude to do it), then sign in to the console again to set up a new phone. Your normal Workbase login keeps working without the code.
+
 **Support access.** You always see a company's plan, payments, people, last clock-ins, app versions and warnings. For a closer look (hours, clock-ins, task counts, leave, recent changes) the company's owner or an admin clicks **Allow support access** in Company settings (1, 3 or 7 days). Each closer look is listed for them there. Chats, notes, screenshots, pay and staff records are never shown in the console. Support notes you add are seen only in the console.
 
 ## Good to know

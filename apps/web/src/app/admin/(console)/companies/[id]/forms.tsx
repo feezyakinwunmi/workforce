@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { FormMessage, SubmitButton } from "@/components/form";
-import { addNote, extendTrial } from "../../actions";
+import { addNote, extendTrial } from "@/app/admin/actions";
 
 export function ExtendTrialForm({ org, defaultDate }: { org: string; defaultDate: string }) {
   const [state, action] = useActionState(extendTrial, undefined);
