@@ -1,0 +1,241 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Workbase Meet versus posts</title>
+<!--
+  Comparison posts (?n=1..4, 1080×1350) and billboard concepts (?b=1..2, 1600×1000).
+  Every claim about other products was checked on 16 Oct 2026 (see captions.md for sources).
+  Competitors appear by name only: no logos, no screenshots of their apps.
+  Change the address in one place: ?url=meet.example.com
+-->
+<style>
+  @font-face { font-family: "Bricolage"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inter"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+  :root { --ink: #15123a; --violet: #6a4cf5; --violet-l: #8f7bff; --marigold: #f2a93b; --paper: #f7f6fb; --muted: #b7b2d6; --dim: #8580ad; --green: #34d399; --red: #fb7185; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--paper); background: #0b0920; }
+  .d { font-family: "Bricolage", "Inter", sans-serif; letter-spacing: -0.035em; }
+  em { font-style: normal; color: var(--marigold); }
+
+  /* ---------- posts (1080 × 1350) ---------- */
+  .post { position: relative; width: 1080px; height: 1350px; overflow: hidden; padding: 84px 80px 0;
+    background: radial-gradient(110% 75% at 50% 0%, #2b2275 0%, #15123a 55%, #0a081d 100%); }
+  .post::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.04) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(255,255,255,.04) 1.5px, transparent 1.5px); background-size: 72px 72px; -webkit-mask-image: radial-gradient(80% 60% at 50% 30%, #000 30%, transparent 80%); }
+  .post > * { position: relative; }
+  .vs { display: inline-flex; align-items: center; gap: 16px; padding: 12px 24px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.12); font-weight: 700; font-size: 25px; letter-spacing: .06em; text-transform: uppercase; }
+  .vs i { font-style: normal; color: var(--marigold); font-family: "Bricolage"; font-weight: 800; font-size: 30px; letter-spacing: 0; }
+  .vs .them { color: var(--muted); }
+  h1 { margin-top: 44px; font-weight: 800; font-size: 104px; line-height: .98; }
+  .sub { margin-top: 24px; font-size: 29px; line-height: 1.35; color: var(--muted); max-width: 900px; }
+
+  .cards { margin-top: 50px; display: grid; grid-template-columns: 1fr 1.12fr; gap: 22px; align-items: stretch; }
+  .c { border-radius: 30px; padding: 40px 34px; }
+  .c.them { background: rgba(255,255,255,.045); border: 1.5px solid rgba(255,255,255,.1); }
+  .c.us { background: linear-gradient(160deg, #6a4cf5 0%, #4d33d6 100%); box-shadow: 0 30px 80px -20px rgba(106,76,245,.65), 0 0 0 2px rgba(255,255,255,.18) inset; }
+  .c h3 { font-size: 28px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+  .c h3 small { font: 600 18px "Inter"; color: var(--dim); letter-spacing: 0; }
+  .c.us h3 small { color: rgba(255,255,255,.75); }
+  .c ul { list-style: none; margin-top: 28px; display: grid; gap: 24px; }
+  .c li { display: flex; gap: 14px; font-size: 27px; line-height: 1.3; font-weight: 500; }
+  .c.them li { color: #cfcbe8; }
+  .c li svg { width: 32px; height: 32px; flex-shrink: 0; margin-top: -1px; }
+
+  .foot { position: absolute; left: 80px; right: 80px; bottom: 64px; display: flex; align-items: center; gap: 18px; }
+  .foot .mk { width: 64px; height: 64px; }
+  .foot b { font: 800 34px "Bricolage"; letter-spacing: -.03em; }
+  .foot b em { color: var(--violet-l); }
+  .foot .url { margin-left: auto; font-size: 26px; font-weight: 600; color: var(--paper); background: rgba(255,255,255,.08); padding: 12px 22px; border-radius: 999px; }
+  .fine { position: absolute; left: 80px; right: 80px; bottom: 22px; font-size: 15px; color: rgba(255,255,255,.38); }
+
+  /* 4-way table */
+  table { margin-top: 56px; width: 100%; border-collapse: separate; border-spacing: 0; }
+  th, td { padding: 36px 14px; text-align: center; font-size: 28px; }
+  th { font-weight: 700; font-size: 22px; color: var(--muted); vertical-align: bottom; line-height: 1.2; }
+  th.row, td.row { text-align: left; padding-left: 0; color: var(--paper); font-weight: 600; font-size: 24px; width: 27%; }
+  td { border-top: 1.5px solid rgba(255,255,255,.1); color: #cfcbe8; font-weight: 600; }
+  th.us, td.us { background: rgba(106,76,245,.35); color: #fff; }
+  th.us { border-radius: 22px 22px 0 0; color: #fff; font-size: 24px; }
+  tr:last-child td.us { border-radius: 0 0 22px 22px; }
+  td svg { width: 36px; height: 36px; vertical-align: middle; }
+  .tiny { display: block; font-size: 17px; font-weight: 500; color: var(--dim); margin-top: 4px; }
+  td.us .tiny { color: rgba(255,255,255,.75); }
+  .fair { margin-top: 40px; font-size: 26px; color: var(--muted); line-height: 1.4; padding: 22px 26px; border-radius: 20px; background: rgba(242,169,59,.1); border: 1.5px solid rgba(242,169,59,.3); }
+  .fair b { color: var(--marigold); }
+
+  /* underdog */
+  .tiles { margin-top: 64px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .tile { height: 150px; border-radius: 26px; background: rgba(255,255,255,.05); border: 1.5px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; font: 700 30px "Inter"; color: #a29dc6; letter-spacing: -.01em; }
+  .big { margin-top: 18px; height: 230px; border-radius: 30px; background: linear-gradient(150deg, #6a4cf5, #4329c9); display: flex; align-items: center; gap: 30px; padding: 0 44px; box-shadow: 0 30px 90px -20px rgba(106,76,245,.7); }
+  .big svg { width: 130px; height: 130px; flex-shrink: 0; }
+  .big div { font: 800 62px/1 "Bricolage"; letter-spacing: -.035em; }
+  .big div small { display: block; margin-top: 12px; font: 600 24px "Inter"; letter-spacing: 0; color: rgba(255,255,255,.85); }
+  .pills { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 14px; }
+  .pill { padding: 14px 22px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .pill svg { width: 26px; height: 26px; }
+
+  /* ---------- billboards (1600 × 1000) ---------- */
+  .bb { position: relative; width: 1600px; height: 1000px; overflow: hidden; }
+  .sky { position: absolute; inset: 0; }
+  .sun { position: absolute; border-radius: 50%; }
+  .city { position: absolute; left: 0; right: 0; bottom: 210px; height: 380px; }
+  .road { position: absolute; left: 0; right: 0; bottom: 0; height: 230px; }
+  .board { position: absolute; left: 230px; top: 120px; width: 1140px; height: 500px; border-radius: 10px; overflow: hidden; padding: 56px 64px;
+    box-shadow: 0 0 0 16px #2a2550, 0 0 0 22px #1a1636, 0 40px 80px rgba(0,0,0,.55); }
+  .board h2 { font-weight: 800; line-height: .96; }
+  .board .tag { position: absolute; left: 64px; right: 64px; bottom: 50px; display: flex; align-items: center; gap: 20px; }
+  .board .tag svg { width: 84px; height: 84px; }
+  .board .tag b { font: 800 46px "Bricolage"; letter-spacing: -.03em; }
+  .board .tag .url { margin-left: auto; font: 700 30px "Inter"; padding: 14px 26px; border-radius: 999px; }
+  .post-l { position: absolute; width: 26px; background: linear-gradient(90deg, #1b1738, #2e2858 50%, #1b1738); top: 640px; bottom: 150px; }
+  .lamp { position: absolute; top: 96px; width: 70px; height: 16px; background: #2a2550; border-radius: 4px; }
+  .lamp::after { content: ""; position: absolute; left: 10px; right: 10px; top: 14px; height: 90px; background: linear-gradient(rgba(255,236,190,.35), transparent); clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%); }
+  .concept { position: absolute; right: 26px; bottom: 18px; font: 600 15px "Inter"; color: rgba(255,255,255,.55); letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const URL_TEXT = q.get("url") || "workbase-meet.vercel.app";
+const FINE = "Free plans compared, 16 Oct 2026, from Google, Zoom and Zoho's own help and pricing pages. Names are trademarks of their owners.";
+
+const MARK = (s = 64) => `<svg class="mk" viewBox="0 0 48 48" width="${s}" height="${s}"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><rect x="10.5" y="12.5" width="18.5" height="15.5" rx="4.2" fill="#fff"/><path d="M30.6 18.3 37.2 14.2a.9.9 0 0 1 1.3.8v11.5a.9.9 0 0 1-1.3.8l-6.6-4.1z" fill="#fff"/><circle cx="16.3" cy="18" r="2" fill="#6A4CF5"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>`;
+const YES = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#34d399"/><path d="m7 12.4 3.2 3.1L17 8.8" fill="none" stroke="#0b2a20" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const NO = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="rgba(251,113,133,.18)" stroke="#fb7185" stroke-width="1.5"/><path d="m8.5 8.5 7 7m0-7-7 7" fill="none" stroke="#fb7185" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+const MEH = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="rgba(242,169,59,.16)" stroke="#f2a93b" stroke-width="1.5"/><path d="M7.5 12h9" fill="none" stroke="#f2a93b" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+const DOT = (c) => `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="${c}"/></svg>`;
+
+const foot = () => `
+  <div class="foot">${MARK()}<b>Workbase <em>Meet</em></b><span class="url">${URL_TEXT}</span></div>
+  <p class="fine">${FINE}</p>`;
+const li = (icon, text) => `<li>${icon}<span>${text}</span></li>`;
+const vs = (them) => `<div class="vs">Workbase Meet <i>vs</i> <span class="them">${them}</span></div>`;
+
+const POSTS = {
+  // 1. Google Meet: recording is a paid feature there.
+  1: () => `<div class="post">
+    ${vs("Google Meet")}
+    <h1 class="d" style="font-size:100px">Google charges<br>to record your<br>meeting. <em>We don't.</em></h1>
+    <p class="sub">On a free Google account, Meet can't record. On Workbase Meet, the host taps Record and the video saves straight to their phone or laptop.</p>
+    <div class="cards">
+      <div class="c them"><h3>Google Meet <small>free account</small></h3><ul>
+        ${li(NO, "Recording needs a paid plan")}
+        ${li(MEH, "Group calls up to 60 minutes")}
+      </ul></div>
+      <div class="c us"><h3>Workbase Meet <small>free</small></h3><ul>
+        ${li(YES, "Record free, on your phone or laptop")}
+        ${li(YES, "Group calls up to 60 minutes")}
+        ${li(YES, "Live MB meter + data saver")}
+        ${li(YES, "Guests join with just a name")}
+      </ul></div>
+    </div>${foot()}</div>`,
+
+  // 2. Zoom: 40-minute free group calls.
+  2: () => `<div class="post">
+    ${vs("Zoom")}
+    <h1 class="d" style="font-size:112px">40 minutes<br>is not a meeting.<br><em>Have 60. Free.</em></h1>
+    <p class="sub">Zoom's free group calls stop at 40 minutes. Ours run a full hour, and you can record them from your phone.</p>
+    <div class="cards">
+      <div class="c them"><h3>Zoom <small>free plan</small></h3><ul>
+        ${li(NO, "Group calls end at 40 minutes")}
+        ${li(MEH, "Recording from the desktop app only")}
+        ${li(MEH, "Pro from about $13 a month")}
+      </ul></div>
+      <div class="c us"><h3>Workbase Meet <small>free</small></h3><ul>
+        ${li(YES, "Group calls up to 60 minutes")}
+        ${li(YES, "Record from any browser, even your phone")}
+        ${li(YES, "Pro: ₦1,000 a month, 24-hour calls")}
+      </ul></div>
+    </div>${foot()}</div>`,
+
+  // 3. All four free plans in one table, with the honest catch.
+  3: () => `<div class="post">
+    <div class="vs">Free plans, <i>side by side</i></div>
+    <h1 class="d" style="font-size:112px">Same price: ₦0.<br><em>Not the same deal.</em></h1>
+    <p class="sub">What each one gives you without paying a kobo.</p>
+    <table style="margin-top:60px">
+      <tr><th class="row"></th><th>Google<br>Meet</th><th>Zoom</th><th>Zoho<br>Meeting</th><th class="us">Workbase<br>Meet</th></tr>
+      <tr><td class="row">Group call length</td><td>60 min</td><td style="color:#fb7185">40 min</td><td>60 min</td><td class="us">60 min</td></tr>
+      <tr><td class="row">Record the meeting</td><td>${NO}<span class="tiny">paid plans</span></td><td>${MEH}<span class="tiny">desktop app</span></td><td>${NO}<span class="tiny">paid plans</span></td><td class="us">${YES}<span class="tiny">phone or laptop</span></td></tr>
+    </table>
+    <p class="fair"><b>Fair's fair:</b> their free plans take up to 100 people. Ours takes 25 for now. If your meetings are bigger than that, we're not for you yet.</p>
+    ${foot()}</div>`,
+
+  // 4. The underdog.
+  4: () => `<div class="post">
+    <div class="vs">Video meetings, <i>2026</i></div>
+    <h1 class="d" style="font-size:112px">Google. Zoom.<br>Zoho.<br>And now, <em>Lagos.</em></h1>
+    <div class="tiles"><div class="tile">Google Meet</div><div class="tile">Zoom</div><div class="tile">Zoho Meeting</div></div>
+    <div class="big">${MARK(130)}<div>Workbase Meet<small>Built in Lagos, for how we actually connect.</small></div></div>
+    <div class="pills">
+      <span class="pill">${DOT("#34d399")}Free recording</span>
+      <span class="pill">${DOT("#34d399")}60-min free calls</span>
+      <span class="pill">${DOT("#34d399")}Live MB meter</span>
+      <span class="pill">${DOT("#34d399")}₦1,000 Pro</span>
+    </div>
+    ${foot()}</div>`,
+};
+
+// ---------- billboard concepts ----------
+function skyline(color) {
+  // Simple made-up towers (not a real skyline), with a few lit windows.
+  let s = "", x = 0, seed = 7;
+  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+  while (x < 1600) {
+    const w = 60 + rnd() * 110, h = 120 + rnd() * 250;
+    s += `<rect x="${x}" y="${380 - h}" width="${w}" height="${h}" fill="${color}"/>`;
+    for (let wy = 380 - h + 18; wy < 360; wy += 26) for (let wx = x + 12; wx < x + w - 14; wx += 22) if (rnd() > 0.72) s += `<rect x="${wx}" y="${wy}" width="9" height="12" fill="rgba(255,214,140,.55)"/>`;
+    x += w + 6 + rnd() * 18;
+  }
+  return `<svg class="city" viewBox="0 0 1600 380" preserveAspectRatio="none">${s}</svg>`;
+}
+function bus(x) {
+  // A yellow city bus with black stripes, in silhouette.
+  return `<svg style="position:absolute;left:${x}px;bottom:58px" width="360" height="150" viewBox="0 0 360 150">
+    <rect x="6" y="14" width="340" height="104" rx="18" fill="#f2c230"/>
+    <rect x="6" y="70" width="340" height="9" fill="#1a1636"/><rect x="6" y="88" width="340" height="9" fill="#1a1636"/>
+    <rect x="22" y="28" width="66" height="34" rx="6" fill="#2b2a44"/><rect x="98" y="28" width="66" height="34" rx="6" fill="#2b2a44"/><rect x="174" y="28" width="66" height="34" rx="6" fill="#2b2a44"/><rect x="250" y="28" width="80" height="34" rx="6" fill="#2b2a44"/>
+    <circle cx="80" cy="122" r="22" fill="#111"/><circle cx="80" cy="122" r="9" fill="#555"/><circle cx="280" cy="122" r="22" fill="#111"/><circle cx="280" cy="122" r="9" fill="#555"/>
+    <rect x="336" y="96" width="14" height="12" rx="3" fill="#fff4c2"/></svg>`;
+}
+function billboard({ sky, sun, city, road, board, content }) {
+  return `<div class="bb">
+    <div class="sky" style="background:${sky}"></div>
+    <div class="sun" style="${sun}"></div>
+    ${skyline(city)}
+    <div class="road" style="background:${road}"></div>
+    <div style="position:absolute;left:0;right:0;bottom:200px;height:14px;background:#2b2647"></div>
+    <div style="position:absolute;left:0;right:0;bottom:112px;height:6px;background:repeating-linear-gradient(90deg,#f2c230 0 70px,transparent 70px 140px);opacity:.8"></div>
+    <div class="post-l" style="left:520px"></div><div class="post-l" style="left:1054px"></div>
+    <div class="lamp" style="left:380px"></div><div class="lamp" style="left:760px"></div><div class="lamp" style="left:1140px"></div>
+    <div class="board" style="background:${board}">${content}</div>
+    ${bus(980)}
+    <span class="concept">Billboard concept</span>
+  </div>`;
+}
+const BILLBOARDS = {
+  1: () => billboard({
+    sky: "linear-gradient(#2a1e6e 0%, #6b3a8f 45%, #e0794a 82%, #f2a93b 100%)",
+    sun: "left:1180px;top:460px;width:220px;height:220px;background:radial-gradient(#ffd79a,#f2a93b 60%,rgba(242,169,59,0) 70%)",
+    city: "#231d4d", road: "#1b1738",
+    board: "linear-gradient(150deg,#15123a,#2a2272)",
+    content: `<h2 class="d" style="font-size:96px">Google charges to<br>record your meeting.<br><em>We don't.</em></h2>
+      <div class="tag">${MARK(84)}<b>Workbase Meet</b><span class="url" style="background:#6a4cf5">${URL_TEXT}</span></div>`,
+  }),
+  2: () => billboard({
+    sky: "linear-gradient(#7cc4ef 0%, #bfe3f5 60%, #f6e7c8 100%)",
+    sun: "left:1260px;top:60px;width:150px;height:150px;background:radial-gradient(#fff6d6,#ffe08a 60%,rgba(255,224,138,0) 70%)",
+    city: "#8c93b8", road: "#3a3a52",
+    board: "#f2a93b",
+    content: `<h2 class="d" style="font-size:92px;color:#15123a">Dear Zoom,<br>40 minutes is not<br>a meeting. <span style="color:#6a4cf5">Have 60.</span></h2>
+      <div class="tag" style="color:#15123a">${MARK(84)}<b>Workbase Meet</b><span class="url" style="background:#15123a;color:#fff">Free · ${URL_TEXT}</span></div>`,
+  }),
+};
+
+const root = document.getElementById("root");
+if (q.get("b")) root.innerHTML = BILLBOARDS[q.get("b")]();
+else root.innerHTML = POSTS[q.get("n") || "1"]();
+</script>
+</body>
+</html>
