@@ -22,7 +22,7 @@ Written 16 Oct 2026. If the full doc and this copy disagree, the full doc wins (
 8. Reply to every comment within the first hour.
 
 ## Products and prices (check CLAUDE.md in the repo for changes)
-- Workbase: Free (3 people), Standard ₦2,500/person/month, Pro ₦4,000 (screenshots). 14-day Standard trial. Desktop app + phone clock-in, timesheets, tasks, chat, leave, Nigerian payroll (PAYE, pension, NHF), payslips, expenses, staff records, reviews.
+- Workbase: Free (3 people; time tracking, tasks, chat, leave, phone clock-in, expenses, staff records, reviews), Standard ₦2,500/person/month (adds payroll, PAYE, payslips, window titles, full history, CSV), Pro ₦4,000 (adds screenshots). Every new company gets a 14-day Standard trial. Payroll posts must say "on Standard, free to try for 14 days", never "free payroll". Desktop app + phone clock-in, timesheets, tasks, chat, leave, Nigerian payroll (PAYE, pension, NHF), payslips, expenses, staff records, reviews.
 - Meet: Free 60 min / 25 people, free recording to your own device, live MB meter, data saver, guests join with a name, reconnects by itself. Meet Pro ₦1,000/host/month (24 h, 50 people). Meet Business ₦10,000/company/month. AI summaries "coming soon" (paid, later).
 - Book: free booking page, deposits by card/transfer/USSD via Paystack straight to the host's bank; Workbase keeps 3% only when paid online. Book Pro ₦2,000/month (no fee, no badge). Video bookings get a Meet link automatically.
 - Addresses today: phantomire-workforce.vercel.app, workbase-meet.vercel.app, workbase-book.vercel.app (custom domains coming; use whatever CLAUDE.md says).
@@ -55,7 +55,7 @@ Show the product 30% · Naija pain made funny 25% · Founder story (Femi buildin
 - Verified competitor facts (16 Oct 2026): Google Meet free = 60-min group calls, 100 people, no recording without a paid plan; Zoom free = 40-min group calls, 100 people, local recording on desktop app only, Pro ~$13–14/month yearly; Zoho Meeting free = 60 min, 100 people, no recording.
 
 ## 30-day launch calendar (19 Oct – 17 Nov 2026)
-Week 1 Meet versus launch · Week 2 Workbase payroll into month-end · Week 3 Book · Week 4 all three together.
+Week 1 Meet versus launch · Week 2 Workbase payroll into month-end (Standard plan; free 14-day trial) · Week 3 Book · Week 4 all three together.
 - Mon 19 Oct, IG/X/FB 7:30 pm, Meet, Versus: "Google. Zoom. Zoho. And now, Lagos." (Versus-4)
 - Tue 20 Oct, LinkedIn 9 am, All, Founder: "I built Workbase, Meet and Book alone in Lagos. Here's why."
 - Wed 21 Oct, TikTok/Reels 8 pm, Meet, Pain: skit, meeting dies at 40 min, Meet keeps going
