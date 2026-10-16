@@ -10,3 +10,4 @@ dist
 supabase/.temp
 apps/agent/release
 *.tsbuildinfo
+docs/promo/meetbook/out/*.mp4

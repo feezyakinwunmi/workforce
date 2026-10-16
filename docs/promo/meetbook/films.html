@@ -1,0 +1,916 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Workbase Meet + Book films</title>
+<style>
+  @font-face { font-family: "Bricolage"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inter"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+  :root { --ink: #15123a; --violet: #6a4cf5; --violet-l: #8f7bff; --marigold: #f2a93b; --paper: #f7f6fb; --muted: #b7b2d6; --green: #10b981; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0b0920; }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--paper); overflow: hidden; }
+  .d { font-family: "Bricolage", "Inter", sans-serif; letter-spacing: -0.03em; }
+  #stage { position: relative; overflow: hidden; }
+  .full { position: absolute; inset: 0; }
+  #bg { background: radial-gradient(110% 80% at 50% 10%, #2b2275 0%, #15123a 52%, #0a081d 100%); }
+  .blob { position: absolute; border-radius: 50%; filter: blur(130px); opacity: 0.5; }
+  #grid { background-image: linear-gradient(rgba(255,255,255,0.045) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(255,255,255,0.045) 1.5px, transparent 1.5px); background-size: 80px 80px; -webkit-mask-image: radial-gradient(90% 75% at 50% 40%, #000 35%, transparent 100%); }
+  #vig { background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0,0,0,0.5) 100%); pointer-events: none; }
+  .ico { width: 1em; height: 1em; display: inline-block; vertical-align: -0.14em; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* text */
+  .kt { position: absolute; font-weight: 800; line-height: 1.02; opacity: 0; }
+  .kt .w { display: inline-block; white-space: pre; }
+  .kt em { font-style: normal; color: var(--marigold); }
+  .kt.sm { font-weight: 700; line-height: 1.12; }
+
+  /* logo */
+  #logo { position: absolute; left: 0; right: 0; text-align: center; opacity: 0; }
+  #logo svg { width: 230px; height: 230px; }
+  #lword { position: absolute; left: 0; right: 0; text-align: center; font-weight: 800; opacity: 0; white-space: nowrap; }
+  #lword em { font-style: normal; color: var(--marigold); }
+
+  /* generic mock */
+  .mock { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; opacity: 0; }
+  .shadow { box-shadow: 0 60px 120px -30px rgba(0,0,0,0.75), 0 0 0 2px rgba(255,255,255,0.08); }
+
+  /* phone */
+  .phone { width: 418px; height: 872px; border-radius: 64px; border: 14px solid #221c55; background: #f7f6fb; overflow: hidden; box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7), 0 0 80px rgba(106,76,245,0.4), inset 0 0 0 2px rgba(255,255,255,0.15); }
+  .phone.darkp { background: #0f0d26; }
+  .notch { position: absolute; left: 50%; top: 10px; width: 120px; height: 32px; margin-left: -60px; background: #0b0920; border-radius: 16px; z-index: 20; }
+  .scr { position: absolute; left: 0; top: 0; width: 390px; height: 844px; padding: 64px 22px 22px; color: var(--ink); opacity: 0; }
+  .tap { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(106,76,245,0.25); border: 3px solid rgba(106,76,245,0.85); opacity: 0; z-index: 30; }
+  .finger { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(255,255,255,0.92); box-shadow: 0 6px 16px rgba(0,0,0,0.35), 0 0 0 3px rgba(106,76,245,0.6); opacity: 0; z-index: 31; }
+  .pnotif { position: absolute; left: 10px; right: 10px; top: 50px; background: rgba(255,255,255,0.98); color: var(--ink); border-radius: 22px; padding: 14px; display: flex; gap: 12px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.45); z-index: 25; opacity: 0; align-items: center; }
+  .pnotif .tl { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; }
+  .pnotif b { display: block; font-size: 16px; }
+  .pnotif span { font-size: 14px; color: #555077; }
+
+  /* light app bits (Book, dashboard) */
+  .card { background: #fff; border: 1px solid #e3e1ee; border-radius: 18px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: var(--violet); color: #fff; font-weight: 600; font-size: 16px; height: 48px; }
+  .btn2 { display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; border: 1.5px solid #cfcbe3; color: #3b3660; font-weight: 600; font-size: 15px; height: 44px; background: #fff; }
+  .av { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; font-weight: 700; flex-shrink: 0; }
+  .lbl { font-size: 13px; color: #6b6690; font-weight: 600; margin-bottom: 6px; }
+  .inp { height: 46px; border: 1.5px solid #cfcbe3; border-radius: 11px; display: flex; align-items: center; padding: 0 14px; font-size: 16px; color: var(--ink); background: #fff; margin-bottom: 14px; }
+  .inp .cur { display: inline-block; width: 2px; height: 20px; background: var(--violet); margin-left: 1px; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 600; }
+
+  /* calendar */
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; font-size: 15px; }
+  .cal .h { font-size: 12px; color: #8a85a8; font-weight: 600; }
+  .cal .c { height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #15123a; position: relative; }
+  .cal .c.off { color: #c9c5dc; font-weight: 500; }
+  .cal .c.on::after { content: ""; position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--violet); }
+  .times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .times div { height: 42px; border-radius: 11px; border: 1.5px solid var(--violet); color: var(--violet); font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+
+  /* meeting window */
+  #mw { width: var(--mww); height: var(--mwh); border-radius: 26px; background: #0f0d26; overflow: hidden; }
+  .mtop { position: absolute; left: 0; right: 0; top: 0; height: 74px; display: flex; align-items: center; justify-content: space-between; padding: 0 26px; }
+  .mtop b { font-size: 22px; font-weight: 700; }
+  .mtop .code { font-size: 14px; color: #8f8ab5; font-family: ui-monospace, monospace; display: block; margin-top: 2px; }
+  .mpill { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; background: rgba(255,255,255,0.09); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 22px; }
+  .bars i { width: 5px; border-radius: 2px; background: #34d399; display: block; }
+  .tile { position: absolute; border-radius: 18px; background: #24204f; overflow: hidden; }
+  .tile .tav { position: absolute; left: 50%; top: 46%; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 700 38px "Bricolage", sans-serif; color: #fff; }
+  .tile .tnm { position: absolute; left: 16px; bottom: 13px; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .tile .tnm .g { font-size: 12px; background: rgba(255,255,255,0.14); border-radius: 6px; padding: 2px 7px; font-weight: 600; }
+  .tile .ring { position: absolute; inset: 0; border-radius: 18px; border: 4px solid #34d399; opacity: 0; }
+  .tile .tbadge { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 700; white-space: nowrap; opacity: 0; }
+  .tile .dim { position: absolute; inset: 0; background: rgba(10,8,30,0.6); opacity: 0; }
+  .tile .hand { position: absolute; left: 14px; top: 14px; width: 40px; height: 40px; border-radius: 12px; background: var(--marigold); color: var(--ink); display: flex; align-items: center; justify-content: center; font-size: 24px; opacity: 0; }
+  .tile .wave2 { position: absolute; left: 50%; top: 46%; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%; border: 3px solid #34d399; opacity: 0; }
+  .mbar { position: absolute; left: 0; right: 0; bottom: 22px; display: flex; justify-content: center; gap: 14px; }
+  .mbar div { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #e8e6f6; }
+  .mbar div.on { background: var(--violet); }
+  .mbar .leave { width: auto; padding: 0 26px; border-radius: 999px; background: #e5383b; font-weight: 700; font-size: 19px; gap: 8px; }
+  .mtoast { position: absolute; left: 50%; top: 86px; transform: translateX(-50%); background: #fff; color: var(--ink); border-radius: 999px; padding: 10px 20px; font-weight: 600; font-size: 18px; display: flex; gap: 10px; align-items: center; opacity: 0; white-space: nowrap; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5); }
+  .react { position: absolute; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 34px; opacity: 0; box-shadow: 0 10px 24px rgba(0,0,0,0.35); }
+  .share { position: absolute; border-radius: 18px; background: #fff; overflow: hidden; opacity: 0; }
+
+  /* browser (dashboards) */
+  .browser { width: 1200px; height: 740px; border-radius: 22px; overflow: hidden; background: #f7f6fb; }
+  .chrome { height: 42px; background: #ecebf3; display: flex; align-items: center; gap: 8px; padding: 0 18px; border-bottom: 1px solid #dddbe8; }
+  .chrome i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .chrome span { margin-left: 18px; background: #fff; border-radius: 8px; height: 26px; width: 460px; font-size: 14px; color: #4a4570; display: flex; align-items: center; padding: 0 12px; gap: 6px; }
+  .side { position: absolute; left: 0; top: 42px; bottom: 0; width: 230px; background: #fff; border-right: 1px solid #e3e1ee; padding: 22px 16px; color: #3b3660; }
+  .side .it { display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px; border-radius: 10px; font-size: 16px; font-weight: 500; }
+  .side .it.on { background: #efecff; color: var(--violet); font-weight: 600; }
+  .main { position: absolute; left: 230px; right: 0; top: 42px; bottom: 0; padding: 28px 34px; color: var(--ink); }
+  .row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid #efedf6; font-size: 16px; background: #fff; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* app tiles (flow) */
+  .appt { position: absolute; width: 300px; height: 300px; border-radius: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; font: 800 40px "Bricolage", sans-serif; color: #fff; opacity: 0; box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(255,255,255,0.12); }
+  .appt .ico { font-size: 110px; stroke-width: 1.6; }
+  #key { position: absolute; border-radius: 999px; background: #fff; color: var(--ink); font-weight: 800; display: flex; align-items: center; gap: 16px; opacity: 0; box-shadow: 0 30px 60px -10px rgba(0,0,0,0.6); white-space: nowrap; }
+  #links { position: absolute; inset: 0; overflow: visible; }
+
+  /* chips + end */
+  .chip { position: absolute; display: inline-flex; align-items: center; gap: 14px; padding: 18px 28px; border-radius: 22px; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.14); font-weight: 600; white-space: nowrap; opacity: 0; backdrop-filter: blur(4px); }
+  .chip .ico { color: var(--marigold); }
+  #end { position: absolute; inset: 0; opacity: 0; }
+  #end > div { position: absolute; left: 0; right: 0; text-align: center; }
+  .pp { display: inline-flex; align-items: center; gap: 12px; border-radius: 999px; font-weight: 800; }
+  .conf { position: absolute; width: 14px; height: 22px; border-radius: 4px; opacity: 0; }
+  #beam { position: absolute; inset: 0; overflow: visible; }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="full"></div>
+  <div class="blob" id="b1" style="background:#6a4cf5"></div>
+  <div class="blob" id="b2" style="background:#f2a93b"></div>
+  <div class="blob" id="b3" style="background:#12968a"></div>
+  <div id="grid" class="full"></div>
+  <div id="layer" class="full"></div>
+  <svg id="beam" width="100%" height="100%"><defs><linearGradient id="bgr" x1="0" x2="1"><stop offset="0" stop-color="#f2a93b"/><stop offset="1" stop-color="#8f7bff"/></linearGradient></defs><path id="beampath" fill="none" stroke="url(#bgr)" stroke-width="8" stroke-linecap="round"/><circle id="beamdot" r="14" fill="#fff" opacity="0"/></svg>
+  <div id="logo"><svg viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><clipPath id="sc"><rect id="lclip" x="0" y="0" width="48" height="0"/></clipPath><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff" clip-path="url(#sc)"/><rect id="lbase" x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg></div>
+  <div id="lword" class="d"></div>
+  <div id="end"></div>
+  <div id="vig" class="full"></div>
+  <div class="flash" id="flash"></div>
+</div>
+
+<script src="icons-data.js"></script>
+<script>
+// ============================================================ setup
+const Q = new URLSearchParams(location.search);
+const FILM = Q.get("film") || "meet";
+const FORMAT = Q.get("format") || "wide";
+const POST = FILM === "post";
+const L = FORMAT === "wide";
+const W = L ? 1920 : 1080, H = L ? 1080 : POST ? 1350 : 1920;
+const DUR = { meet: 21, book: 21, flow: 28, post: 1 }[FILM];
+window.DUR = DUR;
+const $ = (id) => document.getElementById(id);
+const stage = $("stage");
+stage.style.width = W + "px"; stage.style.height = H + "px";
+const layer = $("layer");
+const MWW = L || POST ? 1200 : 1000, MWH = L || POST ? 720 : 1240;
+stage.style.setProperty('--mww', MWW + 'px'); stage.style.setProperty('--mwh', MWH + 'px');
+const ICONS = window.ICONS || {};
+const ic = (n, extra = "") => `<svg class="ico" viewBox="0 0 24 24" ${extra}>${ICONS[n] || ""}</svg>`;
+
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const prog = (t, a, d) => clamp((t - a) / d);
+const lerp = (a, b, u) => a + (b - a) * u;
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c1 = 1.9, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const win = (t, a, b, fi = 0.3, fo = 0.3) => Math.min(eo(prog(t, a, fi)), 1 - eio(prog(t, b - fo, fo)));
+function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const S = (el, st) => { for (const k in st) el.style[k] = st[k]; };
+const mk = (html) => { const d = document.createElement("div"); d.innerHTML = html.trim(); const el = d.firstChild; layer.appendChild(el); return el; };
+
+const CUES = [];
+const cue = (t, type, d = 0, v = 1) => CUES.push({ t: +t.toFixed(3), type, d, v });
+
+// Place a mock: centre (cx, cy) in stage px, scale s, opacity o, extra lift y.
+function place(el, w, h, cx, cy, s, o, rot = 0) {
+  S(el, { transform: `translate(${cx - w / 2}px, ${cy - h / 2}px) scale(${s}) rotate(${rot}deg)`, opacity: o });
+}
+
+// ============================================================ text
+// "Video meetings / built for *Nigerian internet*." → word spans; *x* = marigold.
+function makeText(src, size, opts = {}) {
+  const el = mk(`<div class="kt d ${opts.sm ? "sm" : ""}"></div>`);
+  el.style.fontSize = size + "px";
+  el.style.textAlign = opts.align || (L ? "left" : "center");
+  const lines = src.split(" / ");
+  const words = [];
+  el.innerHTML = lines.map((ln) => ln.split(" ").map((w) => {
+    const hot = /^\*.*\*[.,!?…]*$/.test(w) || w.startsWith("*") || w.endsWith("*");
+    const clean = w.replace(/\*/g, "");
+    return `<span class="w">${hot ? `<em>${clean}</em>` : clean}</span>`;
+  }).join(" ")).join("<br>");
+  // words between *…* spanning several words
+  let inside = false;
+  el.querySelectorAll(".w").forEach((s, i, all) => words.push(s));
+  const raw = src.replace(/ \/ /g, " ").split(" ");
+  raw.forEach((w, i) => {
+    if (w.startsWith("*")) inside = true;
+    if (inside && words[i] && !words[i].querySelector("em")) words[i].innerHTML = `<em>${words[i].textContent}</em>`;
+    if (w.replace(/[.,!?…]+$/, "").endsWith("*")) inside = false;
+  });
+  return { el, words, opts };
+}
+// Show a text block at (x, y) [x = left edge in wide, centre in tall], words in from t0, out at t1.
+function showText(T, t, t0, t1, x, y, stagger = 0.075) {
+  const { el, words } = T;
+  if (t < t0 - 0.05 || t > t1 + 0.4) { el.style.opacity = 0; return; }
+  el.style.opacity = 1;
+  const wdt = T.opts.w || (L ? 760 : 960);
+  const left = T.opts.center ? W / 2 - wdt / 2 : L ? x : x - wdt / 2;
+  S(el, { left: left + "px", top: y + "px", width: wdt + "px" });
+  const out = prog(t, t1, 0.35);
+  words.forEach((w, i) => {
+    const u = prog(t, t0 + i * stagger, 0.45);
+    const b = back(u);
+    w.style.opacity = clamp(u * 2.2) * (1 - out);
+    w.style.transform = `translateY(${(1 - b) * 0.7}em) rotate(${(1 - b) * 5}deg) translateX(${-out * 40}px)`;
+    w.style.filter = `blur(${(1 - eo(u)) * 6 + out * 6}px)`;
+  });
+}
+
+// ============================================================ background + logo
+const B1 = $("b1"), B2 = $("b2"), B3 = $("b3");
+function bgAt(t) {
+  const s = L ? 1 : 1.2;
+  S(B1, { width: 900 * s + "px", height: 900 * s + "px", left: (W * 0.18 + Math.sin(t * 0.35) * 120 - 450 * s) + "px", top: (H * 0.2 + Math.cos(t * 0.3) * 90 - 450 * s) + "px" });
+  S(B2, { width: 700 * s + "px", height: 700 * s + "px", left: (W * 0.82 + Math.cos(t * 0.28) * 140 - 350 * s) + "px", top: (H * 0.78 + Math.sin(t * 0.33) * 100 - 350 * s) + "px", opacity: 0.32 });
+  S(B3, { width: 600 * s + "px", height: 600 * s + "px", left: (W * 0.75 + Math.sin(t * 0.4) * 90 - 300 * s) + "px", top: (H * 0.15 + Math.cos(t * 0.37) * 80 - 300 * s) + "px", opacity: 0.22 });
+  $("grid").style.backgroundPosition = `${t * 8}px ${t * 14}px`;
+}
+const LOGO = $("logo"), LW = $("lword");
+function logoAt(t, t0, t1, word) {
+  if (t < t0 || t > t1 + 0.5) { LOGO.style.opacity = 0; LW.style.opacity = 0; return; }
+  LW.innerHTML = word;
+  const u = prog(t, t0, 0.55), out = eio(prog(t, t1, 0.45));
+  const y0 = L ? 330 : 700;
+  S(LOGO, { top: y0 - out * 60 + "px", opacity: clamp(u * 3) * (1 - out), transform: `scale(${back(u) * (1 - out * 0.2)})` });
+  $("lclip").setAttribute("height", 48 * eo(prog(t, t0 + 0.25, 0.5)));
+  $("lbase").setAttribute("width", 30 * eo(prog(t, t0 + 0.1, 0.45)));
+  const wu = prog(t, t0 + 0.55, 0.5);
+  S(LW, { top: y0 + 270 - out * 60 + "px", fontSize: (L ? 120 : 112) + "px", opacity: clamp(wu * 2) * (1 - out), transform: `translateY(${(1 - eo(wu)) * 40}px)`, letterSpacing: `${-0.03 + (1 - eo(wu)) * 0.12}em` });
+}
+
+// ============================================================ end card
+const END = $("end");
+function buildEnd(name, lines, url) {
+  END.innerHTML = `
+    <div id="eL" style="top:${L ? 210 : 560}px"><svg viewBox="0 0 48 48" style="width:${L ? 150 : 170}px;height:${L ? 150 : 170}px"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg></div>
+    <div class="d" id="eN" style="top:${L ? 390 : 770}px;font-size:${L ? 110 : 104}px;font-weight:800">${name}</div>
+    ${lines.map((l, i) => `<div class="eX" style="top:${(L ? 540 : 930) + i * (L ? 74 : 110)}px;font-size:${L ? 44 : 42}px;padding:0 70px;line-height:1.25;font-weight:600;color:${i === 0 ? "#fff" : "#d9d5f0"}">${l}</div>`).join("")}
+    <div id="eU" style="top:${L ? 560 + lines.length * 74 + 30 : 960 + lines.length * 110 + 80}px"><span class="pp" style="font-size:${L ? 40 : 44}px;padding:18px 40px;background:var(--marigold);color:var(--ink)">${url}</span></div>`;
+}
+function endAt(t, t0) {
+  if (t < t0) { END.style.opacity = 0; return; }
+  END.style.opacity = 1;
+  const parts = [...END.children];
+  parts.forEach((p, i) => {
+    const u = prog(t, t0 + i * 0.16, 0.55);
+    S(p, { opacity: clamp(u * 2), transform: `translateY(${(1 - back(u)) * 50}px) scale(${0.9 + 0.1 * back(u)})` });
+  });
+}
+
+// ============================================================ chips
+function makeChips(list) {
+  return list.map(([icon, text]) => {
+    const el = mk(`<div class="chip">${ic(icon)}<span>${text}</span></div>`);
+    el.style.fontSize = (L ? 34 : 38) + "px";
+    return el;
+  });
+}
+function chipsAt(chips, t, t0, t1) {
+  const n = chips.length;
+  chips.forEach((c, i) => {
+    if (t < t0 || t > t1 + 0.4) { c.style.opacity = 0; return; }
+    const u = prog(t, t0 + i * 0.13, 0.5), out = eio(prog(t, t1, 0.35));
+    const col = L ? i % 2 : 0, row = L ? Math.floor(i / 2) : i;
+    const cx = L ? (n % 2 && i === n - 1 ? W / 2 : W / 2 + (col ? 330 : -330)) : W / 2;
+    const cy = L ? 330 + row * 150 : 640 + row * 150;
+    const r = c.getBoundingClientRect();
+    const w = c.offsetWidth, h = c.offsetHeight;
+    const from = (i % 2 ? 1 : -1) * 300;
+    S(c, { left: cx - w / 2 + "px", top: cy - h / 2 + "px", opacity: clamp(u * 2) * (1 - out), transform: `translateX(${(1 - back(u)) * from}px) scale(${1 - out * 0.15}) rotate(${(1 - eo(u)) * (i % 2 ? 6 : -6)}deg)` });
+  });
+}
+
+// ============================================================ phone + taps
+function makePhone(screens, dark = false) {
+  const el = mk(`<div class="mock phone ${dark ? "darkp" : ""}"><div class="notch"></div>${screens.map(([id, html]) => `<div class="scr" id="${id}">${html}</div>`).join("")}<div class="pnotif" id="pn_${screens[0][0]}"></div><div class="tap"></div><div class="finger"></div></div>`);
+  return el;
+}
+// screens: [[t, id], ...] → crossfade + slide
+function screensAt(ph, list, t) {
+  let cur = 0;
+  for (let i = 0; i < list.length; i++) if (t >= list[i][0]) cur = i;
+  list.forEach(([t0, id], i) => {
+    const el = $(id);
+    if (i === cur) {
+      const u = eo(prog(t, t0, 0.35));
+      S(el, { opacity: i === 0 ? 1 : u, transform: `translateX(${i === 0 ? 0 : (1 - u) * 60}px)` });
+    } else if (i === cur - 1) {
+      const u = eo(prog(t, list[cur][0], 0.35));
+      S(el, { opacity: 1 - u, transform: `translateX(${-u * 60}px)` });
+    } else S(el, { opacity: 0 });
+  });
+}
+// taps: [[t, x, y], ...] in phone-screen px
+function tapsAt(ph, taps, t) {
+  const tap = ph.querySelector(".tap"), f = ph.querySelector(".finger");
+  let best = null;
+  for (const k of taps) if (t >= k[0] - 0.45 && t <= k[0] + 0.5) best = k;
+  if (!best) { tap.style.opacity = 0; f.style.opacity = 0; return; }
+  const [t0, x, y] = best;
+  const a = prog(t, t0 - 0.45, 0.4), r = prog(t, t0, 0.45);
+  S(f, { left: x + "px", top: y + 24 * (1 - eo(a)) + "px", opacity: eo(a) * (1 - prog(t, t0 + 0.25, 0.2)), transform: `scale(${t < t0 ? 1 : 1 - 0.2 * Math.sin(Math.PI * prog(t, t0, 0.2))})` });
+  S(tap, { left: x + "px", top: y + "px", opacity: t >= t0 ? (1 - r) : 0, transform: `scale(${0.4 + eo(r) * 1.4})` });
+}
+const typed = (t, t0, d, s) => s.slice(0, Math.round(clamp((t - t0) / d) * s.length));
+
+// ============================================================ Book phone screens (light)
+const FC = `<span class="av" style="width:44px;height:44px;background:#6a4cf5;font-size:16px">FC</span>`;
+function bookPage(services) {
+  return `
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px">${FC}<div><div class="d" style="font-size:22px;font-weight:700">Femi Consulting</div><div style="font-size:14px;color:#6b6690">Business strategy · Lagos</div></div></div>
+  <div style="font-size:15px;color:#4a4570;line-height:1.45;margin-bottom:18px">Book a session that fits your week. Video calls or at my office in Ikeja.</div>
+  ${services.map(([title, meta, price, id]) => `
+    <div class="card" id="${id || ""}" style="padding:16px 16px;margin-bottom:12px;position:relative">
+      <div style="font-weight:700;font-size:17px;margin-bottom:6px">${title}</div>
+      <div style="font-size:14px;color:#6b6690;display:flex;gap:12px;align-items:center">${meta}</div>
+      <div style="position:absolute;right:16px;top:16px;font-weight:700;color:#6a4cf5;font-size:16px">${price}</div>
+    </div>`).join("")}
+  <div style="position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:12px;color:#8a85a8">Powered by <b style="color:#3b3660">Workbase Book</b></div>`;
+}
+function bookCal(title, price, sel, hi) {
+  let cells = ["M", "T", "W", "T", "F", "S", "S"].map((d) => `<div class="h">${d}</div>`).join("");
+  for (let i = 0; i < 3; i++) cells += `<div></div>`;
+  for (let d = 1; d <= 31; d++) {
+    const wd = (d + 2) % 7; // 1 Oct 2026 = Thursday
+    const off = d < 16 || wd === 6;
+    cells += `<div class="c ${off ? "off" : "on"}" id="${d === sel ? "selday" : ""}">${d}</div>`;
+  }
+  return `
+  <div style="font-size:14px;color:#6b6690;margin-bottom:10px">${ic("chevronLeft")} All services</div>
+  <div class="card" style="padding:14px 16px;margin-bottom:12px"><div style="font-weight:700;font-size:17px">${title}</div><div style="font-size:14px;color:#6b6690;margin-top:4px">${price}</div></div>
+  <div class="card" style="padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:17px">October 2026</b><span style="color:#6b6690">${ic("chevronRight")}</span></div>
+    <div class="cal">${cells}</div>
+    <div id="timesbox" style="margin-top:14px;opacity:0"><div style="font-weight:700;font-size:15px;margin-bottom:10px">Friday 16 October</div>
+      <div class="times">${["09:00", "10:00", "11:00", "13:00", "14:00", "15:30"].map((x) => `<div id="${x === hi ? "selt" : ""}">${x}</div>`).join("")}</div></div>
+  </div>`;
+}
+function bookForm(btn, typedIds) {
+  return `
+  <div style="font-size:14px;color:#6b6690;margin-bottom:10px">${ic("chevronLeft")} Change time</div>
+  <div class="card" style="padding:14px 16px;margin-bottom:16px"><div style="font-weight:700;font-size:17px">${typedIds.title}</div><div style="font-size:14px;color:#6b6690;margin-top:4px">${typedIds.when}</div></div>
+  <div class="lbl">Your name</div><div class="inp"><span id="${typedIds.name}"></span></div>
+  <div class="lbl">Email</div><div class="inp"><span id="${typedIds.email}"></span></div>
+  <div class="lbl">Phone (WhatsApp)</div><div class="inp"><span id="${typedIds.phone}"></span></div>
+  <div class="btn" id="${typedIds.btn}" style="margin-top:8px">${btn}</div>`;
+}
+function paySheet() {
+  return `
+  <div style="position:absolute;inset:0;background:rgba(15,13,38,0.45)"></div>
+  <div id="sheet" style="position:absolute;left:0;right:0;bottom:0;height:470px;background:#fff;border-radius:28px 28px 0 0;padding:26px 24px">
+    <div style="width:46px;height:5px;border-radius:3px;background:#dcd9ea;margin:0 auto 20px"></div>
+    <div style="font-size:15px;color:#6b6690">Femi Consulting · deposit</div>
+    <div class="d" style="font-size:44px;font-weight:800;margin:4px 0 18px">₦5,000</div>
+    <div class="lbl">Card number</div><div class="inp" style="letter-spacing:0.12em">5399 •••• •••• 4821</div>
+    <div style="display:flex;gap:12px"><div style="flex:1"><div class="lbl">Expiry</div><div class="inp">09/28</div></div><div style="flex:1"><div class="lbl">CVV</div><div class="inp">•••</div></div></div>
+    <div class="btn" id="paybtn" style="background:#0ba360">${ic("lock")}<span id="paytxt">Pay ₦5,000</span></div>
+    <div style="text-align:center;font-size:12px;color:#8a85a8;margin-top:12px">Card, bank transfer or USSD · secured by Paystack</div>
+  </div>`;
+}
+function bookDone(title, when, extra) {
+  return `
+  <div style="margin:-64px -22px 0;padding:80px 24px 26px;background:#6a4cf5;color:#fff;position:relative">
+    <div id="donecheck" style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:14px">${ic("check")}</div>
+    <div class="d" style="font-size:30px;font-weight:800">You're booked!</div>
+    <div style="font-size:15px;opacity:0.9;margin-top:4px">Details sent to your email.</div>
+  </div>
+  <div class="card" style="margin-top:18px;padding:18px">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">${FC}<b>Femi Consulting</b></div>
+    <div style="font-weight:700;font-size:18px">${title}</div>
+    <div style="font-size:15px;color:#4a4570;margin:4px 0 14px">${when}</div>
+    ${extra}
+  </div>`;
+}
+
+// ============================================================ meeting window
+const PEOPLE = {
+  AO: ["Adaeze Okafor", "#6a4cf5"], TB: ["Tunde Bello", "#cc7a12"], KA: ["Kemi Adeyemi", "#12968a"], CE: ["Chiamaka Eze", "#3b82f6"],
+  BA: ["Bayo", "#e5383b"], FA: ["Femi Akinwunmi", "#6a4cf5"], NE: ["Ngozi Eze", "#12968a"],
+};
+function makeMeet(title, ids, guests = []) {
+  const el = mk(`<div class="mock shadow" id="mw">
+    <div class="mtop"><div><b>${title}</b><span class="code">qnk-pcgc-pwt</span></div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <span class="mpill" id="saver" style="opacity:0">${ic("zap")} Data saver on</span>
+        <span class="mpill" id="mb">2.4 MB</span>
+        <span class="bars" id="bars"><i style="height:7px"></i><i style="height:12px"></i><i style="height:17px"></i><i style="height:22px"></i></span>
+        <span class="mpill">${ic("copy")} Invite</span>
+      </div></div>
+    ${ids.map((k) => `<div class="tile" id="t_${k}"><div class="wave2"></div><div class="tav" style="background:${PEOPLE[k][1]}">${k}</div><div class="dim"></div><div class="tnm">${ic("mic")} ${PEOPLE[k][0]}${guests.includes(k) ? ` <span class="g">Guest</span>` : ""}</div><div class="ring"></div><div class="tbadge"></div><div class="hand">${ic("hand")}</div></div>`).join("")}
+    <div class="mbar"><div>${ic("mic")}</div><div>${ic("video")}</div><div id="sharebtn">${ic("screenShare")}</div><div>${ic("smile")}</div><div id="handbtn">${ic("hand")}</div><div>${ic("chat")}</div><div>${ic("users")}</div><div class="leave">${ic("hangUp")} Leave</div></div>
+    <div class="mtoast" id="mtoast"></div>
+    <div id="reacts"></div>
+  </div>`);
+  return el;
+}
+// tile rects for n tiles in a 1152 x 528 area at (24, 82)
+function tileRects(n) {
+  const X = 24, Y = 82, AW = MWW - 48, AH = MWH - 192, g = 16;
+  const cols = n <= 1 ? 1 : n <= 4 ? 2 : L || POST ? 3 : 2;
+  const rows = Math.ceil(n / cols);
+  const w = (AW - g * (cols - 1)) / cols, h = (AH - g * (rows - 1)) / rows;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const r = Math.floor(i / cols), c = i % cols;
+    const inRow = r === rows - 1 ? n - r * cols : cols;
+    const off = (cols - inRow) * (w + g) / 2;
+    out.push([X + off + c * (w + g), Y + r * (h + g), w, h]);
+  }
+  return out;
+}
+function tilesAt(ids, t, layoutN) {
+  ids.forEach((k, i) => {
+    const el = $("t_" + k);
+    const from = tileRects(layoutN[0])[i], to = tileRects(layoutN[1])[i];
+    const u = eio(layoutN[2]);
+    const A = from || to, B = to || from;
+    if (!A) { el.style.opacity = 0; return; }
+    const r = [0, 1, 2, 3].map((j) => lerp(A[j], B[j], u));
+    S(el, { left: r[0] + "px", top: r[1] + "px", width: r[2] + "px", height: r[3] + "px" });
+  });
+}
+function speak(id, t, a, b) {
+  const el = $("t_" + id);
+  if (!el) return;
+  const on = win(t, a, b, 0.15, 0.2);
+  el.querySelector(".ring").style.opacity = on;
+  const w = el.querySelector(".wave2");
+  const k = ((t - a) * 1.6) % 1;
+  S(w, { opacity: on * (1 - k), transform: `scale(${1 + k * 0.6})` });
+}
+function reactsAt(box, list, t) {
+  // list: [t, x, kind]
+  if (!box.dataset.made) {
+    box.innerHTML = list.map(([, , k]) => `<div class="react" style="background:${k === "heart" ? "#e5383b" : k === "hand" ? "#f2a93b" : "#6a4cf5"};color:#fff">${k === "heart" ? `<svg class="ico" viewBox="0 0 24 24" style="fill:#fff;stroke:none"><path d="M12 20.5s-8-4.7-8-10.6A4.4 4.4 0 0 1 12 7.4a4.4 4.4 0 0 1 8 2.5c0 5.9-8 10.6-8 10.6z"/></svg>` : k === "hand" ? ic("hand") : ic("sparkle")}</div>`).join("");
+    box.dataset.made = 1;
+  }
+  [...box.children].forEach((el, i) => {
+    const [t0, x] = list[i];
+    const u = prog(t, t0, 1.8);
+    if (u <= 0 || u >= 1) { el.style.opacity = 0; return; }
+    S(el, { left: x + Math.sin(u * 7 + i) * 18 + "px", top: MWH - 120 - eo(u) * (L ? 420 : 700) + "px", opacity: Math.min(1, u * 6) * (1 - prog(u, 0.7, 0.3)), transform: `scale(${back(prog(u, 0, 0.2))})` });
+  });
+}
+function mtoast(t, a, b, html) {
+  const el = $("mtoast");
+  if (t < a - 0.1 || t > b + 0.4) return false;
+  el.innerHTML = html;
+  const u = prog(t, a, 0.35), out = prog(t, b, 0.3);
+  S(el, { opacity: eo(u) * (1 - out), transform: `translateX(-50%) translateY(${(1 - back(u)) * -30}px)` });
+  return true;
+}
+
+// ============================================================ confetti + beam
+const CONF = [];
+function makeConfetti(n, seed) {
+  const r = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const el = mk(`<div class="conf"></div>`);
+    el.style.background = ["#f2a93b", "#8f7bff", "#34d399", "#fff", "#e5383b"][i % 5];
+    CONF.push({ el, a: r() * Math.PI * 2, v: 500 + r() * 900, spin: (r() - 0.5) * 1400, g: 900 + r() * 500 });
+  }
+}
+function confettiAt(t, t0, cx, cy) {
+  CONF.forEach((c) => {
+    const d = t - t0;
+    if (d < 0 || d > 2.2) { c.el.style.opacity = 0; return; }
+    const x = cx + Math.cos(c.a) * c.v * d, y = cy + Math.sin(c.a) * c.v * d * 0.8 + 0.5 * c.g * d * d - 300 * d;
+    S(c.el, { left: x + "px", top: y + "px", opacity: 1 - prog(d, 1.5, 0.7), transform: `rotate(${c.spin * d}deg)` });
+  });
+}
+function beamAt(t, t0, d, p0, p1) {
+  const path = $("beampath"), dot = $("beamdot");
+  if (t < t0 || t > t0 + d + 0.6) { path.setAttribute("d", ""); dot.setAttribute("opacity", 0); return; }
+  const u = eio(prog(t, t0, d));
+  const mx = (p0[0] + p1[0]) / 2, my = Math.min(p0[1], p1[1]) - (L ? 260 : 220);
+  const bez = (s) => [(1 - s) ** 2 * p0[0] + 2 * (1 - s) * s * mx + s * s * p1[0], (1 - s) ** 2 * p0[1] + 2 * (1 - s) * s * my + s * s * p1[1]];
+  const tail = Math.max(0, u - 0.35);
+  let dstr = "";
+  for (let i = 0; i <= 24; i++) { const s = lerp(tail, u, i / 24); const [x, y] = bez(s); dstr += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1); }
+  path.setAttribute("d", dstr);
+  path.setAttribute("opacity", 1 - prog(t, t0 + d, 0.5));
+  const [x, y] = bez(u);
+  dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.setAttribute("opacity", 1 - prog(t, t0 + d, 0.3));
+}
+const FLASH = $("flash");
+function flashAt(t, list) { let o = 0; for (const a of list) o = Math.max(o, (1 - prog(t, a, 0.35)) * (t >= a ? 0.55 : 0)); FLASH.style.opacity = o; }
+
+// ============================================================ layout helpers
+const TX = L ? 150 : W / 2;               // text column
+const MX = L ? 1300 : W / 2;              // mock centre x
+const PHS = L ? 0.98 : 1.22;              // phone scale
+const PHY = L ? 540 : 1230;               // phone centre y
+const MWS = L ? 0.94 : 0.96;              // meeting window scale
+const MWY = L ? 545 : 1190;
+const BRS = L ? 0.86 : 0.84;              // browser scale
+const capY = L ? 380 : 230;
+const capSize = L ? 74 : 78;
+
+// ============================================================================
+// FILM: MEET
+// ============================================================================
+let render;
+if (FILM === "meet") {
+  const H1 = makeText("Video meetings / built for *Nigerian internet.*", L ? 118 : 104, { align: "center", center: true, w: L ? 1600 : 980 });
+  const C = [
+    makeText("See every *MB* / you use, live.", capSize),
+    makeText("Network drops? / It *reconnects* / by itself.", capSize),
+    makeText("*Data saver* / when bundles / are low.", capSize),
+    makeText("React, raise a hand, / *share your screen.*", capSize),
+    makeText("Guests join / with a link. / *No app. No account.*", capSize),
+  ];
+  const ids = ["AO", "TB", "KA", "CE", "BA"];
+  const MW = makeMeet("Team stand-up", ids, ["BA"]);
+  const PH = makePhone([
+    ["g1", `<div style="color:#fff;text-align:center;padding-top:20px">
+        <div style="display:flex;align-items:center;gap:10px;justify-content:center;font:800 22px Bricolage,sans-serif;margin-bottom:26px"><svg viewBox="0 0 48 48" style="width:34px;height:34px"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>Workbase Meet</div>
+        <div style="height:250px;border-radius:22px;background:#24204f;display:flex;align-items:center;justify-content:center;margin-bottom:22px"><div style="width:96px;height:96px;border-radius:50%;background:#e5383b;display:flex;align-items:center;justify-content:center;font:700 34px Bricolage">BA</div></div>
+        <div class="d" style="font-size:26px;font-weight:800">Team stand-up</div>
+        <div style="color:#b7b2d6;font-size:15px;margin:6px 0 22px">4 people in the meeting</div>
+        <div style="text-align:left;font-size:13px;color:#b7b2d6;font-weight:600;margin-bottom:6px">Your name</div>
+        <div class="inp" style="background:#1b1840;border-color:#3a3570;color:#fff"><span id="gname"></span><span class="cur" id="gcur"></span></div>
+        <div class="btn" id="gjoin">Join meeting</div>
+        <div style="color:#8f8ab5;font-size:13px;margin-top:14px">No app or account needed</div></div>`],
+  ], true);
+  const chips = makeChips([["shield", "Waiting room"], ["sparkle", "Blur or picture backgrounds"], ["screenShare", "Screen sharing"], ["download", "Download attendance"], ["globe", "Any phone or laptop"]]);
+  buildEnd(`Workbase <span style="color:var(--marigold)">Meet</span>`, ["Free meetings up to 60 minutes", "Meet Pro: 24 hours, 50 people · ₦1,000/month"], "workbase-meet.vercel.app");
+
+  cue(0.25, "pop"); cue(0.6, "reveal", 1.2); cue(2.4, "slam"); cue(3.3, "hit");
+  cue(5.2, "whoosh"); cue(5.6, "tick"); cue(8.3, "glitch"); cue(9.7, "chime"); cue(11.0, "click"); cue(13.1, "pop"); cue(13.5, "pop"); cue(13.9, "pop"); cue(14.3, "ding");
+  cue(15.0, "swish"); cue(15.4, "type", 0.7); cue(16.35, "tap"); cue(16.9, "pop"); cue(17.9, "riser", 0.7); [0, 1, 2, 3, 4].forEach((i) => cue(17.95 + i * 0.13, "tick2"));
+  cue(19.4, "boom");
+  window.SECTIONS = [[2.3, 5.2, 0.5], [5.2, 15.0, 1], [15.0, 19.4, 2]];
+
+  render = (t) => {
+    bgAt(t);
+    logoAt(t, 0.05, 2.2, `Workbase <em>Meet</em>`);
+    showText(H1, t, 2.4, 5.0, L ? W / 2 - 380 : W / 2, L ? 380 : 780, 0.09);
+    if (L) H1.el.style.left = (W / 2 - 380) + "px";
+    // meeting window: in at 5.2, aside during the guest join, out at 17.8
+    const win1 = win(t, 5.2, 18.0, 0.55, 0.45);
+    const guest = eio(prog(t, 15.0, 0.6)) * (1 - eio(prog(t, 16.9, 0.5)));
+    const mx = L ? lerp(MX, MX + 120, guest) : W / 2;
+    const my = L ? MWY : lerp(MWY, MWY - 380, guest);
+    const ms = MWS * (1 - 0.18 * guest) * (0.92 + 0.08 * back(prog(t, 5.2, 0.6)));
+    place(MW, MWW, MWH, mx, my + (1 - eo(prog(t, 5.2, 0.6))) * 120, ms, win1 * (1 - 0.94 * guest));
+    // tiles: 4 → 5 when Bayo joins
+    tilesAt(ids, t, [4, 5, prog(t, 16.9, 0.6)]);
+    $("t_BA").style.opacity = eo(prog(t, 16.9, 0.4));
+    $("t_BA").style.transform = `scale(${0.6 + 0.4 * back(prog(t, 16.9, 0.5))})`;
+    speak("AO", t, 5.6, 7.4); speak("TB", t, 7.4, 8.2); speak("KA", t, 9.8, 11.4); speak("CE", t, 11.6, 13.0); speak("AO", t, 13.0, 14.6); speak("BA", t, 17.2, 18.0);
+    // MB meter (slows down under data saver)
+    const mb = 2.4 + clamp(t - 5.2, 0, 5.8) * 0.21 + clamp(t - 11.0, 0, 7) * 0.045;
+    $("mb").innerHTML = ic("activity") + " " + mb.toFixed(1) + " MB";
+    $("mb").style.boxShadow = `0 0 0 ${3 * win(t, 5.6, 8.0, 0.2, 0.3)}px #f2a93b`;
+    // signal bars dip while Tunde reconnects (mine stay)
+    const bars = $("bars").children;
+    const weak = win(t, 8.3, 9.6, 0.1, 0.2);
+    [...bars].forEach((b, i) => { b.style.background = i >= 2 && weak > 0.5 ? "rgba(255,255,255,0.25)" : "#34d399"; });
+    // Tunde reconnecting
+    const tb = $("t_TB"), tbb = tb.querySelector(".tbadge");
+    const rec = win(t, 8.3, 9.65, 0.2, 0.25);
+    tb.querySelector(".dim").style.opacity = rec;
+    tbb.style.opacity = rec; tbb.style.background = "#f2a93b"; tbb.style.color = "#15123a";
+    tbb.innerHTML = `${ic("refresh")} Reconnecting…`;
+    tbb.querySelector(".ico").style.transform = `rotate(${t * 360}deg)`;
+    if (!mtoast(t, 9.7, 10.9, `<span class="dot" style="background:#10b981"></span> Tunde is back`)) $("mtoast").style.opacity = 0;
+    // data saver
+    const sv = eo(prog(t, 11.0, 0.35));
+    $("saver").style.opacity = sv;
+    $("saver").style.transform = `scale(${0.8 + 0.2 * back(prog(t, 11.0, 0.4))})`;
+    ["AO", "TB", "KA", "CE"].forEach((k) => {
+      const b = $("t_" + k).querySelector(".tbadge");
+      if (k === "TB" && rec > 0) return;
+      const o = win(t, 11.2, 12.8, 0.3, 0.3);
+      b.style.opacity = o; b.style.background = "rgba(255,255,255,0.12)"; b.style.color = "#fff";
+      b.innerHTML = `${ic("videoOff")} Video paused · saving data`;
+    });
+    // hand + reactions + share
+    const hd = $("t_KA").querySelector(".hand");
+    S(hd, { opacity: win(t, 13.5, 14.9, 0.2, 0.2), transform: `scale(${back(prog(t, 13.5, 0.4))}) rotate(${Math.sin(t * 12) * 12}deg)` });
+    reactsAt($("reacts"), [[13.1, 700, "heart"], [13.5, 860, "spark"], [13.9, 300, "heart"], [14.1, 980, "hand"], [14.4, 520, "spark"]], t);
+    $("sharebtn").classList.toggle("on", t > 14.3 && t < 15.2);
+    // guest phone
+    const pu = win(t, 15.0, 17.1, 0.5, 0.4);
+    const px = L ? MX - 420 : W / 2, py = L ? PHY + 10 : 1300;
+    place(PH, 418, 872, px, py + (1 - eo(prog(t, 15.0, 0.5))) * 300, PHS * (L ? 1 : 0.95), pu, (1 - eo(prog(t, 15.0, 0.5))) * -8);
+    screensAt(PH, [[0, "g1"]], t);
+    $("gname").textContent = typed(t, 15.4, 0.6, "Bayo");
+    $("gcur").style.opacity = Math.floor(t * 3) % 2;
+    $("gjoin").style.transform = `scale(${1 - 0.06 * Math.sin(Math.PI * prog(t, 16.35, 0.2))})`;
+    tapsAt(PH, [[16.35, 173, 690]], t);
+    // captions
+    const cx = TX, cy = capY;
+    showText(C[0], t, 5.5, 8.0, cx, cy);
+    showText(C[1], t, 8.15, 10.7, cx, cy);
+    showText(C[2], t, 10.85, 12.85, cx, cy);
+    showText(C[3], t, 13.0, 14.85, cx, cy);
+    showText(C[4], t, 15.0, 17.75, L ? 150 : W / 2, L ? capY - 40 : 200);
+    if (L) C[4].el.style.left = (W - 760 - 100) + "px";
+    chipsAt(chips, t, 17.95, 19.3);
+    endAt(t, 19.4);
+    flashAt(t, [2.4, 19.4]);
+  };
+}
+
+// ============================================================================
+// FILM: BOOK
+// ============================================================================
+if (FILM === "book") {
+  const H1 = makeText("Stop chasing clients / *on WhatsApp.*", L ? 118 : 104, { align: "center", center: true, w: L ? 1600 : 980 });
+  const H2 = makeText("Let them / *book and pay.*", L ? 140 : 124, { align: "center", center: true, w: L ? 1600 : 980 });
+  const C = [
+    makeText("Your own / *booking page.*", capSize),
+    makeText("Clients pick / a time that / *suits you.*", capSize),
+    makeText("They pay a / *deposit upfront.*", capSize),
+    makeText("Booked. / *Reminders* go out / by themselves.", capSize),
+    makeText("Money goes / straight to / *your bank account.*", capSize),
+  ];
+  const PH = makePhone([
+    ["bk1", bookPage([
+      ["30-minute call", `${ic("clock")} 30 min ${ic("video")} Video`, "Free", ""],
+      ["Strategy session", `${ic("clock")} 1 hour ${ic("pin")} Ikeja`, "₦20,000", "svc2"],
+      ["Business plan review", `${ic("clock")} 2 hours ${ic("video")} Video`, "₦45,000", ""],
+    ])],
+    ["bk2", bookCal("Strategy session", "₦20,000 · ₦5,000 deposit now", 16, "10:00")],
+    ["bk3", bookForm("Pay ₦5,000 & book", { title: "Strategy session", when: "Fri 16 Oct · 10:00 – 11:00", name: "fname", email: "femail", phone: "fphone", btn: "fbtn" })],
+    ["bk4", bookForm("Pay ₦5,000 & book", { title: "Strategy session", when: "Fri 16 Oct · 10:00 – 11:00", name: "fname2", email: "femail2", phone: "fphone2", btn: "fbtn2" }) + paySheet()],
+    ["bk5", bookDone("Strategy session", "Friday 16 October · 10:00", `<div style="font-size:15px;color:#3b3660;display:flex;flex-direction:column;gap:8px"><span>${ic("pin")} 12 Allen Avenue, Ikeja</span><span>${ic("wallet")} Paid ₦5,000 · ₦15,000 on the day</span></div><div class="btn2" style="margin-top:16px">${ic("calendar")} Add to calendar</div>`)],
+  ]);
+  const DB = mk(`<div class="mock browser shadow">
+    <div class="chrome"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>${ic("lock")} workbase-book.vercel.app</span></div>
+    <div class="side"><div style="display:flex;align-items:center;gap:10px;font:800 21px Bricolage;margin-bottom:24px"><svg viewBox="0 0 48 48" style="width:32px;height:32px"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>Book</div>
+      <div class="it on">${ic("calendar")} Bookings</div><div class="it">${ic("layers")} Services</div><div class="it">${ic("clock")} Availability</div><div class="it">${ic("settings")} Settings</div></div>
+    <div class="main"><div style="display:flex;justify-content:space-between;align-items:end;margin-bottom:20px"><div class="d" style="font-size:34px;font-weight:700">Bookings</div><span class="badge" style="background:#efecff;color:#6a4cf5;font-size:15px">${ic("link")} book…/femi</span></div>
+      <div style="display:flex;gap:16px;margin-bottom:20px">
+        ${[["This week", "7"], ["Paid online", "₦<span id='paidsum'>35,000</span>"], ["No-shows", "0"]].map(([a, b]) => `<div class="card" style="flex:1;padding:16px 20px"><div style="font-size:14px;color:#6b6690">${a}</div><div class="d" style="font-size:30px;font-weight:700">${b}</div></div>`).join("")}
+      </div>
+      <div class="card" style="overflow:hidden;position:relative" id="blist">
+        <div class="row" id="newrow" style="background:#fffbea"><span class="av" style="width:40px;height:40px;background:#12968a;font-size:15px">NE</span><div style="flex:1"><b>Ngozi Eze</b><div style="font-size:14px;color:#6b6690">Strategy session · Fri 16 Oct, 10:00</div></div><span class="badge" style="background:#d1fae5;color:#047857">Paid ₦5,000</span>${ic("whatsapp", 'style="color:#16a34a;font-size:22px"')}</div>
+        ${[["AO", "#6a4cf5", "Adaeze Okafor", "30-minute call · Fri 16 Oct, 13:00", "Free"], ["TB", "#cc7a12", "Tunde Bello", "Business plan review · Mon 19 Oct, 09:00", "Paid ₦10,000"], ["KA", "#3b82f6", "Kemi Adeyemi", "Strategy session · Tue 20 Oct, 15:30", "Paid ₦5,000"]].map(([i, c, n, s, p]) => `<div class="row"><span class="av" style="width:40px;height:40px;background:${c};font-size:15px">${i}</span><div style="flex:1"><b>${n}</b><div style="font-size:14px;color:#6b6690">${s}</div></div><span class="badge" style="background:${p === "Free" ? "#efedf6;color:#4a4570" : "#d1fae5;color:#047857"}">${p}</span>${ic("whatsapp", 'style="color:#16a34a;font-size:22px"')}</div>`).join("")}
+      </div>
+      <div id="bank" class="card" style="position:absolute;right:34px;bottom:28px;padding:16px 20px;display:flex;gap:14px;align-items:center;box-shadow:0 20px 40px -12px rgba(21,18,58,0.35);opacity:0"><span style="width:46px;height:46px;border-radius:12px;background:#efecff;color:#6a4cf5;display:flex;align-items:center;justify-content:center;font-size:24px">${ic("bank")}</span><div><div style="font-size:14px;color:#6b6690">Paid to your account</div><b style="font-size:18px">GTBank ••••4821 · ₦5,000</b></div></div>
+    </div></div>`);
+  makeConfetti(60, 11);
+  const chips = makeChips([["wallet", "Deposits or full payment"], ["clock", "Your hours and days off"], ["video", "Video calls on Workbase Meet"], ["whatsapp", "WhatsApp clients in one tap"], ["bell", "Email reminders"]]);
+  buildEnd(`Workbase <span style="color:var(--marigold)">Book</span>`, ["Free to start · 3% per online payment", "Book Pro: no fees, ₦2,000/month"], "workbase-book.vercel.app");
+
+  cue(0.25, "pop"); cue(0.6, "reveal", 1.2); cue(2.4, "slam"); cue(3.85, "slam"); cue(4.5, "hit");
+  cue(5.25, "whoosh"); cue(6.8, "tap"); cue(7.6, "tap"); cue(8.5, "tap"); cue(9.1, "type", 0.9); cue(10.1, "tap"); cue(10.25, "swish"); cue(10.75, "tap"); cue(11.2, "ding"); cue(11.25, "pop"); cue(12.2, "chime");
+  cue(13.2, "whoosh"); cue(13.7, "ding"); cue(14.6, "chime"); cue(16.2, "riser", 0.6); [0, 1, 2, 3, 4].forEach((i) => cue(16.25 + i * 0.13, "tick2")); cue(18.4, "boom");
+  window.SECTIONS = [[2.3, 5.2, 0.5], [5.2, 13.2, 1], [13.2, 18.4, 2]];
+
+  render = (t) => {
+    bgAt(t);
+    logoAt(t, 0.05, 2.2, `Workbase <em>Book</em>`);
+    showText(H1, t, 2.4, 3.75, L ? W / 2 - 380 : W / 2, L ? 380 : 780, 0.08);
+    showText(H2, t, 3.85, 5.05, L ? W / 2 - 380 : W / 2, L ? 380 : 780, 0.1);
+    // phone
+    const pu = win(t, 5.2, 13.35, 0.55, 0.45);
+    place(PH, 418, 872, MX + (L ? 60 : 0), PHY + (1 - eo(prog(t, 5.2, 0.6))) * 300 + (L ? 0 : 60), PHS, pu, (1 - eo(prog(t, 5.2, 0.6))) * 6);
+    screensAt(PH, [[0, "bk1"], [7.0, "bk2"], [9.0, "bk3"], [10.2, "bk4"], [11.2, "bk5"]], t);
+    $("svc2").style.boxShadow = `0 0 0 ${3 * win(t, 6.3, 7.1, 0.2, 0.2)}px #6a4cf5`;
+    const tb = $("timesbox"); tb.style.opacity = eo(prog(t, 7.75, 0.3));
+    const sd = $("selday"); const on = t >= 7.6;
+    S(sd, { background: on ? "#6a4cf5" : "", color: on ? "#fff" : "" });
+    const st = $("selt"); const on2 = t >= 8.5;
+    S(st, { background: on2 ? "#6a4cf5" : "", color: on2 ? "#fff" : "" });
+    $("fname").innerHTML = typed(t, 9.1, 0.45, "Ngozi Eze") + (t < 9.6 ? `<span class="cur"></span>` : "");
+    $("femail").textContent = typed(t, 9.5, 0.35, "ngozi@gmail.com");
+    $("fphone").textContent = typed(t, 9.8, 0.25, "0803 412 7781");
+    ["fname2", "femail2", "fphone2"].forEach((k, i) => { $(k).textContent = ["Ngozi Eze", "ngozi@gmail.com", "0803 412 7781"][i]; });
+    $("sheet").style.transform = `translateY(${(1 - eo(prog(t, 10.2, 0.45))) * 480}px)`;
+    const paying = t >= 10.75;
+    $("paytxt").textContent = paying ? (t < 11.1 ? "Processing…" : "Paid") : "Pay ₦5,000";
+    $("donecheck").style.transform = `scale(${back(prog(t, 11.3, 0.5))})`;
+    tapsAt(PH, [[6.8, 195, 300], [7.6, 245, 432], [8.5, 196, 640], [10.1, 195, 553], [10.75, 195, 666]], t);
+    confettiAt(t, 11.25, MX + (L ? 60 : 0), PHY - 200);
+    // reminder notification on the phone
+    const pn = PH.querySelector(".pnotif");
+    pn.innerHTML = `<span class="tl" style="background:#6a4cf5;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px">${ic("bell")}</span><div><b>Tomorrow 10:00 · Strategy session</b><span>Femi Consulting · 12 Allen Avenue</span></div>`;
+    S(pn, { opacity: win(t, 12.2, 13.3, 0.3, 0.2), transform: `translateY(${(1 - back(prog(t, 12.2, 0.45))) * -120}px)` });
+    // host dashboard
+    const du = win(t, 13.2, 16.3, 0.55, 0.4);
+    place(DB, 1200, 740, MX + (L ? 40 : 0), (L ? 545 : 1180) + (1 - eo(prog(t, 13.2, 0.6))) * 160, BRS * (L ? 1 : 1.05), du);
+    const nr = $("newrow");
+    const nu = prog(t, 13.65, 0.5);
+    S(nr, { maxHeight: eo(nu) * 90 + "px", padding: `${14 * eo(nu)}px 18px`, opacity: eo(nu), background: `rgba(255,251,234,${1 - prog(t, 15.4, 0.6)})` });
+    $("paidsum").textContent = t >= 13.7 ? "40,000" : "35,000";
+    const bk = $("bank");
+    S(bk, { opacity: eo(prog(t, 14.6, 0.4)), transform: `translateY(${(1 - back(prog(t, 14.6, 0.5))) * 40}px)` });
+    // captions
+    showText(C[0], t, 5.45, 7.0, TX, capY);
+    showText(C[1], t, 7.1, 8.95, TX, capY);
+    showText(C[2], t, 9.05, 11.1, TX, capY);
+    showText(C[3], t, 11.2, 13.1, TX, capY);
+    showText(C[4], t, 13.35, 16.1, L ? TX : W / 2, L ? capY : 200);
+    if (!L) { C[4].el.style.top = "190px"; }
+    chipsAt(chips, t, 16.25, 18.3);
+    endAt(t, 18.4);
+    flashAt(t, [2.4, 3.85, 18.4]);
+  };
+}
+
+// ============================================================================
+// FILM: FLOW (Book → Meet → Workbase, one login)
+// ============================================================================
+if (FILM === "flow") {
+  const H1 = makeText("One account.", L ? 150 : 132, { align: "center", center: true, w: L ? 1600 : 980 });
+  const H2 = makeText("Every tool your / *business runs on.*", L ? 112 : 100, { align: "center", center: true, w: L ? 1600 : 980 });
+  const C = [
+    makeText("Same email. / *Same password.*", capSize, { align: "center", center: true, w: L ? 1400 : 980 }),
+    makeText("A client books / a video call…", capSize),
+    makeText("…and the *Meet link* / is made for them.", capSize),
+    makeText("They tap Join. / *No downloads.*", capSize),
+    makeText("Attendance / *ready to download.*", capSize),
+    makeText("Then back to work: / your team, *live.*", capSize),
+    makeText("Time, tasks, chat, / leave and payroll. / *Same login.*", capSize),
+  ];
+  // three app tiles + key
+  const apps = [["clock", "Workbase", "#6a4cf5"], ["video", "Meet", "#12968a"], ["calendar", "Book", "#cc7a12"]].map(([i, n, c]) =>
+    mk(`<div class="appt" style="background:linear-gradient(160deg, ${c}, ${c}cc)">${ic(i)}<span>${n}</span></div>`));
+  const KEY = mk(`<div id="key" style="font-size:${L ? 40 : 44}px;padding:20px 36px">${ic("lock", 'style="color:#6a4cf5"')} One login</div>`);
+  const LINKS = mk(`<svg id="links" width="${W}" height="${H}"><path id="ln0" fill="none" stroke="#fff" stroke-opacity="0.5" stroke-width="4" stroke-dasharray="10 12"/><path id="ln1" fill="none" stroke="#fff" stroke-opacity="0.5" stroke-width="4" stroke-dasharray="10 12"/><path id="ln2" fill="none" stroke="#fff" stroke-opacity="0.5" stroke-width="4" stroke-dasharray="10 12"/></svg>`);
+  layer.prepend(LINKS);
+  const PH = makePhone([
+    ["f1", bookPage([
+      ["30-minute video call", `${ic("clock")} 30 min ${ic("video")} Workbase Meet`, "Free", "fsvc"],
+      ["Strategy session", `${ic("clock")} 1 hour ${ic("pin")} Ikeja`, "₦20,000", ""],
+    ])],
+    ["f2", bookCal("30-minute video call", "Free · on Workbase Meet", 17, "14:00")],
+    ["f3", bookForm("Book call", { title: "30-minute video call", when: "Sat 17 Oct · 14:00 – 14:30", name: "gname2", email: "gmail2", phone: "gphone2", btn: "gbtn" })],
+    ["f4", bookDone("30-minute video call", "Saturday 17 October · 14:00", `<div style="font-size:15px;color:#3b3660;display:flex;gap:8px;align-items:center;margin-bottom:14px">${ic("video")} Video call on Workbase Meet</div><div class="btn" id="joinbtn">${ic("video")} Join call</div>`)],
+  ]);
+  const MW = makeMeet("30-minute video call", ["FA", "TB"], ["TB"]);
+  const CSV = mk(`<div class="mock" style="width:330px;height:150px;background:#fff;border-radius:22px;color:#15123a;padding:22px;display:flex;gap:16px;align-items:center;box-shadow:0 30px 60px -10px rgba(0,0,0,0.6)"><span style="width:62px;height:72px;border-radius:12px;background:#10b981;color:#fff;font:800 18px Inter;display:flex;align-items:end;justify-content:center;padding-bottom:12px">CSV</span><div><b style="font-size:20px">attendance.csv</b><div style="font-size:15px;color:#6b6690;margin-top:4px">Joined 14:00 · 32 min</div></div></div>`);
+  const DB = mk(`<div class="mock browser shadow">
+    <div class="chrome"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>${ic("lock")} phantomire-workforce.vercel.app/dashboard</span></div>
+    <div class="side"><div style="display:flex;align-items:center;gap:10px;font:800 21px Bricolage;margin-bottom:24px"><svg viewBox="0 0 48 48" style="width:32px;height:32px"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>Workbase</div>
+      ${[["overview", "Overview", 1], ["activity", "Activity"], ["tasks", "Tasks"], ["chat", "Chat"], ["leave", "Leave"], ["wallet", "Payroll"]].map(([i, n, on]) => `<div class="it ${on ? "on" : ""}" id="nav_${i}">${ic(i)} ${n}</div>`).join("")}</div>
+    <div class="main"><div class="d" style="font-size:34px;font-weight:700;margin-bottom:18px">Who's working now</div>
+      <div style="display:flex;gap:16px;margin-bottom:18px">${[["Working", "6", "#10b981"], ["On phone", "1", "#6a4cf5"], ["On leave", "1", "#f2a93b"], ["Hours today", "38h"]].map(([a, b, c]) => `<div class="card" style="flex:1;padding:14px 18px"><div style="font-size:14px;color:#6b6690;display:flex;gap:8px;align-items:center">${c ? `<span class="dot" style="background:${c}"></span>` : ""}${a}</div><div class="d" style="font-size:28px;font-weight:700">${b}</div></div>`).join("")}</div>
+      <div class="card" style="overflow:hidden">
+        ${[["AO", "#6a4cf5", "Adaeze Okafor", "Lagos · Figma", "#10b981", 0.82], ["TB", "#cc7a12", "Tunde Bello", "Accra · VS Code", "#10b981", 0.74], ["KA", "#12968a", "Kemi Adeyemi", "Toronto · Chrome", "#f2a93b", 0.41], ["CE", "#3b82f6", "Chiamaka Eze", "Nairobi · On phone", "#6a4cf5", 0.6]].map(([i, c, n, s, d, p], k) => `<div class="row"><span class="av" style="width:40px;height:40px;background:${c};font-size:15px">${i}</span><div style="flex:1"><b>${n}</b><div style="font-size:14px;color:#6b6690;display:flex;gap:6px;align-items:center"><span class="dot" style="background:${d}"></span>${s}</div></div><div style="width:220px;height:10px;border-radius:5px;background:#efedf6;overflow:hidden"><div class="actbar" data-p="${p}" style="height:100%;background:#6a4cf5;border-radius:5px;width:0"></div></div></div>`).join("")}
+      </div></div></div>`);
+  const prodChips = makeChips([["clock", "Time and activity"], ["tasks", "Tasks"], ["chat", "Team chat"], ["leave", "Leave and holidays"], ["wallet", "Payroll with PAYE"], ["video", "Meet"], ["calendar", "Book"]]);
+  buildEnd(`<span style="color:#fff">Workbase</span>`, ["Workbase · Meet · Book", "Built in Lagos for how we work."], "phantomire-workforce.vercel.app");
+  END.querySelectorAll(".eX")[0].innerHTML = `<span class="pp" style="font-size:${L ? 34 : 38}px;padding:12px 26px;background:rgba(255,255,255,0.1)">${ic("clock")} Workbase</span> <span class="pp" style="font-size:${L ? 34 : 38}px;padding:12px 26px;background:rgba(255,255,255,0.1)">${ic("video")} Meet</span> <span class="pp" style="font-size:${L ? 34 : 38}px;padding:12px 26px;background:rgba(255,255,255,0.1)">${ic("calendar")} Book</span>`;
+
+  cue(0.3, "slam"); cue(1.5, "hit"); cue(3.0, "whoosh"); [0, 1, 2].forEach((i) => cue(3.2 + i * 0.22, "pop")); cue(4.2, "reveal", 1.0); cue(4.5, "ding");
+  cue(6.4, "whoosh"); cue(6.95, "tap"); cue(7.75, "tap"); cue(8.45, "tap"); cue(8.7, "type", 0.8); cue(9.9, "tap"); cue(10.05, "ding"); cue(10.1, "pop");
+  cue(12.1, "tap"); cue(12.25, "beam", 0.8); cue(13.0, "whoosh"); cue(13.4, "chime");
+  cue(14.9, "click"); cue(15.1, "pop"); cue(17.5, "whoosh"); cue(18.2, "tick"); cue(20.6, "riser", 0.6); [0, 1, 2, 3, 4, 5, 6].forEach((i) => cue(20.7 + i * 0.12, "tick2")); cue(23.5, "boom");
+  window.SECTIONS = [[0.3, 6.4, 0.5], [6.4, 17.5, 1], [17.5, 23.5, 2]];
+
+  render = (t) => {
+    bgAt(t);
+    // headline
+    showText(H1, t, 0.3, 1.45, L ? W / 2 - 380 : W / 2, L ? 400 : 800, 0.1);
+    showText(H2, t, 1.5, 2.95, L ? W / 2 - 380 : W / 2, L ? 380 : 780, 0.08);
+    // tiles + key
+    const tu = win(t, 3.0, 6.4, 0.6, 0.45);
+    const cx = W / 2, cy = L ? 470 : 1000;
+    const spread = L ? 400 : 330;
+    const keyY = cy + (L ? 280 : 360);
+    apps.forEach((a, i) => {
+      const u = prog(t, 3.2 + i * 0.22, 0.6);
+      const x = cx + (i - 1) * spread, y = cy + Math.sin(t * 2 + i) * 8;
+      const s = L ? 1 : 0.95;
+      S(a, { left: x - 150 + "px", top: y - 150 + "px", opacity: clamp(u * 2) * tu, transform: `scale(${back(u) * s}) rotate(${(1 - eo(u)) * (i - 1) * 20}deg)` });
+    });
+    const ku = prog(t, 4.2, 0.5);
+    S(KEY, { left: cx - KEY.offsetWidth / 2 + "px", top: keyY - KEY.offsetHeight / 2 + "px", opacity: clamp(ku * 2) * tu, transform: `scale(${back(ku)})` });
+    [0, 1, 2].forEach((i) => {
+      const x = cx + (i - 1) * spread, y = cy + 150;
+      const lu = eo(prog(t, 4.3 + i * 0.1, 0.5));
+      $("ln" + i).setAttribute("d", `M${x} ${y} Q ${(x + cx) / 2} ${(y + keyY) / 2 + 40} ${lerp(x, cx, lu)} ${lerp(y, keyY - 30, lu)}`);
+      $("ln" + i).setAttribute("stroke-dashoffset", -t * 40);
+      $("ln" + i).style.opacity = tu;
+    });
+    showText(C[0], t, 4.55, 6.3, L ? W / 2 - 380 : W / 2, L ? 870 : 1520, 0.07);
+    // phone booking
+    const pu = win(t, 6.4, 12.9, 0.55, 0.45);
+    const shrink = eio(prog(t, 12.0, 0.8));
+    const px = L ? lerp(MX, 330, shrink) : W / 2;
+    const py = L ? PHY : lerp(PHY, 640, shrink);
+    place(PH, 418, 872, px, py + (1 - eo(prog(t, 6.4, 0.6))) * 300, PHS * (1 - 0.35 * shrink), pu);
+    screensAt(PH, [[0, "f1"], [7.15, "f2"], [8.65, "f3"], [10.05, "f4"]], t);
+    $("fsvc").style.boxShadow = `0 0 0 ${3 * win(t, 6.6, 7.2, 0.15, 0.2)}px #6a4cf5`;
+    $("timesbox").style.opacity = eo(prog(t, 7.85, 0.3));
+    const sd = $("selday"); S(sd, { background: t >= 7.75 ? "#6a4cf5" : "", color: t >= 7.75 ? "#fff" : "" });
+    const st = $("selt"); S(st, { background: t >= 8.45 ? "#6a4cf5" : "", color: t >= 8.45 ? "#fff" : "" });
+    $("gname2").innerHTML = typed(t, 8.75, 0.45, "Tunde Bello") + (t < 9.3 ? `<span class="cur"></span>` : "");
+    $("gmail2").textContent = typed(t, 9.15, 0.35, "tunde@bello.co");
+    $("gphone2").textContent = typed(t, 9.45, 0.25, "0812 555 0147");
+    $("joinbtn").style.boxShadow = `0 0 0 ${8 * win(t, 10.6, 12.4, 0.3, 0.3) * (0.5 + 0.5 * Math.sin(t * 8))}px rgba(242,169,59,0.7)`;
+    tapsAt(PH, [[6.95, 195, 222], [7.75, 290, 432], [8.45, 290, 640], [9.9, 195, 456], [12.1, 195, 520]], t);
+    // beam to the meeting
+    const jb = PH.getBoundingClientRect();
+    beamAt(t, 12.25, 0.8, [L ? 330 : W / 2, L ? 600 : 760], [L ? MX : W / 2, L ? 380 : 1050]);
+    // meeting
+    const mu = win(t, 12.9, 17.6, 0.55, 0.45);
+    place(MW, MWW, MWH, L ? MX + 60 : W / 2, (L ? MWY : 1250) + (1 - eo(prog(t, 12.9, 0.6))) * 140, MWS * (L ? 0.92 : 0.9) * (0.9 + 0.1 * back(prog(t, 12.9, 0.6))), mu);
+    tilesAt(["FA", "TB"], t, [1, 2, prog(t, 13.4, 0.5)]);
+    $("t_TB").style.opacity = eo(prog(t, 13.35, 0.4));
+    speak("FA", t, 13.6, 14.6); speak("TB", t, 14.6, 16.2); speak("FA", t, 16.2, 17.3);
+    $("mb").innerHTML = ic("activity") + " " + (1.2 + clamp(t - 13, 0, 5) * 0.3).toFixed(1) + " MB";
+    if (!mtoast(t, 13.4, 14.6, `<span class="dot" style="background:#10b981"></span> Tunde joined`)) $("mtoast").style.opacity = 0;
+    const csu = win(t, 15.0, 17.4, 0.45, 0.35);
+    place(CSV, 330, 150, L ? MX + 360 : W / 2 + 200, L ? 800 : 1640, (L ? 1 : 1.15) * (0.7 + 0.3 * back(prog(t, 15.0, 0.5))), csu, (1 - eo(prog(t, 15.0, 0.5))) * 12);
+    // Workbase dashboard
+    const du = win(t, 17.5, 23.4, 0.55, 0.45);
+    place(DB, 1200, 740, L ? MX + 40 : W / 2, (L ? 545 : 1180) + (1 - eo(prog(t, 17.5, 0.6))) * 160, BRS * (L ? 1 : 1.05), du);
+    DB.querySelectorAll(".actbar").forEach((b, i) => { b.style.width = (+b.dataset.p * 100 * eo(prog(t, 18.0 + i * 0.12, 0.8))) + "%"; });
+    // captions
+    showText(C[1], t, 6.55, 8.6, TX, capY);
+    showText(C[2], t, 8.7, 12.0, TX, capY);
+    showText(C[3], t, 12.9, 14.85, L ? 1060 : W / 2, L ? 120 : 190);
+    if (L) { C[3].el.style.left = "700px"; C[3].el.style.textAlign = "center"; C[3].el.style.width = "1180px"; C[3].el.style.top = "70px"; C[3].el.style.fontSize = "64px"; }
+    showText(C[4], t, 15.0, 17.35, L ? 1060 : W / 2, L ? 120 : 190);
+    if (L) { C[4].el.style.left = "700px"; C[4].el.style.textAlign = "center"; C[4].el.style.width = "1180px"; C[4].el.style.top = "70px"; C[4].el.style.fontSize = "64px"; }
+    showText(C[5], t, 17.65, 20.4, TX, capY);
+    showText(C[6], t, 20.55, 23.3, TX, capY);
+    chipsAt(prodChips, t, 99, 99);
+    endAt(t, 23.5);
+    flashAt(t, [0.3, 23.5]);
+  };
+}
+
+// ============================================================================
+// POSTS (1080 x 1350): ?film=post&n=1..5&format=post
+// ============================================================================
+if (POST) {
+  const N = +(Q.get("n") || 1);
+  const brand = (word) => mk(`<div style="position:absolute;left:72px;top:60px;display:flex;align-items:center;gap:14px;font:800 34px Bricolage,sans-serif;opacity:1"><svg viewBox="0 0 48 48" style="width:52px;height:52px"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>Workbase${word ? ` <span style="color:#f2a93b">${word}</span>` : ""}</div>`);
+  const head = (html, top, size = 92) => mk(`<div class="d" style="position:absolute;left:72px;right:72px;top:${top}px;font-size:${size}px;font-weight:800;line-height:1.0;opacity:1">${html.replace(/\*(.*?)\*/g, '<em style="font-style:normal;color:#f2a93b">$1</em>')}</div>`);
+  const sub = (html, top) => mk(`<div style="position:absolute;left:72px;right:72px;top:${top}px;font-size:32px;line-height:1.35;color:#d9d5f0;opacity:1">${html}</div>`);
+  const foot = (left, right) => mk(`<div style="position:absolute;left:72px;right:72px;bottom:58px;display:flex;justify-content:space-between;align-items:center;font-size:26px;color:#b7b2d6;opacity:1"><span>${left}</span><span class="pp" style="font-size:28px;padding:14px 28px;background:#f2a93b;color:#15123a">${right}</span></div>`);
+  const pill = (icon, text, x, y, size = 28) => { const e = mk(`<div class="chip" style="opacity:1;font-size:${size}px;padding:14px 22px;left:${x}px;top:${y}px">${ic(icon)}<span>${text}</span></div>`); return e; };
+  render = () => {};
+  bgAt(N * 3.1);
+  if (N === 1) {
+    brand("Meet");
+    head("Video meetings / built for *Nigerian internet.*".replace(" / ", "<br>"), 170, 88);
+    const MW = makeMeet("Team stand-up", ["AO", "TB", "KA", "CE"]);
+    tilesAt(["AO", "TB", "KA", "CE"], 0, [4, 4, 1]);
+    place(MW, 1200, 720, 540, 760, 0.8, 1);
+    $("mb").innerHTML = ic("activity") + " 3.4 MB";
+    $("saver").style.opacity = 1;
+    const tb = $("t_TB"), b = tb.querySelector(".tbadge");
+    b.innerHTML = `${ic("refresh")} Reconnecting…`; S(b, { opacity: 1, background: "#f2a93b", color: "#15123a" }); tb.querySelector(".dim").style.opacity = 1;
+    $("t_AO").querySelector(".ring").style.opacity = 1;
+    [["activity", "Live MB meter", 72], ["zap", "Data saver", 392], ["refresh", "Reconnects itself", 660]].forEach(([i, t, x]) => pill(i, t, x, 1075, 27));
+    foot("Free up to 60 minutes", "workbase-meet.vercel.app");
+  }
+  if (N === 2) {
+    brand("Meet");
+    head("Send a link. / *Guests just type / their name.*".replace(/ \/ /g, "<br>"), 170, 84);
+    const PH = makePhone([["g1", `<div style="color:#fff;text-align:center;padding-top:20px"><div class="d" style="font-size:24px;font-weight:800;margin-bottom:22px">Workbase Meet</div><div style="height:240px;border-radius:22px;background:#24204f;display:flex;align-items:center;justify-content:center;margin-bottom:22px"><div style="width:96px;height:96px;border-radius:50%;background:#e5383b;display:flex;align-items:center;justify-content:center;font:700 34px Bricolage">BA</div></div><div class="d" style="font-size:26px;font-weight:800">Client check-in</div><div style="color:#b7b2d6;font-size:15px;margin:6px 0 22px">2 people in the meeting</div><div style="text-align:left;font-size:13px;color:#b7b2d6;font-weight:600;margin-bottom:6px">Your name</div><div class="inp" style="background:#1b1840;border-color:#3a3570;color:#fff">Bayo<span class="cur"></span></div><div class="btn">Join meeting</div><div style="color:#8f8ab5;font-size:13px;margin-top:14px">No app or account needed</div></div>`]], true);
+    $("g1").style.opacity = 1;
+    place(PH, 418, 872, 740, 830, 0.88, 1, 4);
+    [["globe", "Any phone or laptop"], ["shield", "Waiting room"], ["download", "Attendance after"], ["zap", "Light on data"]].forEach(([i, t], k) => pill(i, t, 72, 560 + k * 112, 27));
+    foot("No app. No account.", "workbase-meet.vercel.app");
+  }
+  if (N === 3) {
+    brand("Book");
+    head("Get booked. / *Get paid.*".replace(" / ", "<br>"), 170, 110);
+    const PH = makePhone([["bk2", bookCal("Strategy session", "₦20,000 · ₦5,000 deposit now", 16, "10:00")]]);
+    $("bk2").style.opacity = 1; $("timesbox").style.opacity = 1;
+    S($("selday"), { background: "#6a4cf5", color: "#fff" }); S($("selt"), { background: "#6a4cf5", color: "#fff" });
+    place(PH, 418, 872, 770, 840, 0.86, 1, 3);
+    [["link", "Your own booking page"], ["wallet", "Deposits upfront"], ["bell", "Reminders by email"], ["video", "Video calls included"]].forEach(([i, t], k) => pill(i, t, 72, 470 + k * 112, 26));
+    sub("Clients pick a time, pay with card, transfer or USSD, and get reminders. You get the money in your bank.", 950).style.width = "420px";
+    foot("Free to start", "workbase-book.vercel.app");
+  }
+  if (N === 4) {
+    brand("Book");
+    head("Free to start. / *3% only when / you get paid.*".replace(/ \/ /g, "<br>"), 170, 84);
+    const DB = mk(`<div class="mock browser shadow">${document.querySelector("#tplDB") ? "" : ""}</div>`);
+    DB.innerHTML = `<div class="chrome"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>${ic("lock")} workbase-book.vercel.app</span></div>
+      <div class="side"><div style="display:flex;align-items:center;gap:10px;font:800 21px Bricolage;margin-bottom:24px;color:#15123a"><svg viewBox="0 0 48 48" style="width:32px;height:32px"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><path d="M12 28V17C12 13.4 14.5 11 17.8 11C26 11 33 17.6 36.5 28Z" fill="#fff"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>Book</div><div class="it on">${ic("calendar")} Bookings</div><div class="it">${ic("layers")} Services</div><div class="it">${ic("clock")} Availability</div><div class="it">${ic("settings")} Settings</div></div>
+      <div class="main"><div class="d" style="font-size:34px;font-weight:700;margin-bottom:20px">Bookings</div>
+      <div class="card" style="overflow:hidden">${[["NE", "#12968a", "Ngozi Eze", "Strategy session · Fri 16 Oct, 10:00", "Paid ₦5,000"], ["AO", "#6a4cf5", "Adaeze Okafor", "30-minute call · Fri 16 Oct, 13:00", "Free"], ["TB", "#cc7a12", "Tunde Bello", "Business plan review · Mon 19 Oct, 09:00", "Paid ₦10,000"], ["KA", "#3b82f6", "Kemi Adeyemi", "Strategy session · Tue 20 Oct, 15:30", "Paid ₦5,000"]].map(([i, c, n, s2, p], k) => `<div class="row" style="${k ? "" : "background:#fffbea"}"><span class="av" style="width:40px;height:40px;background:${c};font-size:15px">${i}</span><div style="flex:1"><b>${n}</b><div style="font-size:14px;color:#6b6690">${s2}</div></div><span class="badge" style="background:${p === "Free" ? "#efedf6;color:#4a4570" : "#d1fae5;color:#047857"}">${p}</span>${ic("whatsapp", 'style="color:#16a34a;font-size:22px"')}</div>`).join("")}</div>
+      <div class="card" style="position:absolute;right:34px;bottom:28px;padding:16px 20px;display:flex;gap:14px;align-items:center;box-shadow:0 20px 40px -12px rgba(21,18,58,0.35)"><span style="width:46px;height:46px;border-radius:12px;background:#efecff;color:#6a4cf5;display:flex;align-items:center;justify-content:center;font-size:24px">${ic("bank")}</span><div><div style="font-size:14px;color:#6b6690">Paid to your account</div><b style="font-size:18px">GTBank ••••4821 · ₦5,000</b></div></div></div>`;
+    place(DB, 1200, 740, 540, 790, 0.8, 1);
+    pill("sparkle", "Book Pro: no fees · ₦2,000/month", 72, 1120, 27);
+    foot("", "workbase-book.vercel.app");
+  }
+  if (N === 5) {
+    brand("");
+    head("One account. / *Your whole business.*".replace(" / ", "<br>"), 170, 96);
+    const apps = [["clock", "Workbase", "#6a4cf5"], ["video", "Meet", "#12968a"], ["calendar", "Book", "#cc7a12"]];
+    apps.forEach(([i, n, c], k) => { const e = mk(`<div class="appt" style="opacity:1;width:240px;height:240px;border-radius:40px;font-size:32px;background:linear-gradient(160deg, ${c}, ${c}cc)">${ic(i)}<span>${n}</span></div>`); e.querySelector(".ico").style.fontSize = "86px"; S(e, { left: 540 - 120 + (k - 1) * 290 + "px", top: "430px" }); });
+    mk(`<div style="position:absolute;left:0;right:0;top:700px;text-align:center;opacity:1"><span class="pp" style="background:#fff;color:#15123a;font-size:32px;padding:16px 30px">${ic("lock", 'style="color:#6a4cf5"')} One email, one password</span></div>`);
+    const steps = [["calendar", "A client books a video call on your Book page"], ["link", "The Meet link is made for them"], ["video", "They tap Join: no app, no account"], ["clock", "Your team's time, tasks and payroll: same login"]];
+    steps.forEach(([i, t], k) => mk(`<div style="position:absolute;left:72px;right:72px;top:${810 + k * 92}px;display:flex;align-items:center;gap:20px;font-size:29px;font-weight:600;opacity:1"><span style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;color:#f2a93b;font-size:28px;flex-shrink:0">${ic(i)}</span>${t}</div>`));
+    foot("Built in Lagos", "phantomire-workforce.vercel.app");
+  }
+}
+
+CUES.sort((a, b) => a.t - b.t);
+window.CUES = CUES;
+window.render = render;
+</script>
+</body>
+</html>
