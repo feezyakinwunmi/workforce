@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { FormMessage, SubmitButton, TimezoneSelect } from "@/components/form";
+import { LogoPicker } from "@/components/logo-picker";
 import { COUNTRIES } from "@/lib/utils";
 import { acceptInvitation, createOrganization } from "./actions";
 
@@ -26,6 +27,10 @@ export function CreateOrganizationForm() {
           <label className="label" htmlFor="timezone">Company time zone</label>
           <TimezoneSelect id="timezone" />
         </div>
+      </div>
+      <div>
+        <span className="label">Company logo <span className="font-normal text-slate-500">(optional)</span></span>
+        <LogoPicker name="" />
       </div>
       <FormMessage state={state} />
       <SubmitButton className="btn-primary w-full py-2.5" pendingText="Creating…">Create company</SubmitButton>

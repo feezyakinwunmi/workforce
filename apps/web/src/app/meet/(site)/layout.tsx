@@ -13,7 +13,7 @@ export default async function MeetSiteLayout({ children }: { children: React.Rea
       <header className="border-b border-slate-200 bg-surface/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href={home} className="flex items-center gap-2 font-display text-lg font-bold text-slate-900">
-            <LogoMark tile className="h-8 w-8" />
+            <LogoMark tile product="meet" className="h-8 w-8" />
             <span>
               Workbase <span className="text-brand-600 dark:text-brand-700">Meet</span>
             </span>

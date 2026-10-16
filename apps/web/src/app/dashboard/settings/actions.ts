@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { removeCompanyLogo, saveCompanyLogo } from "@/lib/company-logo-server";
 import { requireAdmin } from "@/lib/session";
 import type { FormState } from "@/lib/types";
 
@@ -92,4 +93,17 @@ export async function stopSupport() {
   const { supabase } = await requireAdmin();
   await supabase.rpc("revoke_support_access");
   revalidatePath("/dashboard/settings");
+}
+
+/** Owner/admin: add, replace or remove the company logo. */
+export async function saveLogo(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase, org } = await requireAdmin();
+  const logo = formData.get("logo");
+  let error: string | null = null;
+  if (formData.get("remove") === "1" && !(logo instanceof File && logo.size > 0)) error = await removeCompanyLogo(supabase, org.id, org.logo_path);
+  else if (logo instanceof File && logo.size > 0) error = await saveCompanyLogo(supabase, org.id, logo, org.logo_path);
+  else return { error: "Choose a picture first." };
+  if (error) return { error };
+  revalidatePath("/dashboard", "layout");
+  return { success: "Logo saved. Everyone in the company sees it now." };
 }

@@ -30,6 +30,7 @@ export type Organization = {
   created_at: string;
   closing_at?: string | null; // the owner closed the company; data is deleted at purge_after
   purge_after?: string | null;
+  logo_path?: string | null; // company-logos/<org>/<uuid>.<ext>, public
 };
 
 export type Membership = {

@@ -6,6 +6,9 @@ import { requireAdmin } from "@/lib/session";
 import { CloseCompany } from "./close-company";
 import { SettingsForm } from "./form";
 import { SupportAccess } from "./support-access";
+import { LogoForm } from "./logo-form";
+import { companyLogoUrl } from "@/lib/company-logo";
+import { InfoTip } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Company settings" };
 
@@ -20,6 +23,15 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Company settings" meta={<>Workspace <span className="font-medium text-slate-700">{org.slug}</span></>} />
+      <section className="grid gap-4 border-b border-slate-200 pt-2 pb-8 md:grid-cols-[240px_minmax(0,1fr)] md:gap-10">
+        <h2 className="section-title flex items-center gap-1.5 text-base">
+          Company logo
+          <InfoTip>Shown to everyone in the company in the menu, and on invitation pages.</InfoTip>
+        </h2>
+        <div className="card px-5 py-2">
+          <LogoForm current={companyLogoUrl(org.logo_path)} name={org.name} />
+        </div>
+      </section>
       <SettingsForm org={org} pro={hasPro(billing)} />
       {!accessError && (
         <section id="support" className="grid gap-4 border-t border-slate-200 py-8 md:grid-cols-[240px_minmax(0,1fr)] md:gap-10">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Logo } from "@/components/logo";
+import { companyLogoUrl } from "@/lib/company-logo";
 import { AppNav, type NavGroup } from "@/components/nav";
 import { LiveUpdates } from "@/components/live-updates";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -87,9 +88,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <div className="space-y-3">
             <Link href="/dashboard" aria-label="Overview" className="inline-block"><Logo /></Link>
             <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-                {org.name.slice(0, 1).toUpperCase()}
-              </span>
+              {org.logo_path ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={companyLogoUrl(org.logo_path)!} alt="" className="h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-0.5 ring-1 ring-slate-200" />
+              ) : (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
+                  {org.name.slice(0, 1).toUpperCase()}
+                </span>
+              )}
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold text-slate-900">{org.name}</span>
                 <span className="block text-xs text-slate-500">{tierName(billing.tier)}</span>

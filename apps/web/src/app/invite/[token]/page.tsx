@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { ROLE_LABELS, type MemberRole } from "@/lib/types";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { AcceptInvitationForm } from "@/app/onboarding/forms";
+import { companyLogoUrl } from "@/lib/company-logo";
 
 export const metadata: Metadata = { title: "Invitation" };
 
@@ -25,6 +26,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const { supabase, user, member } = await getSession();
   const { data } = await supabase.rpc("get_invitation", { p_token: token });
   const invite = (data as InvitePreview[] | null)?.[0];
+  const { data: logoPath } = await supabase.rpc("invitation_logo", { p_token: token });
+  const logo = invite?.status === "pending" ? companyLogoUrl(logoPath as string | null) : null;
   const here = `/invite/${token}`;
 
   let body: React.ReactNode;
@@ -89,6 +92,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   return (
     <AuthShell>
+      {logo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logo} alt={`${invite?.organization_name} logo`} className="mb-5 h-16 w-16 rounded-2xl bg-white object-contain p-1 ring-1 ring-slate-200" />
+      )}
       <AuthHeading title={invite?.status === "pending" ? `Join ${invite.organization_name}` : "Invitation"} />
       {body}
     </AuthShell>

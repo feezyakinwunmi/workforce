@@ -23,7 +23,7 @@ export function PoweredBy({ pro, base }: { pro: boolean; base: string }) {
   if (pro) return null;
   return (
     <p className="mt-10 text-center text-xs text-slate-500">
-      <LogoMark tile className="mr-1.5 inline h-4 w-4 align-[-3px]" />
+      <LogoMark tile product="book" className="mr-1.5 inline h-4 w-4 align-[-3px]" />
       Powered by <Link href={base || "/"} className="font-medium text-slate-700 hover:text-brand-700">Workbase Book</Link>
       <span className="whitespace-nowrap"> · get your own booking page free</span>
     </p>

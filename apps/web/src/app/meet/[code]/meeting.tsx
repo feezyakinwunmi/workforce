@@ -283,7 +283,7 @@ function MeetShell({ children, base }: { children: React.ReactNode; base: string
     <div className="flex min-h-dvh flex-col bg-[#0f0d26] text-white">
       <header className="flex items-center justify-between px-4 py-3 sm:px-6">
         <Link href={base || "/"} className="flex items-center gap-2 font-display text-lg font-bold">
-          <LogoMark tile className="h-8 w-8" />
+          <LogoMark tile product="meet" className="h-8 w-8" />
           {MEET_NAME}
         </Link>
       </header>
