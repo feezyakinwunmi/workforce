@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { FeedbackForm } from "@/components/feedback";
 import { AttendanceButton } from "../attendance";
+import { SavedRecordings } from "../recordings";
 import { Room } from "./room";
 
 // ---------------------------------------------------------------------------
@@ -456,7 +457,9 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
           </>
         }
         below={
-          askFeedback ? (
+          <>
+          <div className="mt-8"><SavedRecordings code={info.code} dark /></div>
+          {askFeedback ? (
             <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
               <FeedbackForm
                 product="meet"
@@ -470,7 +473,8 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
                 }}
               />
             </div>
-          ) : null
+          ) : null}
+          </>
         }
       >
         {text[1]}
@@ -529,6 +533,12 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
                     className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8f7bff] focus:outline-none"
                   />
                 </div>
+              )}
+              {info.recording && (
+                <p role="status" className="flex items-start gap-2 rounded-xl bg-red-500/15 px-3 py-2.5 text-sm text-red-100">
+                  <span className="mt-1.5 h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500" aria-hidden />
+                  This meeting is being recorded. By joining, your video, sound and name may appear in the recording.
+                </p>
               )}
               {error && <p role="alert" className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-200">{error}</p>}
               {info.locked && !info.is_host && <p className="text-sm text-white/60">The host locked this meeting. Only people already let in can join.</p>}

@@ -15,6 +15,7 @@ export type Participant = {
   screen_on: boolean;
   hand_raised_at: string | null;
   joined_at: string;
+  recording_since: string | null; // recording this meeting on their device (host/co-host)
 };
 
 export type MeetEvent = {
@@ -58,6 +59,7 @@ export type RoomInfo = {
   my_status: Participant["status"] | null;
   my_name: string | null;
   in_meeting: number;
+  recording?: boolean;
 };
 
 export type JoinResult = {
@@ -105,7 +107,7 @@ export type MeetPlan = {
 export const REACTIONS = ["👍", "❤️", "😂", "👏", "🎉", "😮", "🙏", "🔥"] as const;
 
 export const PARTICIPANT_COLUMNS =
-  "id, room_id, user_id, display_name, is_guest, role, status, sfu_session, tracks, audio_on, video_on, screen_on, hand_raised_at, joined_at";
+  "id, room_id, user_id, display_name, is_guest, role, status, sfu_session, tracks, audio_on, video_on, screen_on, hand_raised_at, joined_at, recording_since";
 export const ROOM_COLUMNS = "id, code, title, host_id, waiting_room, allow_guests, locked, started_at, ends_at, ended_at";
 
 export const naira = (kobo: number) =>

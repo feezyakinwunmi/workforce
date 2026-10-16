@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/icons";
 import { blackVideoTrack, connectMedia, connectPublisher, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
 import { meetingLink } from "@/lib/meet/paths";
+import { canRecord, MeetRecorder, type RecordInputs } from "@/lib/meet/recorder";
+import { downloadRecording, spaceLeft, type SavedRecording } from "@/lib/meet/recordings-store";
 import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo } from "@/lib/meet/types";
 import { leaveOnUnload, useRoom, type PersonLink } from "@/lib/meet/use-room";
 import { createClient } from "@/lib/supabase/client";
@@ -66,7 +68,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     [meId, media, toast, exit],
   );
 
-  const { people, waiting, room, chat, reactions, me, update, send, moderate, links, meOnline, online } = useRoom(roomId, meId, onCommand);
+  const { people, waiting, room, chat, reactions, me, update, send, moderate, refresh, links, meOnline, online } = useRoom(roomId, meId, onCommand);
   const myRole = me?.role ?? join.role;
   const isMod = myRole === "host" || myRole === "cohost";
   const endsAt = me?.ends_at ?? room?.ends_at ?? join.ends_at;
@@ -564,6 +566,142 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     />
   );
 
+  // ----- recording (free; saved only on the recorder's device) ---------------
+  const recorder = useRef<MeetRecorder | null>(null);
+  const [rec, setRec] = useState<{ since: number; audioOnly: boolean } | null>(null);
+  const [recMenu, setRecMenu] = useState(false);
+  const [recBusy, setRecBusy] = useState(false);
+  const [savedRec, setSavedRec] = useState<SavedRecording | null>(null);
+  const [recSupported, setRecSupported] = useState(false);
+  useEffect(() => setRecSupported(canRecord()), []);
+  const recInputs = useRef<() => RecordInputs>(() => ({ tiles: [], screen: null, audio: [] }));
+  recInputs.current = () => {
+    const screenTrack = screenOwner ? (screenOwner === meId ? sharing : remote[screenOwner]?.screen) ?? null : null;
+    return {
+      tiles: ordered.map((p) => {
+        const mine = p.id === meId;
+        return {
+          id: p.id,
+          name: p.display_name,
+          colour: avatarColour(p.user_id),
+          initials: initialsOf(p.display_name),
+          video: mine ? (media.camOn ? media.camOut : null) : p.video_on && !media.dataSaver ? remote[p.id]?.camera ?? null : null,
+          speaking: speaking.has(p.id) && (mine ? media.micOn : p.audio_on),
+          muted: mine ? !(media.micOn && media.mic) : !p.audio_on,
+        };
+      }),
+      screen: screenOwner && screenTrack ? { name: nameOf(screenOwner), track: screenTrack } : null,
+      audio: [media.mic, ...Object.values(remote).map((t) => t.mic)].filter((t): t is MediaStreamTrack => !!t),
+    };
+  };
+
+  const startRecording = async (audioOnly: boolean) => {
+    if (recorder.current || recBusy) return;
+    setRecMenu(false);
+    const r = new MeetRecorder({ code: info.code, title: info.title || `${info.host_name}'s meeting`, audioOnly, inputs: () => recInputs.current() });
+    setRecBusy(true);
+    try {
+      const left = await spaceLeft();
+      if (left !== null && left < 60_000_000) {
+        void r.stop();
+        toast("This device is almost full, so there's no room to record. Free some space and try again.", "warn");
+        return;
+      }
+      const { error } = await createClient().rpc("meet_record", { p_room: roomId, p_on: true });
+      if (error) {
+        void r.stop();
+        toast(error.message, "warn");
+        return;
+      }
+      try {
+        await r.start();
+      } catch (e) {
+        void r.stop();
+        void createClient().rpc("meet_record", { p_room: roomId, p_on: false });
+        toast(e instanceof Error ? e.message : "Couldn't start recording.", "warn");
+        return;
+      }
+      recorder.current = r;
+      setSavedRec(null);
+      setRec({ since: Date.now(), audioOnly });
+      const perMinute = audioOnly ? 400_000 : 6_500_000;
+      if (left !== null && left < perMinute * 90) toast(`Recording. This device has room for about ${Math.max(1, Math.floor(left / perMinute))} minutes.`, "warn");
+      else toast("Recording on this device. Everyone can see that you're recording.");
+      void refresh();
+    } finally {
+      setRecBusy(false);
+    }
+  };
+
+  const stopRecording = useCallback(async (why?: string) => {
+    const r = recorder.current;
+    if (!r) return;
+    recorder.current = null;
+    setRec(null);
+    void createClient().rpc("meet_record", { p_room: roomId, p_on: false }).then(() => void refresh());
+    const saved = await r.stop();
+    if (!saved.bytes) return;
+    setSavedRec(saved);
+    toast(why ?? (r.inMemory ? "Recording stopped. Download it now: this device had no room to keep it." : "Recording saved on this device."));
+  }, [roomId, refresh, toast]);
+
+  // The server stopped it (I stopped being a co-host): stop here too.
+  const serverRec = self?.recording_since ?? null;
+  const sawServerRec = useRef(false);
+  useEffect(() => {
+    if (!rec) {
+      sawServerRec.current = false;
+      return;
+    }
+    if (serverRec) sawServerRec.current = true;
+    else if (sawServerRec.current) void stopRecording("Recording stopped: only the host and co-hosts can record.");
+  }, [serverRec, rec, stopRecording]);
+
+  // Leaving or closing the tab: keep everything recorded so far.
+  useEffect(() => {
+    const onHide = () => recorder.current?.flush();
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      void recorder.current?.stop();
+    };
+  }, []);
+
+  // Everyone: who is recording, plus a line in the chat when it starts or stops.
+  const recorders = people.filter((p) => p.recording_since);
+  const recKey = recorders.map((p) => p.id).sort().join(",");
+  const [notes, setNotes] = useState<ChatNote[]>([]);
+  const prevRecorders = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    if (!people.length) return; // wait for the first list of people
+    const now = new Map(recorders.map((p) => [p.id, p.id === meId ? "You" : p.display_name]));
+    const before = prevRecorders.current;
+    prevRecorders.current = now;
+    const lines: ChatNote[] = [];
+    for (const [id, name] of now) {
+      if (before?.has(id)) continue;
+      lines.push({ id: `rec-${id}-${Date.now()}`, at: Date.now(), text: before ? `${name} started recording` : `${name} ${id === meId ? "are" : "is"} recording this meeting` });
+      if (id !== meId) toast(before ? `${name} started recording this meeting.` : `${name} is recording this meeting.`, "warn");
+    }
+    for (const [id, name] of before ?? []) {
+      if (now.has(id)) continue;
+      lines.push({ id: `rec-${id}-${Date.now()}-stop`, at: Date.now(), text: `${name} stopped recording` });
+      if (id !== meId) toast(`${name} stopped recording.`);
+    }
+    if (lines.length) setNotes((n) => [...n, ...lines].slice(-50));
+  }, [recKey, people.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recordChoices = (
+    <RecordChoices
+      dataSaver={media.dataSaver}
+      busy={recBusy}
+      onPick={(audioOnly) => {
+        setPanel(null);
+        void startRecording(audioOnly);
+      }}
+    />
+  );
+
   return (
     <div className="fixed inset-0 flex flex-col bg-[#0f0d26] text-white">
       <style>{`@keyframes meet-float{0%{transform:translateY(0) scale(.6);opacity:0}10%{opacity:1;transform:translateY(-20px) scale(1.1)}100%{transform:translateY(-55vh) scale(1);opacity:0}}`}</style>
@@ -578,6 +716,17 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs sm:gap-3 sm:text-sm">
+          {recorders.length > 0 && (
+            <button
+              type="button"
+              onClick={() => (rec ? void stopRecording() : setPanel("chat"))}
+              className="flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 font-medium whitespace-nowrap text-white"
+              title={rec ? "You're recording. Tap to stop." : `Recorded by ${recorders.map((p) => p.display_name).join(", ")}`}
+            >
+              <span className="h-2 w-2 animate-pulse rounded-full bg-white" aria-hidden />
+              {rec ? <span className="tabular-nums">{mmss(now - rec.since)}</span> : <span>Rec<span className="hidden sm:inline">ording</span></span>}
+            </button>
+          )}
           {remaining !== null && info.host_tier === "free" && (
             <span className={cn("rounded-full px-2.5 py-1 tabular-nums", remaining < 5 * 60_000 ? "bg-red-500/25 text-red-100" : "bg-white/10 text-white/80", "whitespace-nowrap")} title="Free meetings last up to 1 hour">
               {mmss(remaining)} left
@@ -636,6 +785,23 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
             </div>
           )}
 
+          {savedRec && (
+            <div className="absolute bottom-3 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl bg-[#1f1b4d] px-4 py-3 text-sm shadow-xl">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
+              <span className="min-w-0">Recording saved on this device</span>
+              <button
+                className="shrink-0 rounded-xl bg-[#6a4cf5] px-3 py-1.5 font-medium hover:bg-[#5b3fe0]"
+                onClick={() => {
+                  const r = savedRec;
+                  void downloadRecording(r).then(() => setSavedRec(null)).catch((e) => toast(e instanceof Error ? e.message : "Couldn't save it.", "warn"));
+                }}
+              >
+                Download
+              </button>
+              <button className="shrink-0 rounded-lg p-1 text-white/60 hover:text-white" onClick={() => setSavedRec(null)} aria-label="Later"><Icon name="x" className="h-4 w-4" /></button>
+            </div>
+          )}
+
           {/* Floating reactions */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             {reactions.map((r, i) => (
@@ -672,7 +838,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
               <h2 className="font-semibold">{panel === "chat" ? "Chat" : panel === "people" ? `People (${people.length})` : "Settings"}</h2>
               <button onClick={() => setPanel(null)} className="rounded-lg p-1.5 hover:bg-white/10" aria-label="Close panel"><Icon name="x" className="h-5 w-5" /></button>
             </div>
-            {panel === "chat" && <ChatPanel chat={chat} meId={meId} nameOf={nameOf} onSend={(b) => send("chat", b)} />}
+            {panel === "chat" && <ChatPanel chat={chat} notes={notes} meId={meId} nameOf={nameOf} onSend={(b) => send("chat", b)} />}
             {panel === "people" && (
               <PeoplePanel people={ordered} waiting={waiting} meId={meId} isMod={isMod} isHost={myRole === "host"} locked={!!room?.locked} waitingRoom={room?.waiting_room ?? true} moderate={async (a, t) => {
                 const err = await moderate(a, t);
@@ -681,6 +847,18 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
             )}
             {panel === "settings" && (
               <div className="flex-1 space-y-5 overflow-y-auto p-4">
+                {isMod && recSupported && (
+                  <div>
+                    <p className="mb-2 text-xs text-white/60">Recording</p>
+                    {rec ? (
+                      <button className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-medium hover:bg-red-500" onClick={() => void stopRecording()}>
+                        Stop recording ({mmss(now - rec.since)})
+                      </button>
+                    ) : (
+                      recordChoices
+                    )}
+                  </div>
+                )}
                 <DeviceSettings media={media} />
                 <ConnectionDetails pub={pub} sub={sub} people={others} remote={remote} dataSaver={media.dataSaver} />
                 <div>
@@ -707,6 +885,25 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         <Control icon={media.micOn ? "mic" : "micOff"} label={media.micOn ? "Mute" : "Unmute"} off={!media.micOn} disabled={!media.mic} onClick={() => media.setMicOn(!media.micOn)} />
         <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : "Start video"} off={!media.camOn} onClick={() => void media.toggleCam()} />
         {canShare && <Control icon="screenShare" label={sharing ? "Stop sharing" : "Share screen"} active={!!sharing} onClick={() => (sharing ? stopShare() : void startShare())} className="hidden sm:flex" />}
+        {isMod && recSupported && (
+          <div className="relative hidden sm:block">
+            <Control
+              icon="record"
+              label={rec ? "Stop recording" : "Record"}
+              off={!!rec}
+              active={recMenu}
+              disabled={recBusy}
+              onClick={() => (rec ? void stopRecording() : setRecMenu((v) => !v))}
+            />
+            {recMenu && !rec && (
+              <div className="absolute bottom-14 left-1/2 z-40 w-72 -translate-x-1/2 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl">
+                <p className="mb-3 font-medium">Record this meeting</p>
+                {recordChoices}
+                <button className="mt-2 w-full py-1 text-sm text-white/60 hover:text-white" onClick={() => setRecMenu(false)}>Cancel</button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="relative">
           <Control icon="smile" label="React" active={showReactions} onClick={() => setShowReactions((v) => !v)} />
           {showReactions && (
@@ -921,13 +1118,37 @@ function AudioOut({ track, sinkId }: { track: MediaStreamTrack; sinkId: string }
   return <audio ref={ref} autoPlay />;
 }
 
-function ChatPanel({ chat, meId, nameOf, onSend }: { chat: MeetEvent[]; meId: string; nameOf: (id: string | null) => string; onSend: (b: string) => Promise<string | null> }) {
+type ChatNote = { id: string; at: number; text: string };
+
+/** Start recording: video + sound, or sound only. Explains where it's saved. */
+function RecordChoices({ dataSaver, busy, onPick }: { dataSaver: boolean; busy: boolean; onPick: (audioOnly: boolean) => void }) {
+  return (
+    <div className="space-y-2">
+      <button disabled={busy} onClick={() => onPick(false)} className="flex w-full items-center gap-2 rounded-xl bg-red-600 px-3 py-2.5 text-left text-sm font-medium hover:bg-red-500 disabled:opacity-50">
+        <Icon name="record" className="h-4 w-4" /> Video and sound <span className="ml-auto text-xs font-normal text-white/70">~6 MB/min</span>
+      </button>
+      <button disabled={busy} onClick={() => onPick(true)} className="flex w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-left text-sm font-medium hover:bg-white/15 disabled:opacity-50">
+        <Icon name="mic" className="h-4 w-4" /> Sound only <span className="ml-auto text-xs font-normal text-white/60">~0.4 MB/min</span>
+      </button>
+      <p className="text-xs leading-relaxed text-white/60">
+        Saved on this device, never online. Everyone in the meeting sees that you&apos;re recording. Keep this tab open until you stop.
+        {dataSaver && " Data saver is on, so other people's cameras won't be in the video."}
+      </p>
+    </div>
+  );
+}
+
+function ChatPanel({ chat, notes, meId, nameOf, onSend }: { chat: MeetEvent[]; notes: ChatNote[]; meId: string; nameOf: (id: string | null) => string; onSend: (b: string) => Promise<string | null> }) {
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     list.current?.scrollTo({ top: list.current.scrollHeight });
-  }, [chat.length]);
+  }, [chat.length, notes.length]);
+  const items = [
+    ...chat.map((m) => ({ at: Date.parse(m.created_at), m, note: null as ChatNote | null })),
+    ...notes.map((n) => ({ at: n.at, m: null as MeetEvent | null, note: n })),
+  ].sort((a, b) => a.at - b.at);
   const submit = async () => {
     const b = text.trim();
     if (!b) return;
@@ -941,10 +1162,19 @@ function ChatPanel({ chat, meId, nameOf, onSend }: { chat: MeetEvent[]; meId: st
   return (
     <>
       <div ref={list} className="flex-1 space-y-3 overflow-y-auto p-4">
-        {chat.length === 0 && <p className="text-center text-sm text-white/45">Messages here are seen by everyone in the meeting.</p>}
-        {chat.map((m, i) => {
+        {items.length === 0 && <p className="text-center text-sm text-white/45">Messages here are seen by everyone in the meeting.</p>}
+        {items.map(({ m, note }, i) => {
+          if (note || !m) {
+            return (
+              <p key={note!.id} className="flex items-center justify-center gap-1.5 text-center text-xs text-white/55">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
+                {note!.text} · {clock(new Date(note!.at).toISOString())}
+              </p>
+            );
+          }
+          const prev = items[i - 1]?.m;
           const mine = m.sender_id === meId;
-          const joins = i > 0 && chat[i - 1].sender_id === m.sender_id;
+          const joins = !!prev && prev.sender_id === m.sender_id;
           return (
             <div key={m.id} className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
               {!joins && <p className="mb-0.5 text-xs text-white/50">{mine ? "You" : nameOf(m.sender_id)} · {clock(m.created_at)}</p>}

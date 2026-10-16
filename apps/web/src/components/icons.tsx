@@ -256,6 +256,12 @@ const PATHS = {
       <path d="m15.5 10.5 5-3v9l-3-1.8M3 3l18 18" />
     </>
   ),
+  record: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="3.75" fill="currentColor" stroke="none" />
+    </>
+  ),
   screenShare: (
     <>
       <rect x="3" y="4.5" width="18" height="12" rx="2" />

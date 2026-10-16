@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SavedRecordings } from "../recordings";
 import { Icon, type IconName } from "@/components/icons";
 import { SubmitButton } from "@/components/form";
 import { InfoTip, Notice } from "@/components/ui";
@@ -15,9 +16,9 @@ export const metadata: Metadata = { title: { absolute: "Workbase Meet: free vide
 const FEATURES: Array<[IconName, string, string]> = [
   ["zap", "Data saver", "Audio-first, light video, and a live meter of the MB you've used."],
   ["globe", "Nothing to install", "Join from any browser or phone. Guests just type their name."],
-  ["screenShare", "Share, react, chat", "Share your screen, react with 👍 ❤️ 😂 👏, raise your hand, chat beside the call."],
-  ["sparkle", "Backgrounds", "Blur the room behind you or pick a picture. Done on your device."],
-  ["trash", "Nothing kept", "Chat is deleted when the meeting ends; the meeting itself after 7 days. No recordings."],
+  ["screenShare", "Share, react, chat", "Share your screen, react with 👍 ❤️ 😂, raise your hand, chat, and blur the room behind you."],
+  ["record", "Free recording", "Hosts record the call to their own device, with a sign everyone can see. Never stored online."],
+  ["trash", "Nothing kept", "Chat is deleted when the meeting ends; the meeting itself after 7 days."],
   ["shield", "You're in control", "Waiting room, mute everyone, remove, lock the meeting."],
 ];
 
@@ -106,6 +107,8 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
           {p?.tier !== "pro" && <Link href={`${base}/pricing`} className="btn-secondary mt-4 w-fit">Get Meet Pro, ₦1,000/month</Link>}
         </div>
       </section>
+
+      <SavedRecordings onlyPending />
 
       <section className="card overflow-hidden">
         <h2 className="border-b border-slate-100 px-5 py-3 font-semibold text-slate-900">Upcoming</h2>

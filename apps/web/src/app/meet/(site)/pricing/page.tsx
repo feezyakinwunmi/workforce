@@ -17,7 +17,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const business = plan?.business_price_kobo ?? 1_000_000;
 
   const plans = [
-    { id: "free", name: "Free", price: "₦0", per: "forever", items: ["Meetings up to 1 hour", "Up to 25 people", "Screen share, chat, reactions", "Backgrounds and data saver", "Waiting room and host controls"] },
+    { id: "free", name: "Free", price: "₦0", per: "forever", items: ["Meetings up to 1 hour", "Up to 25 people", "Screen share, chat, reactions", "Record to your device", "Backgrounds and data saver", "Waiting room and host controls"] },
     { id: "pro", name: "Meet Pro", price: naira(pro), per: "per host / month", items: ["Everything in Free", "Meetings up to 24 hours", "Up to 50 people", "AI meeting summaries (coming soon)"], hot: true },
     { id: "business", name: "Meet Business", price: naira(business), per: "per company / month", items: ["Meet Pro for up to 20 hosts", "One payment for the whole team", "Included free with Workbase Standard and Pro"] },
   ];
