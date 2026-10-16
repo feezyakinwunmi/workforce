@@ -187,6 +187,24 @@ Meet is part of the same Vercel project but has its own address. Video and sound
 
 **Plans.** Free: meetings up to 60 minutes and 25 people. Meet Pro ₦1,000 per host a month: up to 24 hours and 50 people. Meet Business ₦10,000 a month: Pro for 20 hosts in one company (owner first). A company on Workbase Standard or Pro gets Meet Pro for everyone. Meet payments use the same Paystack keys and webhook as §8 (references start with `meet_`).
 
+## 11. Workbase Book (booking pages)
+
+Book is part of the same Vercel project with its own address, like Meet. Customers book without an account; payments go straight to each host's bank account through Paystack split payments (subaccounts), with Workbase's 3% fee on the Free plan.
+
+**A. Database (once).** Supabase → **SQL Editor** → paste all of `supabase/migrations/20261016000036_book.sql` → **Run** (confirm the warning). Check: `select to_regprocedure('public.book_create(text,uuid,timestamptz,text,text,text,text)');` returns a name.
+
+**B. Its own address.**
+1. Vercel → **Settings → Domains** → **Add** `workbase-book.vercel.app` (or later `book.yourdomain.com`). Any address starting with `workbase-book` or `book.` opens Book at its root.
+2. Environment Variables: `NEXT_PUBLIC_BOOK_URL` = `https://workbase-book.vercel.app` (no slash at the end).
+3. Supabase → **Authentication → URL Configuration** → Redirect URLs: add `https://workbase-book.vercel.app/**`.
+4. Redeploy.
+
+**C. Payments.** Nothing new to add: Book uses the same `PAYSTACK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and webhook as §8 (references start with `book_` for bookings and `bookpro_` for Book Pro). Paystack must allow subaccounts (split payments) on your live business; if a host's bank account is refused, check that in the Paystack dashboard.
+
+**D. Emails.** Confirmation, cancellation and reminder emails (a day and an hour before) use the SMTP settings from §7. The database asks the website to send them every 5 minutes (`/api/book/mail`).
+
+**E. Test.** Open the Book address, sign in, create your page, add your bank account (Settings → Payouts), then book a free call and a paid one from your phone. Refunds: the host refunds the customer directly (for example by bank transfer).
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

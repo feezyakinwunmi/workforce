@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { BOOK_PASSTHROUGH, isBookHost } from "@/lib/book/paths";
 import { isMeetHost, MEET_PASSTHROUGH } from "@/lib/meet/paths";
 import { safeNext } from "@/lib/utils";
 
@@ -53,6 +54,15 @@ export async function updateSession(request: NextRequest) {
   if (isMeetHost(request.headers.get("host")) && !MEET_PASSTHROUGH.test(path)) {
     const url = request.nextUrl.clone();
     url.pathname = `/meet${path === "/" ? "" : path}`;
+    const rewritten = NextResponse.rewrite(url, { request });
+    response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
+    return rewritten;
+  }
+
+  // The Book address serves the /book pages at its root (workbase-book…/femi → /book/femi).
+  if (isBookHost(request.headers.get("host")) && !BOOK_PASSTHROUGH.test(path)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/book${path === "/" ? "" : path}`;
     const rewritten = NextResponse.rewrite(url, { request });
     response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
     return rewritten;
