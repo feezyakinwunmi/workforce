@@ -239,6 +239,29 @@ The button appears on the login and sign-up pages by itself once Google is switc
 
 The desktop app still signs in with email and password: people who signed up with Google set a password once in Profile → Password.
 
+## 14. Bot protection (do this before any big launch or event)
+
+The code already has three defences: a human check (Cloudflare Turnstile) on sign-up, login, "email me a code", password reset, resend code and Book bookings; speed limits in the database (migration 0043: messages, tasks, notes, meetings… per person per minute/hour); and Book bookings only through our server. Turn them fully on with these settings:
+
+**A. Cloudflare Turnstile (free, about 5 minutes)**
+1. Create a free Cloudflare account, open **Turnstile** → **Add widget**.
+2. Name it "Workbase", add every hostname you use (e.g. `phantomire-workforce.vercel.app`, `workbase-meet.vercel.app`, `workbase-book.vercel.app`, and your own domains later). Widget mode: **Managed**.
+3. Copy the **Site key** to Vercel as `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and the **Secret key** as `TURNSTILE_SECRET_KEY` (Production + Preview), then redeploy.
+4. Check: open /signup in a private window and create a test account. Most people see nothing; a suspicious visitor gets a one-click box.
+Without these two variables the check is simply off (nothing breaks).
+
+**B. Supabase: give each visitor their own limits (about 5 minutes)**
+Our sign-in calls run on Vercel's servers, so without this Supabase counts every visitor as the same address (default: 30 sign-ins/sign-ups per 5 minutes per address).
+1. Supabase → **Project Settings → API Keys** → create a **secret key** (`sb_secret_…`). Add it to Vercel as `SUPABASE_SECRET_KEY` (server only, never `NEXT_PUBLIC_`). It is used only for the sign-in/sign-up calls, never for data.
+2. Supabase → **Authentication → Rate Limits** → turn on **IP address forwarding**.
+3. Same page: keep "Sign-ups and sign-ins" at about 30 per 5 minutes per address; set **anonymous sign-ins** to at least 100 per hour before a big Meet event (many people share one mobile network address in Nigeria).
+4. Leave Supabase's own CAPTCHA setting **off**: it would break login in the desktop app (the website already checks humans itself).
+
+**C. Vercel Firewall (free)**
+1. Vercel → project → **Firewall** → **Bot Protection** → **Challenge**.
+2. First add a **custom rule → Bypass** for requests whose path starts with `/api/paystack`, `/api/push`, `/api/book/mail` or `/api/cron` (these are called by Paystack, Supabase and Vercel itself, not browsers; without the bypass, payments, push notifications and Book emails stop).
+3. If the site is ever under attack: Firewall → **Attack Mode** on, until it calms down.
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

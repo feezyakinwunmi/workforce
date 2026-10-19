@@ -3,7 +3,8 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { setNewPassword } from "@/lib/password";
-import { createClient } from "@/lib/supabase/server";
+import { checkHuman } from "@/lib/turnstile";
+import { createAuthClient } from "@/lib/supabase/auth-client";
 import { safeNext } from "@/lib/utils";
 
 /**
@@ -26,8 +27,10 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   const next = safeNext(formData.get("next"));
 
   if (!email || !password) return { error: "Enter your email and password." };
+  const human = await checkHuman(formData);
+  if (human) return { error: human };
 
-  const supabase = await createClient();
+  const supabase = await createAuthClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -51,8 +54,10 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
   if (fullName.length < 2) return { error: "Enter your full name." };
   if (!EMAIL.test(email)) return { error: "Enter a valid email address." };
   if (password.length < 8) return { error: "Use a password of at least 8 characters." };
+  const human = await checkHuman(formData);
+  if (human) return { error: human };
 
-  const supabase = await createClient();
+  const supabase = await createAuthClient();
   const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
 
   if (error) {
@@ -72,7 +77,9 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
 export async function sendLoginCode(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = readEmail(formData);
   if (!EMAIL.test(email)) return { error: "Enter a valid email address." };
-  const supabase = await createClient();
+  const human = await checkHuman(formData);
+  if (human) return { error: human };
+  const supabase = await createAuthClient();
   const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
   if (error?.code === "over_email_send_rate_limit") return { error: RATE };
   // Same message whether or not the account exists.
@@ -87,7 +94,7 @@ export async function verifyCode(_prev: AuthState, formData: FormData): Promise<
   const next = safeNext(formData.get("next"));
   if (code.length < 6) return { step: "code", email, error: "Enter the code from the email." };
 
-  const supabase = await createClient();
+  const supabase = await createAuthClient();
   // "email" covers both sign-up and sign-in codes; older projects still want "signup" for sign-up.
   const types: EmailOtpType[] = purpose === "signup" ? ["email", "signup"] : ["email"];
   for (const type of types) {
@@ -100,8 +107,10 @@ export async function verifyCode(_prev: AuthState, formData: FormData): Promise<
 export async function requestPasswordReset(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = readEmail(formData);
   if (!EMAIL.test(email)) return { error: "Enter a valid email address." };
+  const human = await checkHuman(formData);
+  if (human) return { error: human };
 
-  const supabase = await createClient();
+  const supabase = await createAuthClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email);
   if (error?.code === "over_email_send_rate_limit") return { error: RATE };
 
@@ -120,7 +129,7 @@ export async function resetWithCode(_prev: AuthState, formData: FormData): Promi
   if (password.length < 8) return { step: "code", email, error: "Use a password of at least 8 characters." };
   if (password !== confirm) return { step: "code", email, error: "The two passwords don't match." };
 
-  const supabase = await createClient();
+  const supabase = await createAuthClient();
   const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "recovery" });
   if (error) return { step: "code", email, error: BAD_CODE };
 
@@ -134,7 +143,9 @@ export async function resendCode(_prev: AuthState, formData: FormData): Promise<
   const email = readEmail(formData);
   const purpose = String(formData.get("purpose") ?? "") as CodePurpose;
   if (!EMAIL.test(email)) return { error: "Enter a valid email address." };
-  const supabase = await createClient();
+  const human = await checkHuman(formData);
+  if (human) return { error: human };
+  const supabase = await createAuthClient();
   const { error } =
     purpose === "signup"
       ? await supabase.auth.resend({ type: "signup", email })

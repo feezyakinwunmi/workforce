@@ -4,7 +4,9 @@ import { after } from "next/server";
 import { processBookMail } from "@/lib/book/mail";
 import { bookOrigin, bookRequestBase } from "@/lib/book/server";
 import { initializeTransaction, paystackConfigured } from "@/lib/paystack";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { checkHuman } from "@/lib/turnstile";
 
 type Created = { token: string; status: string; reference: string | null; pay_now_kobo: number; fee_kobo: number; subaccount: string | null; email: string };
 
@@ -17,8 +19,13 @@ export async function createBooking(input: {
   email: string;
   phone: string;
   notes: string;
+  captcha?: string;
 }): Promise<{ error?: string; redirect?: string }> {
-  const supabase = await createClient();
+  // Bots can't hold every free slot: a human check first, and only this server may create
+  // bookings (book_create is closed to the public key; see migration 0043).
+  const human = await checkHuman(input.captcha ?? "");
+  if (human) return { error: human };
+  const supabase = createAdminClient();
   const { data, error } = await supabase.rpc("book_create", {
     p_handle: input.handle,
     p_service: input.serviceId,

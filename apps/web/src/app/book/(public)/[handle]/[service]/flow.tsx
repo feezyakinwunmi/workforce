@@ -6,6 +6,7 @@ import { naira, type PublicService } from "@/lib/book/types";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { createBooking } from "../../actions";
+import { Turnstile } from "@/components/turnstile";
 
 const dayKey = (d: Date, tz: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -232,6 +233,7 @@ function DetailsForm({ handle, service, color, slot, tz, canPay, onBack, onTaken
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tries, setTries] = useState(0);
   const end = new Date(new Date(slot).getTime() + service.duration_min * 60_000).toISOString();
   const pay = service.pay_now_kobo;
   const needsPhone = service.location !== "meet";
@@ -248,12 +250,14 @@ function DetailsForm({ handle, service, color, slot, tz, canPay, onBack, onTaken
       email: String(form.get("email") ?? ""),
       phone: String(form.get("phone") ?? ""),
       notes: String(form.get("notes") ?? ""),
+      captcha: String(form.get("cf-turnstile-response") ?? ""),
     });
     if (res.redirect) {
       window.location.href = res.redirect;
       return;
     }
     setBusy(false);
+    setTries((n) => n + 1);
     setError(res.error ?? "Something went wrong. Please try again.");
     if (res.error && /taken/i.test(res.error)) setTimeout(onTaken, 1800);
   }
@@ -299,6 +303,7 @@ function DetailsForm({ handle, service, color, slot, tz, canPay, onBack, onTaken
           This service needs a payment, but this host can't take payments online yet. Please contact them directly.
         </p>
       )}
+      <Turnstile resetKey={tries} />
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
       <button
         disabled={busy || blocked}

@@ -6,6 +6,7 @@ import { AuthHeading } from "@/components/auth-shell";
 import { FormMessage, PasswordInput, SubmitButton } from "@/components/form";
 import { GoogleButton, OrDivider } from "@/components/google-button";
 import { Icon } from "@/components/icons";
+import { Turnstile } from "@/components/turnstile";
 import {
   login,
   requestPasswordReset,
@@ -82,6 +83,7 @@ function CodeStep({ purpose, email, next = "/dashboard", message, onBack }: { pu
       <form action={resend} className="space-y-3">
         <input type="hidden" name="email" value={email} />
         <input type="hidden" name="purpose" value={purpose} />
+        <Turnstile resetKey={resent} />
         <FormMessage state={resent} />
         <div className="flex items-center justify-between text-sm">
           <button type="button" className="text-slate-500 hover:text-slate-900" onClick={onBack}>Use a different email</button>
@@ -123,6 +125,7 @@ export function LoginForm({ next, email, google = false }: { next: string; email
         </div>
         <PasswordInput id="password" name="password" autoComplete="current-password" />
       </div>
+      <Turnstile resetKey={state} />
       <FormMessage state={state} />
       <SubmitButton className="btn-primary w-full py-2.5" pendingText="Logging in…">Log in</SubmitButton>
       <button type="button" className="btn-secondary w-full py-2.5" onClick={() => setWithCode(true)}>
@@ -150,6 +153,7 @@ function LoginCodeForm({ next, email, onPassword }: { next: string; email?: stri
         <label className="label" htmlFor="email">Email</label>
         <input className="input" id="email" name="email" type="email" autoComplete="email" defaultValue={email} autoFocus required />
       </div>
+      <Turnstile resetKey={state} />
       <FormMessage state={state} />
       <SubmitButton className="btn-primary w-full py-2.5" pendingText="Sending…">Send me a code</SubmitButton>
       <button type="button" className="w-full text-center text-sm font-medium text-brand-700 hover:underline" onClick={onPassword}>
@@ -187,6 +191,7 @@ export function SignupForm({ next, email, google = false }: { next: string; emai
         <label className="label" htmlFor="password">Password</label>
         <PasswordInput id="password" name="password" autoComplete="new-password" minLength={8} placeholder="At least 8 characters" />
       </div>
+      <Turnstile resetKey={state} />
       <FormMessage state={state?.step ? undefined : state} />
       <SubmitButton className="btn-primary w-full py-2.5" pendingText="Creating account…">Create account</SubmitButton>
       <p className="text-center text-xs text-slate-500">
@@ -217,6 +222,7 @@ export function ForgotPasswordForm() {
         <label className="label" htmlFor="email">Email</label>
         <input className="input" id="email" name="email" type="email" autoComplete="email" defaultValue={state?.email} required />
       </div>
+      <Turnstile resetKey={state} />
       <FormMessage state={state?.step ? undefined : state} />
       <SubmitButton className="btn-primary w-full py-2.5" pendingText="Sending…">Send me a code</SubmitButton>
       <p className="text-center text-sm text-slate-600">

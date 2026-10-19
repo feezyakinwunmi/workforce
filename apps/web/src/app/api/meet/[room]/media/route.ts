@@ -42,6 +42,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (error || !check?.ok || !check.participant_id) return bad("You're not in this meeting right now.", 403);
   const me = check.participant_id;
 
+  // New sessions and relay credentials cost money at Cloudflare: cap them per person
+  // (150 per 5 minutes is far above what reconnecting on a bad network needs).
+  if (body.op === "ice" || body.op === "session") {
+    const { error: limited } = await supabase.rpc("rate_check", { p_bucket: "meet_media" });
+    if (limited) return bad("Too many connection attempts. Wait a moment and try again.", 429);
+  }
+
   try {
     switch (body.op) {
       case "ice":
