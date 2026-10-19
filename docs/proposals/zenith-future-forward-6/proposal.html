@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Proposal: Future Forward 6.0 on Workbase Meet</title>
+<style>
+  @font-face { font-family: "Bricolage"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inter"; src: url("file:///home/claude/workforce/apps/web/src/app/fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+  @page { size: A4; margin: 0; }
+  :root { --ink: #15123a; --violet: #6a4cf5; --violet-50: #f0edff; --marigold: #f2a93b; --muted: #5d5880; --line: #e4e1f0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Inter", sans-serif; color: var(--ink); font-size: 9.8pt; line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .d { font-family: "Bricolage", "Inter", sans-serif; letter-spacing: -0.025em; }
+  .page { width: 210mm; height: 297mm; position: relative; overflow: hidden; page-break-after: always; padding: 18mm 20mm 26mm; }
+  .page:last-child { page-break-after: auto; }
+
+  /* cover */
+  .cover { padding: 0; background: var(--ink); color: #fff; }
+  .cover .top { padding: 22mm 20mm 0; display: flex; align-items: center; gap: 12px; }
+  .cover .top b { font: 800 17pt "Bricolage"; letter-spacing: -.02em; }
+  .cover .top b em { font-style: normal; color: #a796ff; }
+  .cover .glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(106,76,245,.55), rgba(106,76,245,0) 70%); right: -160px; top: 120px; }
+  .cover .body { position: absolute; left: 20mm; right: 20mm; top: 78mm; }
+  .cover .kicker { font-weight: 700; font-size: 10pt; letter-spacing: .14em; text-transform: uppercase; color: var(--marigold); }
+  .cover h1 { margin-top: 10px; font: 800 40pt/1.02 "Bricolage"; letter-spacing: -.035em; }
+  .cover h1 em { font-style: normal; color: var(--marigold); }
+  .cover .sub { margin-top: 16px; font-size: 13.5pt; color: #cfc9f2; max-width: 150mm; line-height: 1.45; }
+  .cover .meta { position: absolute; left: 20mm; right: 20mm; bottom: 24mm; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; border-top: 1px solid rgba(255,255,255,.18); padding-top: 14px; }
+  .cover .meta span { display: block; font-size: 8.5pt; letter-spacing: .1em; text-transform: uppercase; color: #9a93c9; margin-bottom: 3px; }
+  .cover .meta p { font-size: 10.5pt; color: #fff; line-height: 1.4; }
+  .cover .base { position: absolute; left: 0; right: 0; bottom: 0; height: 7mm; background: var(--marigold); }
+
+  /* inner */
+  .head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 9mm; font-size: 8.5pt; color: var(--muted); }
+  .head b { display: flex; align-items: center; gap: 7px; font: 800 10.5pt "Bricolage"; color: var(--ink); letter-spacing: -.01em; }
+  .foot { position: absolute; left: 20mm; right: 20mm; bottom: 12mm; display: flex; justify-content: space-between; font-size: 8pt; color: var(--muted); }
+  h2 { font: 800 17pt/1.15 "Bricolage"; letter-spacing: -.03em; margin: 0 0 8px; }
+  h2 small { display: block; font: 700 8.5pt "Inter"; letter-spacing: .14em; text-transform: uppercase; color: var(--violet); margin-bottom: 6px; }
+  h3 { font: 700 11.5pt "Inter"; margin: 16px 0 5px; }
+  p + p { margin-top: 7px; }
+  .lead { font-size: 11pt; line-height: 1.5; color: #2c2858; }
+  section + section { margin-top: 8mm; }
+  ul.ticks { list-style: none; margin-top: 6px; display: grid; gap: 5px; }
+  ul.ticks li { position: relative; padding-left: 22px; }
+  ul.ticks li::before { content: ""; position: absolute; left: 0; top: 4px; width: 13px; height: 13px; border-radius: 50%; background: var(--violet) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='m6.5 12.5 3.5 3.5 7.5-8' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/10px no-repeat; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt; }
+  th { text-align: left; font-size: 8.5pt; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 0 10px 7px 0; border-bottom: 1.5px solid var(--ink); }
+  td { padding: 6.5px 10px 6.5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { font-weight: 600; width: 34%; }
+  .tot td { border-bottom: none; font-weight: 700; font-size: 11pt; }
+  .tot td:last-child { color: var(--violet); font: 800 15pt "Bricolage"; }
+  .box { margin-top: 12px; border-radius: 12px; padding: 13px 16px; background: var(--violet-50); border: 1px solid #ddd6ff; }
+  .box.amber { background: #fff6e8; border-color: #f6d9a8; }
+  .box b { color: var(--ink); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 13px; }
+  .card h4 { font: 700 10.5pt "Inter"; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .card h4 i { font-style: normal; display: inline-flex; width: 22px; height: 22px; border-radius: 7px; background: var(--violet); color: #fff; font-size: 10pt; align-items: center; justify-content: center; font-weight: 800; }
+  .card p { font-size: 9.6pt; color: #3d3866; }
+  ol.steps { list-style: none; counter-reset: s; margin-top: 8px; display: grid; gap: 6px; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 26px 1fr; gap: 10px; }
+  ol.steps li::before { content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: #fff; font: 800 10pt "Bricolage"; display: flex; align-items: center; justify-content: center; }
+  ol.steps b { display: block; }
+  .cta { margin-top: 8mm; border-radius: 14px; background: var(--ink); color: #fff; padding: 16px 18px; display: flex; align-items: center; gap: 16px; }
+  .cta .t { flex: 1; }
+  .cta .t b { font: 800 13pt "Bricolage"; letter-spacing: -.02em; display: block; }
+  .cta .t span { color: #cfc9f2; font-size: 9.6pt; }
+  .cta a { color: #fff; text-decoration: none; background: var(--violet); padding: 9px 14px; border-radius: 999px; font-weight: 700; font-size: 10pt; white-space: nowrap; }
+  .sig { margin-top: 7mm; }
+  .sig p { line-height: 1.45; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<script>
+  const MARK = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#6A4CF5"/><rect x="10.5" y="12.5" width="18.5" height="15.5" rx="4.2" fill="#fff"/><path d="M30.6 18.3 37.2 14.2a.9.9 0 0 1 1.3.8v11.5a.9.9 0 0 1-1.3.8l-6.6-4.1z" fill="#fff"/><circle cx="16.3" cy="18" r="2" fill="#6A4CF5"/><rect x="9" y="31" width="30" height="6" rx="3" fill="#F2A93B"/></svg>`;
+  document.addEventListener("DOMContentLoaded", () => document.querySelectorAll("[data-mark]").forEach((el) => (el.innerHTML = MARK(+el.dataset.mark))));
+</script>
+
+<!-- 1. Cover -->
+<div class="page cover">
+  <div class="glow"></div>
+  <div class="top"><span data-mark="40"></span><b>Workbase <em>Meet</em></b></div>
+  <div class="body">
+    <p class="kicker">Partnership proposal</p>
+    <h1 class="d">Hosting<br>Future Forward 6.0<br>on <em>Workbase Meet</em></h1>
+    <p class="sub">A free, data-friendly virtual venue for Zenith Bank's Tech Fair, built in Lagos for how Nigerians actually connect.</p>
+  </div>
+  <div class="meta">
+    <div><span>Prepared for</span><p>Zenith Bank Plc<br>Future Forward 6.0 organising team</p></div>
+    <div><span>Prepared by</span><p>Akinwunmi Femi<br>Founder, Phantomire Workbase</p></div>
+    <div><span>Date</span><p>19 October 2026<br>info.phantomire@gmail.com</p></div>
+  </div>
+  <div class="base"></div>
+</div>
+
+<!-- 2. Summary and offer -->
+<div class="page">
+  <div class="head"><b><span data-mark="18"></span>Workbase Meet</b><span>Future Forward 6.0 proposal</span></div>
+
+  <section>
+    <h2><small>Summary</small>The full event, hosted free, with no time limit</h2>
+    <p class="lead">We would like to host Future Forward 6.0 on Workbase Meet at no cost to Zenith Bank, for as long as the event runs, and to promote it across our channels.</p>
+    <p>I have attended Future Forward in person, and I know how many developers, founders and students it brings together. Going virtual opens the doors wider, but it also brings a Nigerian problem: data. Workbase Meet was built for exactly that. It shows every attendee how much data they are using, saves data when their network is weak, and reconnects them automatically when the network drops.</p>
+  </section>
+
+  <section>
+    <h2><small>The offer</small>What Zenith Bank gets</h2>
+    <table>
+      <tr><th>Item</th><th>Details</th></tr>
+      <tr><td>Virtual venue</td><td>A dedicated Future Forward 6.0 event room in webinar format: speakers on stage, the audience watching, with chat, reactions, raised hands and questions.</td></tr>
+      <tr><td>No time limit</td><td>The event runs for as long as your programme needs.</td></tr>
+      <tr><td>Full attendance record</td><td>A downloadable report of every attendee: name, time joined, time left, minutes attended and number of visits.</td></tr>
+      <tr><td>Recording</td><td>Your team can record the full event, saved directly to your own device.</td></tr>
+      <tr><td>Promotion</td><td>We will advertise Future Forward 6.0 across our Instagram, LinkedIn, X, TikTok and WhatsApp channels before, during and after the event. Zenith approves every post.</td></tr>
+      <tr><td>Event support</td><td>Rehearsal sessions with your speakers and our team on standby for the full duration of the event.</td></tr>
+      <tr><td>Zecathon 6.0 (optional)</td><td>The same setup is available, free, for pitch sessions or judges' meetings.</td></tr>
+      <tr class="tot"><td>Cost to Zenith Bank</td><td>₦0</td></tr>
+    </table>
+    <div class="box"><b>In return,</b> we would simply like permission to say that Future Forward 6.0 ran on Workbase Meet.</div>
+  </section>
+
+  <div class="foot"><span>Phantomire Workbase · Built in Lagos</span><span>2</span></div>
+</div>
+
+<!-- 3. Why Workbase Meet + experience -->
+<div class="page">
+  <div class="head"><b><span data-mark="18"></span>Workbase Meet</b><span>Future Forward 6.0 proposal</span></div>
+
+  <section>
+    <h2><small>Why Workbase Meet</small>Built for Nigerian internet</h2>
+    <div class="grid2">
+      <div class="card"><h4><i>1</i>Data saver and live data meter</h4><p>Attendees see exactly how many MB the event is using. With one tap, data saver keeps the sound and slides and drops video to save data.</p></div>
+      <div class="card"><h4><i>2</i>Reconnects by itself</h4><p>When an attendee's network drops, the session reconnects automatically. Nobody has to find the link again.</p></div>
+      <div class="card"><h4><i>3</i>No app to download</h4><p>Attendees join from a link on any phone or laptop browser, by typing their name. No account is needed.</p></div>
+      <div class="card"><h4><i>4</i>Host control</h4><p>Waiting room, lock the room, mute everyone, remove participants, stop a screen share and bring people on stage.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><small>On the day</small>How the event would run</h2>
+    <ol class="steps">
+      <li><div><b>Before doors open</b>Speakers join a backstage check 30 minutes early with our team: sound, camera, slides.</div></li>
+      <li><div><b>Doors open</b>Attendees join from the event link. A recording notice is shown before they enter if the session is recorded.</div></li>
+      <li><div><b>Sessions</b>Speakers present with screen sharing. The audience reacts, chats and raises hands; the host brings people up for questions.</div></li>
+      <li><div><b>After the event</b>Your team downloads the attendance record and keeps the recording. We share a short report of how the event ran.</div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><small>Privacy and security</small>Nothing kept that you didn't ask for</h2>
+    <ul class="ticks">
+      <li>All audio and video are encrypted in transit and carried on Cloudflare's global network.</li>
+      <li>Event chat is deleted the moment the event ends. The meeting record is deleted 7 days later.</li>
+      <li>Recordings are never uploaded to us. They are saved only on the recording device.</li>
+      <li>The attendance record is available only to the event host.</li>
+      <li>We are happy to sign a confidentiality agreement or data processing agreement and to answer your security team's questions.</li>
+    </ul>
+  </section>
+
+  <div class="foot"><span>Phantomire Workbase · Built in Lagos</span><span>3</span></div>
+</div>
+
+<!-- 4. Capacity, plan, next steps -->
+<div class="page">
+  <div class="head"><b><span data-mark="18"></span>Workbase Meet</b><span>Future Forward 6.0 proposal</span></div>
+
+  <section>
+    <h2><small>Capacity and testing</small>Proven before the day, not on the day</h2>
+    <p>Future Forward brings together thousands of people. For an audience that size, we will run the event in webinar format, where only speakers send video and every attendee receives a single, light stream.</p>
+    <div class="box amber">Before you commit, we will <b>load-test the event room to your expected attendance</b> and share the results with your team. You decide only once you have seen it working at full size.</div>
+  </section>
+
+  <section>
+    <h2><small>Plan</small>From yes to the event</h2>
+    <ol class="steps">
+      <li><div><b>Kick-off call (20 minutes)</b>Agree the format, expected attendance, programme and branding.</div></li>
+      <li><div><b>Set-up</b>We prepare the Future Forward 6.0 event room with your branding and run the load test to your attendance figure.</div></li>
+      <li><div><b>Rehearsal</b>A full run-through with your team and speakers on the platform.</div></li>
+      <li><div><b>Promotion</b>Co-branded posts across our channels, approved by Zenith, in the weeks before the event.</div></li>
+      <li><div><b>Event day</b>Our team on standby from backstage check to close.</div></li>
+      <li><div><b>Wrap-up</b>Attendance record and recording in your hands; a short report from us.</div></li>
+    </ol>
+  </section>
+
+  <div class="cta">
+    <span data-mark="44"></span>
+    <div class="t"><b>Try Workbase Meet now</b><span>Start a test meeting in seconds. No download needed.</span></div>
+    <a href="https://workbase-meet.vercel.app">workbase-meet.vercel.app</a>
+  </div>
+
+  <div class="sig">
+    <p>Thank you for considering this. I would be glad to walk your team through it on a short call at your convenience.</p>
+    <p style="margin-top:12px"><b>Akinwunmi Femi</b><br><span class="muted">Founder, Phantomire Workbase</span><br>info.phantomire@gmail.com</p>
+  </div>
+
+  <div class="foot"><span>Phantomire Workbase · Built in Lagos</span><span>4</span></div>
+</div>
+</body>
+</html>
