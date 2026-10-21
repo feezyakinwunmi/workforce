@@ -3,6 +3,7 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, realtimeClient } from "@/lib/supabase/client";
+import { workerTicker } from "./ticker";
 import { PARTICIPANT_COLUMNS, ROOM_COLUMNS, type MeetEvent, type Participant, type PingResult, type RoomRow } from "./types";
 
 export type PersonLink = "ok" | "reconnecting";
@@ -31,6 +32,9 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
   const skew = useRef(0); // server clock − this device's clock (ms)
   const [lastPingOk, setLastPingOk] = useState(() => Date.now());
   const [online, setOnline] = useState(true);
+  // When I last managed to read everyone's heartbeats. If that's old (my tab was asleep, my
+  // network dropped), I can't judge anyone else, so nobody is shown as gone because of it.
+  const [presenceAt, setPresenceAt] = useState(0);
 
   const loadPeople = useCallback(async () => {
     const supabase = createClient();
@@ -40,7 +44,10 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
       supabase.from("meet_rooms").select(ROOM_COLUMNS).eq("id", roomId).maybeSingle(),
     ]);
     if (ps) setPeople(ps as Participant[]);
-    if (pres) setSeen(Object.fromEntries((pres as Array<{ participant_id: string; last_seen_at: string }>).map((p) => [p.participant_id, Date.parse(p.last_seen_at)])));
+    if (pres) {
+      setSeen(Object.fromEntries((pres as Array<{ participant_id: string; last_seen_at: string }>).map((p) => [p.participant_id, Date.parse(p.last_seen_at)])));
+      setPresenceAt(Date.now());
+    }
     if (r) setRoom(r as RoomRow);
   }, [roomId]);
 
@@ -59,7 +66,10 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
 
   const loadPresence = useCallback(async () => {
     const { data: pres } = await createClient().from("meet_presence").select("participant_id, last_seen_at").eq("room_id", roomId);
-    if (pres) setSeen(Object.fromEntries((pres as Array<{ participant_id: string; last_seen_at: string }>).map((p) => [p.participant_id, Date.parse(p.last_seen_at)])));
+    if (pres) {
+      setSeen(Object.fromEntries((pres as Array<{ participant_id: string; last_seen_at: string }>).map((p) => [p.participant_id, Date.parse(p.last_seen_at)])));
+      setPresenceAt(Date.now());
+    }
   }, [roomId]);
 
   const loadEvents = useCallback(
@@ -97,14 +107,17 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
         });
     });
 
-    const poll = setInterval(() => {
-      if (stopped || document.visibilityState !== "visible") return;
+    // Keeps going while the tab is in the background (someone sharing their screen usually has
+    // this tab hidden). It used to pause there, so after 90 s everyone else looked "gone" and
+    // their sound and video were dropped until the tab was opened again.
+    const stopPoll = workerTicker(2000, () => {
+      if (stopped) return;
       ticks++;
       if (!live || ticks % 6 === 0) {
         void loadEvents();
         void loadPeople();
       } else if (ticks % 2 === 0) void loadPresence();
-    }, 2000);
+    });
 
     // Heartbeat (+ any pending state changes).
     const ping = async () => {
@@ -134,15 +147,15 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
     void ping();
     // Every 8 s; every 3 s while the last heartbeat failed (to notice quickly when we're back).
     let n = 0;
-    const beat = setInterval(() => {
+    const stopBeat = workerTicker(3000, () => {
       const failing = Date.now() - lastOk.current > 10_000;
       if (failing || ++n % 3 === 0) void ping();
-    }, 3000);
+    });
 
     // Back online / back to the tab: catch up at once.
     const catchUp = () => {
       setOnline(navigator.onLine);
-      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      if (!navigator.onLine) return;
       void ping();
       void loadPeople();
       void loadEvents();
@@ -153,8 +166,8 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
 
     return () => {
       stopped = true;
-      clearInterval(poll);
-      clearInterval(beat);
+      stopPoll();
+      stopBeat();
       window.removeEventListener("online", catchUp);
       window.removeEventListener("offline", catchUp);
       document.removeEventListener("visibilitychange", catchUp);
@@ -192,16 +205,21 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
 
   // On the server's clock: no heartbeat for 15 s = reconnecting; for 90 s = gone (the server
   // marks them as left after 2 minutes).
+  // Only judged while my own reading of the heartbeats is fresh (see presenceAt).
+  const fresh = Date.now() - presenceAt < 20_000;
   const now = Date.now() + skew.current;
-  const age = (id: string) => (seen[id] ? now - seen[id] : 0);
-  const inRoom = people.filter((p) => p.status === "admitted" && (p.id === meId || age(p.id) < 90_000));
+  const age = (id: string) => (fresh && seen[id] ? now - seen[id] : 0);
+  // Everyone the server counts as in the meeting. Media is received from all of them: a person is
+  // only dropped when the server says they left, never because of a late heartbeat on my side.
+  const admitted = people.filter((p) => p.status === "admitted");
+  const inRoom = admitted.filter((p) => p.id === meId || age(p.id) < 90_000);
   const waiting = people.filter((p) => p.status === "waiting" && age(p.id) < 60_000);
   const links: Record<string, PersonLink> = {};
   for (const p of inRoom) links[p.id] = p.id !== meId && age(p.id) > 15_000 ? "reconnecting" : "ok";
   // My own link: heartbeat answered in the last 20 s and the device says it's online.
   const meOnline = online && Date.now() - lastPingOk < 20_000;
 
-  return { people: inRoom, waiting, room, chat, reactions, me, update, send, moderate, refresh: loadPeople, links, meOnline, online };
+  return { people: inRoom, admitted, waiting, room, chat, reactions, me, update, send, moderate, refresh: loadPeople, links, meOnline, online };
 }
 
 /** Leave even when the tab is closing (keepalive request). */

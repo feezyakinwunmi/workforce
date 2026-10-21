@@ -4,6 +4,7 @@
  * uploaded. Uses only what this device already receives, so it adds no data use.
  */
 import { deleteRecording, saveChunk, saveMeta, type SavedRecording } from "./recordings-store";
+import { workerTicker } from "./ticker";
 
 export type RecordTile = { id: string; name: string; colour: string; initials: string; video: MediaStreamTrack | null; speaking: boolean; muted: boolean };
 export type RecordInputs = { tiles: RecordTile[]; screen: { name: string; track: MediaStreamTrack } | null; audio: MediaStreamTrack[] };
@@ -23,24 +24,6 @@ function pickMime(audioOnly: boolean) {
 /** Can this browser record at all? */
 export function canRecord() {
   return typeof window !== "undefined" && !!pickMime(false) && typeof HTMLCanvasElement.prototype.captureStream === "function" && typeof AudioContext !== "undefined";
-}
-
-/** Timer in a worker: page timers slow to once a second (or less) when the tab is in the background. */
-function workerTicker(ms: number, fn: () => void) {
-  try {
-    const url = URL.createObjectURL(new Blob(["let t;onmessage=e=>{clearInterval(t);if(e.data>0)t=setInterval(()=>postMessage(0),e.data)}"], { type: "text/javascript" }));
-    const w = new Worker(url);
-    URL.revokeObjectURL(url);
-    w.onmessage = fn;
-    w.postMessage(ms);
-    return () => {
-      w.postMessage(0);
-      w.terminate();
-    };
-  } catch {
-    const t = setInterval(fn, ms);
-    return () => clearInterval(t);
-  }
 }
 
 export class MeetRecorder {

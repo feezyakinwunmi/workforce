@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/icons";
+import { LogoMark } from "@/components/logo";
 import { blackVideoTrack, connectMedia, connectPublisher, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
 import { meetingLink } from "@/lib/meet/paths";
 import { canRecord, MeetRecorder, type RecordInputs } from "@/lib/meet/recorder";
 import { downloadRecording, spaceLeft, type SavedRecording } from "@/lib/meet/recordings-store";
 import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo } from "@/lib/meet/types";
+import { workerTicker } from "@/lib/meet/ticker";
 import { leaveOnUnload, useRoom, type PersonLink } from "@/lib/meet/use-room";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -22,6 +24,12 @@ const mmss = (ms: number) => {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   return `${h ? `${h}:` : ""}${String(m).padStart(h ? 2 : 1, "0")}:${String(s % 60).padStart(2, "0")}`;
+};
+
+/** 00:24:01 — for the recording timer. */
+const hhmmss = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, "0")).join(":");
 };
 
 export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join: JoinResult; media: LocalMedia; base: string; onExit: (r: ExitReason) => void }) {
@@ -68,7 +76,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     [meId, media, toast, exit],
   );
 
-  const { people, waiting, room, chat, reactions, me, update, send, moderate, refresh, links, meOnline, online } = useRoom(roomId, meId, onCommand);
+  const { people, admitted, waiting, room, chat, reactions, me, update, send, moderate, refresh, links, meOnline, online } = useRoom(roomId, meId, onCommand);
   const myRole = me?.role ?? join.role;
   const isMod = myRole === "host" || myRole === "cohost";
   const endsAt = me?.ends_at ?? room?.ends_at ?? join.ends_at;
@@ -189,7 +197,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     let pubDown = 0;
     let subDown = 0;
     let lastPubTry = 0;
-    const t = setInterval(() => {
+    return workerTicker(1000, () => {
       const p = pub.current;
       const s = sub.current;
       if (!p || !s) return;
@@ -211,8 +219,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       }
       const ok = ps === "connected" && (ss === "connected" || ss === "new" || ss === "connecting");
       setMediaLink(ok ? "ok" : "reconnecting");
-    }, 1000);
-    return () => clearInterval(t);
+    });
   }, [connected, rebuildPub]);
 
   // Internet back: if we never got connected, try at once instead of waiting for the next try.
@@ -289,7 +296,9 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     const s = sub.current;
     if (!connected || !s) return;
     const want = new Map<string, RemoteRef>();
-    for (const p of people) {
+    // Everyone the server counts as in the meeting (not only those shown): a late heartbeat on
+    // my side must never cut anyone's sound.
+    for (const p of admitted) {
       if (p.id === meId || !p.sfu_session) continue;
       for (const t of p.tracks ?? []) {
         const source = sourceOf(t.name);
@@ -313,14 +322,13 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       };
       void s.pull(fresh).then(again, () => again(fresh));
     }
-  }, [connected, people, meId, media.dataSaver, retry]);
+  }, [connected, admitted, meId, media.dataSaver, retry]);
   useEffect(() => () => void (retryTimer.current && clearTimeout(retryTimer.current)), []);
 
   // Ask Cloudflare every 10 s whether it still has my tracks; publish again any it lost.
   useEffect(() => {
     if (!connected) return;
-    const t = setInterval(() => void pub.current?.checkHealth(), 10_000);
-    return () => clearInterval(t);
+    return workerTicker(10_000, () => void pub.current?.checkHealth());
   }, [connected]);
 
   // Phones stop the camera while the browser is in the background; after 30 s Cloudflare forgets
@@ -404,7 +412,8 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const linksRef = useRef(links);
   linksRef.current = links;
   useEffect(() => {
-    const t = setInterval(async () => {
+    let busy = false;
+    const tick = async () => {
       if (!pub.current || !sub.current) return;
       const s = await readStats([pub.current.pc, sub.current.pc]);
       const dl = s.lost - lastStats.current.lost;
@@ -414,7 +423,9 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       const score = signalScore(s.rtt, dp > 0 ? dl / dp : 0, ok);
       setNet({ mb: s.bytes / 1_000_000, score });
       // My own connection weak for ~12 s: switch to data saver once (sound first, video later).
-      weakSelf.current = ok && score <= 1 ? weakSelf.current + 1 : 0;
+      // Not while I share my screen (sending a screen makes my own line look busy, and turning off
+      // everyone's video then helps nothing) or while this tab is hidden.
+      weakSelf.current = ok && score <= 1 && !sharingRef.current && document.visibilityState === "visible" ? weakSelf.current + 1 : 0;
       if (weakSelf.current === 4 && !autoSaver.current && !mediaRef.current.dataSaver) {
         autoSaver.current = true;
         mediaRef.current.toggleDataSaver();
@@ -444,15 +455,18 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         }
       }
       setWeak((w) => (w.size === next.size && [...next].every((x) => w.has(x)) ? w : next));
-    }, 3000);
-    return () => clearInterval(t);
+    };
+    return workerTicker(3000, () => {
+      if (busy) return;
+      busy = true;
+      void tick().finally(() => (busy = false));
+    });
   }, [connected, toast]);
 
   // ----- time limit ---------------------------------------------------------
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    return workerTicker(1000, () => setNow(Date.now()));
   }, []);
   const remaining = endsAt ? Date.parse(endsAt) - now : null;
   const warned = useRef(false);
@@ -523,7 +537,17 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   }, [lastChat, panel, meId, people, toast]);
 
   const [pinned, setPinned] = useState<string | null>(null);
-  const [layout, setLayout] = useState<"auto" | "speaker">("auto");
+  const [layout, setLayout] = useState<"speaker" | "grid">("speaker");
+  // Big screens show the participants list by default (like the design); others open it when needed.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const apply = () => setWide(mq.matches);
+    apply();
+    if (mq.matches) setPanel((p) => p ?? "people");
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
   const [showReactions, setShowReactions] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -544,7 +568,17 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const others = people.filter((p) => p.id !== meId);
   const screenOwner = sharing ? meId : others.find((p) => p.screen_on && remote[p.id]?.screen)?.id ?? null;
   const ordered = [...(self ? [self] : []), ...others];
-  const focusId = screenOwner ? null : pinned ?? (layout === "speaker" && others.length ? loudest ?? others[0].id : null);
+  // Speaker view: one person big on the stage (pinned, else whoever spoke last, else the first
+  // other person; me when alone), everyone else in the strip below. Grid view: everyone the same size.
+  const gridMode = layout === "grid" && !screenOwner && !pinned && ordered.length > 1;
+  const stageId = screenOwner ? null : pinned && ordered.some((p) => p.id === pinned) ? pinned : others.length ? (loudest && others.some((p) => p.id === loudest) ? loudest : others[0].id) : meId;
+  const strip = screenOwner ? ordered : ordered.filter((p) => p.id !== stageId);
+  const shownPanel = panel;
+  const started = room?.started_at ?? info.starts_at;
+  const whenLine = useMemo(() => {
+    const d = started ? new Date(started) : new Date();
+    return `${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(d)} | ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(d)}`;
+  }, [started]);
 
   const tileFor = (p: Participant, big = false) => (
     <Tile
@@ -703,247 +737,302 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#0f0d26] text-white">
-      <style>{`@keyframes meet-float{0%{transform:translateY(0) scale(.6);opacity:0}10%{opacity:1;transform:translateY(-20px) scale(1.1)}100%{transform:translateY(-55vh) scale(1);opacity:0}}`}</style>
+    <div className="fixed inset-0 flex bg-[#0c0a27] text-white">
+      <style>{`@keyframes meet-float{0%{transform:translateY(0) scale(.6);opacity:0}10%{opacity:1;transform:translateY(-20px) scale(1.1)}100%{transform:translateY(-55vh) scale(1);opacity:0}}
+.meet-strip{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}`}</style>
+      {/* Soft violet and marigold glow behind everything */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_-12%,rgba(106,76,245,.38),transparent_65%),radial-gradient(700px_420px_at_105%_110%,rgba(242,169,59,.16),transparent_60%)]" />
 
-      {/* Header */}
-      <header className="flex items-center justify-between gap-3 px-3 py-2 sm:px-5">
-        <div className="min-w-0">
-          <p className="truncate font-display text-base font-bold sm:text-lg">{info.title || `${info.host_name}'s meeting`}</p>
-          <p className="flex items-center gap-2 text-xs text-white/55">
-            <span className="font-mono">{info.code}</span>
-            {room?.locked && <span className="inline-flex items-center gap-1 text-[#f2a93b]"><Icon name="lock" className="h-3 w-3" />Locked</span>}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs sm:gap-3 sm:text-sm">
-          {recorders.length > 0 && (
-            <button
-              type="button"
-              onClick={() => (rec ? void stopRecording() : setPanel("chat"))}
-              className="flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 font-medium whitespace-nowrap text-white"
-              title={rec ? "You're recording. Tap to stop." : `Recorded by ${recorders.map((p) => p.display_name).join(", ")}`}
-            >
-              <span className="h-2 w-2 animate-pulse rounded-full bg-white" aria-hidden />
-              {rec ? <span className="tabular-nums">{mmss(now - rec.since)}</span> : <span>Rec<span className="hidden sm:inline">ording</span></span>}
-            </button>
-          )}
-          {remaining !== null && info.host_tier === "free" && (
-            <span className={cn("rounded-full px-2.5 py-1 tabular-nums", remaining < 5 * 60_000 ? "bg-red-500/25 text-red-100" : "bg-white/10 text-white/80", "whitespace-nowrap")} title="Free meetings last up to 1 hour">
-              {mmss(remaining)} left
+      {/* Left rail (tablets and computers) */}
+      <nav aria-label="Meeting" className="relative hidden w-[72px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#120f35]/70 py-4 backdrop-blur md:flex">
+        <LogoMark product="meet" tile className="mb-5 h-10 w-10" />
+        <RailButton icon="video" label="Meeting" active={!shownPanel || shownPanel === "people"} onClick={() => setPanel((p) => (p === "settings" || p === "chat" ? (wide ? "people" : null) : p))} />
+        <RailButton icon="chat" label="Chat" active={shownPanel === "chat"} badge={unreadChat} onClick={() => setPanel((p) => (p === "chat" ? (wide ? "people" : null) : "chat"))} />
+        <RailButton icon="users" label="Participants" active={shownPanel === "people"} badge={isMod ? waiting.length : 0} onClick={() => setPanel((p) => (p === "people" ? null : "people"))} />
+        <RailButton icon={copied ? "check" : "link"} label={copied ? "Link copied" : "Copy invite link"} onClick={() => void copyLink()} />
+        <span className="flex-1" />
+        <RailButton icon="settings" label="Settings" active={shownPanel === "settings"} onClick={() => setPanel((p) => (p === "settings" ? (wide ? "people" : null) : "settings"))} />
+      </nav>
+
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {/* Top bar */}
+        <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <LogoMark product="meet" tile className="h-8 w-8 shrink-0 md:hidden" />
+            <span className="hidden h-3.5 w-1 rounded-full bg-[#f2a93b] md:block" aria-hidden />
+            <span className="hidden text-white/55 sm:inline">Workbase Meet</span>
+            <span className="hidden text-white/30 sm:inline">/</span>
+            <span className="truncate font-medium text-white/90">Meeting</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:gap-3 sm:text-sm">
+            {remaining !== null && info.host_tier === "free" && (
+              <span className={cn("rounded-full px-2.5 py-1 tabular-nums whitespace-nowrap", remaining < 5 * 60_000 ? "bg-red-500/25 text-red-100" : "bg-white/[0.08] text-white/80")} title="Free meetings last up to 1 hour">
+                {mmss(remaining)} left
+              </span>
+            )}
+            <span className="hidden items-center gap-1.5 rounded-full bg-white/[0.08] px-2.5 py-1 tabular-nums text-white/80 sm:flex" title="Data used by this meeting on this device">
+              <Icon name="zap" className="h-3.5 w-3.5 text-[#f2a93b]" />
+              {net.mb < 10 ? net.mb.toFixed(1) : Math.round(net.mb)} MB
             </span>
-          )}
-          <span className="hidden rounded-full bg-white/10 px-2.5 py-1 tabular-nums text-white/80 sm:inline" title="Data used by this meeting on this device">
-            {net.mb < 10 ? net.mb.toFixed(1) : Math.round(net.mb)} MB
-          </span>
-          <SignalBars score={connected && !selfDown ? net.score : 0} />
-          <button onClick={() => void copyLink()} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 hover:bg-white/15" title="Copy the meeting link">
-            <Icon name={copied ? "check" : "copy"} className="h-4 w-4" />
-            <span className="hidden sm:inline">{copied ? "Copied" : "Invite"}</span>
-          </button>
-        </div>
-      </header>
+            {media.dataSaver && <span className="hidden rounded-full bg-[#6a4cf5]/25 px-2.5 py-1 text-[#cfc5ff] lg:inline">Data saver</span>}
+            <SignalBars score={connected && !selfDown ? net.score : 0} />
+            {self && (
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white/15" style={{ background: avatarColour(self.user_id) }} title={`${self.display_name} (you)`}>
+                {initialsOf(self.display_name)}
+              </span>
+            )}
+          </div>
+        </header>
 
-      <div className="relative flex min-h-0 flex-1 gap-3 px-2 pb-2 sm:px-4">
-        {/* Stage */}
-        <div className="relative min-w-0 flex-1">
-          {selfDown && (
-            <div role="status" className="absolute inset-x-0 top-2 z-20 mx-auto flex w-fit max-w-[calc(100%-1rem)] items-center gap-2 rounded-xl bg-[#f2a93b] px-4 py-2 text-sm font-medium text-[#15123a] shadow-lg">
-              <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#15123a] border-t-transparent" aria-hidden />
-              {!online
-                ? "You're offline. We'll reconnect as soon as your internet is back."
-                : "Your connection dropped. Reconnecting…"}
-              {connectError && (
-                <button className="ml-1 shrink-0 underline" onClick={() => setAttempt((a) => a + 1)}>Try now</button>
+        {/* Title row */}
+        <div className="flex shrink-0 items-center justify-between gap-3 px-3 pb-3 sm:px-6">
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-lg font-bold sm:text-xl">{info.title || `${info.host_name}'s meeting`}</h1>
+            <p className="flex flex-wrap items-center gap-x-2 text-xs text-white/55">
+              <span>{whenLine}</span>
+              <span className="text-white/25">·</span>
+              <span className="font-mono">{info.code}</span>
+              {room?.locked && <span className="inline-flex items-center gap-1 text-[#f2a93b]"><Icon name="lock" className="h-3 w-3" />Locked</span>}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <HeaderButton icon="users" label="Participants" active={shownPanel === "people"} badge={isMod ? waiting.length : 0} onClick={() => setPanel((p) => (p === "people" ? null : "people"))} />
+            <HeaderButton icon="chat" label="Chat" active={shownPanel === "chat"} badge={unreadChat} onClick={() => setPanel((p) => (p === "chat" ? (wide ? "people" : null) : "chat"))} />
+            <HeaderButton icon="dots" label="More: settings, layout, connection" active={shownPanel === "settings"} onClick={() => setPanel((p) => (p === "settings" ? (wide ? "people" : null) : "settings"))} />
+          </div>
+        </div>
+
+        <div className="relative flex min-h-0 flex-1 gap-4 px-2 pb-2 sm:px-6 sm:pb-5">
+          {/* Stage + strip */}
+          <div className="relative flex min-w-0 flex-1 flex-col gap-3">
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[22px] bg-[#17143f] shadow-[0_24px_60px_-24px_rgba(0,0,0,.7)] ring-1 ring-white/[0.06]">
+              {gridMode ? (
+                <div className={cn("grid h-full content-center gap-2 p-2 pb-20", gridClass(ordered.length))}>
+                  {ordered.map((p) => (
+                    <div key={p.id} className="aspect-video min-h-0">{tileFor(p)}</div>
+                  ))}
+                </div>
+              ) : screenOwner ? (
+                <div className="relative h-full bg-black">
+                  <VideoView track={screenOwner === meId ? sharing : remote[screenOwner]?.screen} contain />
+                  <span className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-black/55 py-1 pr-1 pl-3 text-xs backdrop-blur">
+                    <Icon name="screenShare" className="h-3.5 w-3.5 text-[#f2a93b]" />
+                    {screenOwner === meId ? "You're sharing your screen" : `${nameOf(screenOwner)} is sharing`}
+                    {screenOwner === meId ? (
+                      <button className="rounded-full bg-red-600 px-2.5 py-0.5 font-medium hover:bg-red-500" onClick={stopShare}>Stop</button>
+                    ) : <span className="w-2" />}
+                  </span>
+                </div>
+              ) : (
+                ordered.filter((p) => p.id === stageId).map((p) => tileFor(p, true))
               )}
-            </div>
-          )}
-          {screenOwner || focusId ? (
-            <div className="flex h-full flex-col gap-2 lg:flex-row">
-              <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-black">
-                {screenOwner ? (
-                  <>
-                    <VideoView track={screenOwner === meId ? sharing : remote[screenOwner]?.screen} contain />
-                    <span className="absolute top-3 left-3 rounded-full bg-black/60 px-3 py-1 text-xs">
-                      {screenOwner === meId ? "You're sharing your screen" : `${nameOf(screenOwner)} is sharing`}
-                    </span>
-                  </>
-                ) : (
-                  people.filter((p) => p.id === focusId).map((p) => tileFor(p, true))
-                )}
-              </div>
-              <div className="flex shrink-0 gap-2 overflow-auto lg:w-56 lg:flex-col">
-                {ordered.filter((p) => p.id !== focusId).map((p) => (
-                  <div key={p.id} className="aspect-video w-40 shrink-0 lg:w-full">{tileFor(p)}</div>
+
+              {/* REC pill */}
+              {recorders.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => (rec ? void stopRecording() : setPanel("chat"))}
+                  className="absolute top-3 right-3 z-20 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium whitespace-nowrap backdrop-blur"
+                  title={rec ? "You're recording. Click to stop." : `Recorded by ${recorders.map((p) => p.display_name).join(", ")}`}
+                >
+                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full ring-1 ring-red-400"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /></span>
+                  {rec ? <span className="tabular-nums">{hhmmss(now - rec.since)}</span> : <span>REC</span>}
+                </button>
+              )}
+
+              {selfDown && (
+                <div role="status" className="absolute inset-x-0 top-14 z-20 mx-auto flex w-fit max-w-[calc(100%-1rem)] items-center gap-2 rounded-xl bg-[#f2a93b] px-4 py-2 text-sm font-medium text-[#15123a] shadow-lg">
+                  <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#15123a] border-t-transparent" aria-hidden />
+                  {!online ? "You're offline. We'll reconnect as soon as your internet is back." : "Your connection dropped. Reconnecting…"}
+                  {connectError && <button className="ml-1 shrink-0 underline" onClick={() => setAttempt((a) => a + 1)}>Try now</button>}
+                </div>
+              )}
+
+              {savedRec && (
+                <div className="absolute top-14 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl bg-[#1f1b4d] px-4 py-3 text-sm shadow-xl">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
+                  <span className="min-w-0">Recording saved on this device</span>
+                  <button
+                    className="shrink-0 rounded-xl bg-[#6a4cf5] px-3 py-1.5 font-medium hover:bg-[#5b3fe0]"
+                    onClick={() => {
+                      const r = savedRec;
+                      void downloadRecording(r).then(() => setSavedRec(null)).catch((e) => toast(e instanceof Error ? e.message : "Couldn't save it.", "warn"));
+                    }}
+                  >
+                    Download
+                  </button>
+                  <button className="shrink-0 rounded-lg p-1 text-white/60 hover:text-white" onClick={() => setSavedRec(null)} aria-label="Later"><Icon name="x" className="h-4 w-4" /></button>
+                </div>
+              )}
+
+              {/* Floating reactions */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                {reactions.map((r, i) => (
+                  <span key={r.id} className="absolute bottom-20 flex flex-col items-center" style={{ left: `${8 + ((r.id * 37 + i * 13) % 70)}%`, animation: "meet-float 3.6s ease-out forwards" }}>
+                    <span className="text-4xl">{r.body}</span>
+                    <span className="mt-1 rounded-full bg-black/50 px-2 text-[11px]">{r.sender_id === meId ? "You" : nameOf(r.sender_id)}</span>
+                  </span>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className={cn("grid h-full content-center gap-2", gridClass(ordered.length))}>
-              {ordered.map((p) => (
-                <div key={p.id} className={cn("min-h-0", ordered.length <= 2 ? "aspect-video max-h-full" : "aspect-video")}>{tileFor(p)}</div>
-              ))}
-            </div>
-          )}
 
-          {savedRec && (
-            <div className="absolute bottom-3 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl bg-[#1f1b4d] px-4 py-3 text-sm shadow-xl">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
-              <span className="min-w-0">Recording saved on this device</span>
-              <button
-                className="shrink-0 rounded-xl bg-[#6a4cf5] px-3 py-1.5 font-medium hover:bg-[#5b3fe0]"
-                onClick={() => {
-                  const r = savedRec;
-                  void downloadRecording(r).then(() => setSavedRec(null)).catch((e) => toast(e instanceof Error ? e.message : "Couldn't save it.", "warn"));
-                }}
-              >
-                Download
-              </button>
-              <button className="shrink-0 rounded-lg p-1 text-white/60 hover:text-white" onClick={() => setSavedRec(null)} aria-label="Later"><Icon name="x" className="h-4 w-4" /></button>
-            </div>
-          )}
-
-          {/* Floating reactions */}
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            {reactions.map((r, i) => (
-              <span
-                key={r.id}
-                className="absolute bottom-6 flex flex-col items-center"
-                style={{ left: `${8 + ((r.id * 37 + i * 13) % 70)}%`, animation: "meet-float 3.6s ease-out forwards" }}
-              >
-                <span className="text-4xl">{r.body}</span>
-                <span className="mt-1 rounded-full bg-black/50 px-2 text-[11px]">{r.sender_id === meId ? "You" : nameOf(r.sender_id)}</span>
-              </span>
-            ))}
-          </div>
-
-          {/* Toasts */}
-          <div className="absolute top-2 left-1/2 z-30 flex w-[min(92%,420px)] -translate-x-1/2 flex-col gap-2">
-            {toasts.map((t) => (
-              <div key={t.id} role="status" className={cn("rounded-xl px-4 py-2.5 text-sm shadow-lg backdrop-blur", t.tone === "warn" ? "bg-[#f2a93b] text-[#15123a]" : "bg-[#1f1b4d]/95")}>
-                {t.text}
+              {/* Toasts */}
+              <div className="absolute top-3 left-1/2 z-30 flex w-[min(92%,420px)] -translate-x-1/2 flex-col gap-2">
+                {toasts.map((t) => (
+                  <div key={t.id} role="status" className={cn("rounded-xl px-4 py-2.5 text-sm shadow-lg backdrop-blur", t.tone === "warn" ? "bg-[#f2a93b] text-[#15123a]" : "bg-[#1f1b4d]/95")}>
+                    {t.text}
+                  </div>
+                ))}
+                {isMod && waiting.length > 0 && shownPanel !== "people" && (
+                  <button onClick={() => setPanel("people")} className="rounded-xl bg-[#6a4cf5] px-4 py-2.5 text-left text-sm font-medium shadow-lg">
+                    {waiting.length === 1 ? `${waiting[0].display_name} is waiting to join` : `${waiting.length} people are waiting to join`} · Review
+                  </button>
+                )}
               </div>
-            ))}
-            {isMod && waiting.length > 0 && panel !== "people" && (
-              <button onClick={() => setPanel("people")} className="rounded-xl bg-[#6a4cf5] px-4 py-2.5 text-left text-sm font-medium shadow-lg">
-                {waiting.length === 1 ? `${waiting[0].display_name} is waiting to join` : `${waiting.length} people are waiting to join`} · Review
-              </button>
-            )}
-          </div>
-        </div>
 
-        {/* Side panel */}
-        {panel && (
-          <aside className="absolute inset-0 z-40 flex flex-col rounded-2xl bg-[#1a1740] sm:static sm:z-auto sm:w-80 sm:shrink-0">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <h2 className="font-semibold">{panel === "chat" ? "Chat" : panel === "people" ? `People (${people.length})` : "Settings"}</h2>
-              <button onClick={() => setPanel(null)} className="rounded-lg p-1.5 hover:bg-white/10" aria-label="Close panel"><Icon name="x" className="h-5 w-5" /></button>
-            </div>
-            {panel === "chat" && <ChatPanel chat={chat} notes={notes} meId={meId} nameOf={nameOf} onSend={(b) => send("chat", b)} />}
-            {panel === "people" && (
-              <PeoplePanel people={ordered} waiting={waiting} meId={meId} isMod={isMod} isHost={myRole === "host"} locked={!!room?.locked} waitingRoom={room?.waiting_room ?? true} moderate={async (a, t) => {
-                const err = await moderate(a, t);
-                if (err) toast(err, "warn");
-              }} />
-            )}
-            {panel === "settings" && (
-              <div className="flex-1 space-y-5 overflow-y-auto p-4">
-                {isMod && recSupported && (
-                  <div>
-                    <p className="mb-2 text-xs text-white/60">Recording</p>
-                    {rec ? (
-                      <button className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-medium hover:bg-red-500" onClick={() => void stopRecording()}>
-                        Stop recording ({mmss(now - rec.since)})
-                      </button>
-                    ) : (
-                      recordChoices
+              {/* Controls, floating on the stage */}
+              <div className="absolute inset-x-0 bottom-3 z-30 flex justify-center px-2 sm:bottom-5">
+                <div className="flex items-center gap-1.5 rounded-full bg-[#0c0a27]/35 p-1.5 backdrop-blur-md sm:gap-2.5">
+                  <Control icon={media.micOn ? "mic" : "micOff"} label={media.micOn ? "Mute" : "Unmute"} off={!media.micOn} disabled={!media.mic} onClick={() => media.setMicOn(!media.micOn)} />
+                  <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : "Start video"} off={!media.camOn} onClick={() => void media.toggleCam()} />
+                  <div className="relative">
+                    <button
+                      onClick={() => (myRole === "host" ? setConfirmLeave((v) => !v) : void leave())}
+                      className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ef3b3b] shadow-[0_6px_20px_-4px_rgba(239,59,59,.6)] transition hover:bg-[#ff4d4d] sm:h-12 sm:w-12"
+                      aria-label="Leave the meeting"
+                      title="Leave"
+                    >
+                      <Icon name="hangUp" className="h-5 w-5" />
+                    </button>
+                    {confirmLeave && (
+                      <div className="absolute bottom-16 left-1/2 z-50 w-72 -translate-x-1/2 space-y-2 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl">
+                        <p className="text-sm text-white/80">Leave, or end the meeting for everyone?</p>
+                        <button className="w-full rounded-xl bg-red-600 py-2.5 font-medium hover:bg-red-500" onClick={() => void leave(true)}>End for everyone</button>
+                        <button className="w-full rounded-xl bg-white/10 py-2.5 font-medium hover:bg-white/15" onClick={() => void leave()}>Just leave</button>
+                        <button className="w-full py-1.5 text-sm text-white/60 hover:text-white" onClick={() => setConfirmLeave(false)}>Cancel</button>
+                      </div>
                     )}
                   </div>
-                )}
-                <DeviceSettings media={media} />
-                <ConnectionDetails pub={pub} sub={sub} people={others} remote={remote} dataSaver={media.dataSaver} />
-                <div>
-                  <p className="mb-2 text-xs text-white/60">Layout</p>
-                  <div className="flex gap-2">
-                    {(["auto", "speaker"] as const).map((l) => (
-                      <button key={l} onClick={() => setLayout(l)} className={cn("rounded-lg px-3 py-2 text-sm", layout === l ? "bg-[#6a4cf5]" : "bg-white/10 hover:bg-white/15")}>
-                        {l === "auto" ? "Grid" : "Speaker"}
+                  {canShare && <Control icon="screenShare" label={sharing ? "Stop sharing" : "Share screen"} active={!!sharing} onClick={() => (sharing ? stopShare() : void startShare())} className="hidden sm:flex" />}
+                  {isMod && recSupported && (
+                    <div className="relative hidden sm:block">
+                      <Control icon="record" label={rec ? "Stop recording" : "Record"} off={!!rec} active={recMenu} disabled={recBusy} onClick={() => (rec ? void stopRecording() : setRecMenu((v) => !v))} />
+                      {recMenu && !rec && (
+                        <div className="absolute bottom-16 left-1/2 z-40 w-72 -translate-x-1/2 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl">
+                          <p className="mb-3 font-medium">Record this meeting</p>
+                          {recordChoices}
+                          <button className="mt-2 w-full py-1 text-sm text-white/60 hover:text-white" onClick={() => setRecMenu(false)}>Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="relative">
+                    <Control icon="smile" label="React" active={showReactions} onClick={() => setShowReactions((v) => !v)} />
+                    {showReactions && (
+                      <div className="fixed bottom-24 left-1/2 z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-2xl bg-[#1f1b4d] p-2 shadow-xl sm:absolute sm:bottom-16 sm:flex-nowrap">
+                        {REACTIONS.map((r) => (
+                          <button key={r} className="rounded-xl p-1.5 text-2xl hover:bg-white/10" onClick={() => void send("reaction", r)} aria-label={`React ${r}`}>{r}</button>
+                        ))}
+                        <button
+                          className={cn("ml-1 flex items-center gap-1 rounded-xl px-3 py-2 text-sm sm:hidden", hand ? "bg-[#f2a93b] text-[#15123a]" : "bg-white/10")}
+                          onClick={() => {
+                            setHand((h) => !h);
+                            setShowReactions(false);
+                          }}
+                        >
+                          ✋ {hand ? "Lower hand" : "Raise hand"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <Control icon="hand" label={hand ? "Lower hand" : "Raise hand"} active={hand} onClick={() => setHand((h) => !h)} className="hidden sm:flex" />
+                </div>
+              </div>
+            </div>
+
+            {/* Everyone else, in a strip under the stage */}
+            {!gridMode && strip.length > 0 && (
+              <div className="meet-strip flex h-[88px] shrink-0 gap-2.5 overflow-x-auto pb-1 sm:h-28 sm:gap-3">
+                {strip.map((p) => (
+                  <div key={p.id} className="aspect-video h-full shrink-0">{tileFor(p)}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right panel: participants, chat or settings */}
+          {shownPanel && (
+            <aside className="absolute inset-0 z-40 flex flex-col overflow-hidden bg-[#15123d] md:static md:z-auto md:w-80 md:shrink-0 md:rounded-[22px] md:bg-[#15123d]/85 md:ring-1 md:ring-white/[0.06] md:backdrop-blur">
+              <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3">
+                {shownPanel === "settings" ? (
+                  <h2 className="font-semibold">Settings</h2>
+                ) : (
+                  <div className="flex items-center gap-1 rounded-full bg-white/[0.06] p-1 text-sm" role="tablist">
+                    {(["people", "chat"] as const).map((k) => (
+                      <button
+                        key={k}
+                        role="tab"
+                        aria-selected={shownPanel === k}
+                        onClick={() => setPanel(k)}
+                        className={cn("relative rounded-full px-3 py-1 font-medium transition", shownPanel === k ? "bg-[#6a4cf5] text-white" : "text-white/60 hover:text-white")}
+                      >
+                        {k === "people" ? `Participants (${people.length})` : "Chat"}
+                        {k === "chat" && unreadChat > 0 && <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-[#f2a93b]" />}
                       </button>
                     ))}
                   </div>
+                )}
+                <div className="flex items-center gap-1">
+                  {shownPanel === "people" && (
+                    <button onClick={() => void copyLink()} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6a4cf5] hover:bg-[#5b3fe0]" title={copied ? "Link copied" : "Copy the invite link"} aria-label="Copy the invite link">
+                      <Icon name={copied ? "check" : "link"} className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button onClick={() => setPanel(null)} className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Close panel"><Icon name="x" className="h-5 w-5" /></button>
                 </div>
               </div>
-            )}
-          </aside>
-        )}
+              {shownPanel === "chat" && <ChatPanel chat={chat} notes={notes} meId={meId} nameOf={nameOf} onSend={(b) => send("chat", b)} />}
+              {shownPanel === "people" && (
+                <PeoplePanel people={ordered} waiting={waiting} meId={meId} isMod={isMod} isHost={myRole === "host"} locked={!!room?.locked} waitingRoom={room?.waiting_room ?? true} speaking={speaking} moderate={async (a, t) => {
+                  const err = await moderate(a, t);
+                  if (err) toast(err, "warn");
+                }} />
+              )}
+              {shownPanel === "settings" && (
+                <div className="flex-1 space-y-5 overflow-y-auto p-4">
+                  {isMod && recSupported && (
+                    <div>
+                      <p className="mb-2 text-xs text-white/60">Recording</p>
+                      {rec ? (
+                        <button className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-medium hover:bg-red-500" onClick={() => void stopRecording()}>
+                          Stop recording ({mmss(now - rec.since)})
+                        </button>
+                      ) : (
+                        recordChoices
+                      )}
+                    </div>
+                  )}
+                  <DeviceSettings media={media} />
+                  <div>
+                    <p className="mb-2 text-xs text-white/60">Layout</p>
+                    <div className="flex gap-2">
+                      {(["speaker", "grid"] as const).map((l) => (
+                        <button key={l} onClick={() => setLayout(l)} className={cn("flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm", layout === l ? "bg-[#6a4cf5]" : "bg-white/10 hover:bg-white/15")}>
+                          <Icon name={l === "grid" ? "grid" : "speaker"} className="h-4 w-4" />
+                          {l === "grid" ? "Grid" : "Speaker"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <ConnectionDetails pub={pub} sub={sub} people={others} remote={remote} dataSaver={media.dataSaver} />
+                </div>
+              )}
+            </aside>
+          )}
+        </div>
       </div>
 
       {/* Remote audio */}
       {Object.entries(remote).map(([pid, t]) => (t.mic ? <AudioOut key={pid} track={t.mic} sinkId={media.speakerId} /> : null))}
-
-      {/* Controls */}
-      <footer className="relative flex items-center justify-center gap-1.5 px-2 pt-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-3">
-        <Control icon={media.micOn ? "mic" : "micOff"} label={media.micOn ? "Mute" : "Unmute"} off={!media.micOn} disabled={!media.mic} onClick={() => media.setMicOn(!media.micOn)} />
-        <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : "Start video"} off={!media.camOn} onClick={() => void media.toggleCam()} />
-        {canShare && <Control icon="screenShare" label={sharing ? "Stop sharing" : "Share screen"} active={!!sharing} onClick={() => (sharing ? stopShare() : void startShare())} className="hidden sm:flex" />}
-        {isMod && recSupported && (
-          <div className="relative hidden sm:block">
-            <Control
-              icon="record"
-              label={rec ? "Stop recording" : "Record"}
-              off={!!rec}
-              active={recMenu}
-              disabled={recBusy}
-              onClick={() => (rec ? void stopRecording() : setRecMenu((v) => !v))}
-            />
-            {recMenu && !rec && (
-              <div className="absolute bottom-14 left-1/2 z-40 w-72 -translate-x-1/2 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl">
-                <p className="mb-3 font-medium">Record this meeting</p>
-                {recordChoices}
-                <button className="mt-2 w-full py-1 text-sm text-white/60 hover:text-white" onClick={() => setRecMenu(false)}>Cancel</button>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="relative">
-          <Control icon="smile" label="React" active={showReactions} onClick={() => setShowReactions((v) => !v)} />
-          {showReactions && (
-            <div className="fixed bottom-20 left-1/2 z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-2xl bg-[#1f1b4d] p-2 shadow-xl sm:absolute sm:bottom-14 sm:flex-nowrap">
-              {REACTIONS.map((r) => (
-                <button key={r} className="rounded-xl p-1.5 text-2xl hover:bg-white/10" onClick={() => void send("reaction", r)} aria-label={`React ${r}`}>{r}</button>
-              ))}
-              <button
-                className={cn("ml-1 flex items-center gap-1 rounded-xl px-3 py-2 text-sm sm:hidden", hand ? "bg-[#f2a93b] text-[#15123a]" : "bg-white/10")}
-                onClick={() => {
-                  setHand((h) => !h);
-                  setShowReactions(false);
-                }}
-              >
-                ✋ {hand ? "Lower hand" : "Raise hand"}
-              </button>
-            </div>
-          )}
-        </div>
-        <Control icon="hand" label={hand ? "Lower hand" : "Raise hand"} active={hand} onClick={() => setHand((h) => !h)} className="hidden sm:flex" />
-        <Control icon="chat" label="Chat" active={panel === "chat"} badge={unreadChat} onClick={() => setPanel((p) => (p === "chat" ? null : "chat"))} />
-        <Control icon="users" label="People" active={panel === "people"} badge={isMod ? waiting.length : 0} onClick={() => setPanel((p) => (p === "people" ? null : "people"))} />
-        <Control icon="settings" label="Settings" active={panel === "settings"} onClick={() => setPanel((p) => (p === "settings" ? null : "settings"))} />
-        <button
-          onClick={() => (myRole === "host" ? setConfirmLeave(true) : void leave())}
-          className="ml-1 flex h-11 items-center gap-2 rounded-full bg-red-600 px-3.5 font-medium hover:bg-red-500 sm:h-12 sm:px-5"
-          aria-label="Leave the meeting"
-        >
-          <Icon name="hangUp" className="h-5 w-5" />
-          <span className="hidden sm:inline">Leave</span>
-        </button>
-        {confirmLeave && (
-          <div className="absolute bottom-20 left-1/2 z-50 w-72 -translate-x-1/2 space-y-2 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl">
-            <p className="text-sm text-white/80">Leave, or end the meeting for everyone?</p>
-            <button className="w-full rounded-xl bg-red-600 py-2.5 font-medium hover:bg-red-500" onClick={() => void leave(true)}>End for everyone</button>
-            <button className="w-full rounded-xl bg-white/10 py-2.5 font-medium hover:bg-white/15" onClick={() => void leave()}>Just leave</button>
-            <button className="w-full py-1.5 text-sm text-white/60 hover:text-white" onClick={() => setConfirmLeave(false)}>Cancel</button>
-          </div>
-        )}
-      </footer>
     </div>
   );
 }
@@ -1050,23 +1139,57 @@ function Control({ icon, label, onClick, off, active, disabled, badge, className
       aria-label={label}
       aria-pressed={active || off ? true : undefined}
       className={cn(
-        "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40 sm:h-12 sm:w-12",
-        off ? "bg-red-500 hover:bg-red-400" : active ? "bg-[#6a4cf5] hover:bg-[#5b3fe0]" : "bg-white/10 hover:bg-white/20",
+        "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-1 transition disabled:opacity-40 sm:h-12 sm:w-12",
+        off ? "bg-[#ef3b3b]/90 ring-white/10 hover:bg-[#ff4d4d]" : active ? "bg-[#6a4cf5] ring-white/15 hover:bg-[#5b3fe0]" : "bg-[#0c0a27]/60 ring-white/15 hover:bg-[#0c0a27]/80",
         className,
       )}
     >
       <Icon name={icon} className="h-5 w-5" />
-      {!!badge && badge > 0 && (
-        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f2a93b] px-1 text-[11px] font-bold text-[#15123a]">{badge > 9 ? "9+" : badge}</span>
-      )}
+      {!!badge && badge > 0 && <Badge n={badge} />}
     </button>
   );
 }
-
+function Badge({ n }: { n: number }) {
+  return <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f2a93b] px-1 text-[11px] font-bold text-[#15123a]">{n > 9 ? "9+" : n}</span>;
+}
+/** Icon button in the left rail. */
+function RailButton({ icon, label, onClick, active, badge }: { icon: IconName; label: string; onClick: () => void; active?: boolean; badge?: number }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-pressed={active ? true : undefined}
+      className={cn("relative flex h-11 w-11 items-center justify-center rounded-2xl transition", active ? "bg-[#6a4cf5] text-white shadow-[0_8px_24px_-8px_rgba(106,76,245,.9)]" : "text-white/50 hover:bg-white/[0.07] hover:text-white")}
+    >
+      <Icon name={icon} className="h-5 w-5" />
+      {!!badge && badge > 0 && <Badge n={badge} />}
+    </button>
+  );
+}
+/** Round button next to the meeting title. */
+function HeaderButton({ icon, label, onClick, active, badge }: { icon: IconName; label: string; onClick: () => void; active?: boolean; badge?: number }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-pressed={active ? true : undefined}
+      className={cn("relative flex h-10 w-10 items-center justify-center rounded-full transition", active ? "bg-[#6a4cf5] text-white" : "bg-white/[0.08] text-white/80 hover:bg-white/[0.14] hover:text-white")}
+    >
+      <Icon name={icon} className="h-[18px] w-[18px]" />
+      {!!badge && badge > 0 && <Badge n={badge} />}
+    </button>
+  );
+}
 function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note, status }: { p: Participant; me: boolean; track: MediaStreamTrack | null | undefined; speaking: boolean; micOn: boolean; pinned: boolean; onPin: () => void; big?: boolean; note?: string; status?: string }) {
   const reconnecting = status === "Reconnecting…";
+  const name = me ? (big ? "You" : `${p.display_name} (you)`) : p.display_name;
+  const role = p.role !== "member" ? (p.role === "host" ? "Host" : "Co-host") : p.is_guest ? "Guest" : null;
   return (
-    <div className={cn("group relative h-full w-full overflow-hidden rounded-2xl bg-[#1b1842] ring-2 transition", speaking ? "ring-emerald-400" : "ring-transparent")}>
+    <div className={cn("group relative h-full w-full overflow-hidden bg-[#1d1a4a] ring-2 transition", big ? "rounded-none" : "rounded-2xl", speaking ? "ring-emerald-400" : big ? "ring-transparent" : "ring-white/[0.06]")}>
       {status && (
         <div className={cn("absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 py-1.5 text-xs font-medium", reconnecting ? "bg-[#f2a93b] text-[#15123a]" : "bg-black/60 text-[#f2c27a]")}>
           {reconnecting ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#15123a] border-t-transparent" aria-hidden /> : <SignalBars score={1} />}
@@ -1077,28 +1200,42 @@ function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note, status 
       {track ? (
         <VideoView track={track} mirror={me} />
       ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-2">
-          <span className={cn("flex items-center justify-center rounded-full font-display font-bold", big ? "h-28 w-28 text-4xl" : "h-14 w-14 text-xl")} style={{ background: avatarColour(p.user_id) }}>
+        <div className="flex h-full flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_50%_40%,#2a2466,#1d1a4a_70%)]">
+          <span className={cn("flex items-center justify-center rounded-full font-display font-bold ring-4 ring-white/[0.06]", big ? "h-24 w-24 text-3xl sm:h-28 sm:w-28 sm:text-4xl" : "h-10 w-10 text-sm sm:h-12 sm:w-12 sm:text-base")} style={{ background: avatarColour(p.user_id) }}>
             {initialsOf(p.display_name)}
           </span>
-          {note && <span className="text-xs text-white/55">{note}</span>}
+          {note && <span className={cn("text-white/55", big ? "text-xs" : "hidden text-[10px] sm:block")}>{note}</span>}
         </div>
       )}
-      <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-3 pt-6 pb-2 text-sm">
-        {!micOn && <Icon name="micOff" className="h-4 w-4 text-red-300" title="Muted" />}
-        <span className="truncate font-medium">{me ? `${p.display_name} (you)` : p.display_name}</span>
-        {p.role !== "member" && <span className="rounded bg-white/15 px-1.5 text-[10px] uppercase tracking-wide">{p.role === "host" ? "Host" : "Co-host"}</span>}
-        {p.is_guest && <span className="rounded bg-white/10 px-1.5 text-[10px] text-white/70">Guest</span>}
-      </div>
-      {p.hand_raised_at && <span className="absolute top-2 left-2 rounded-full bg-[#f2a93b] px-2 py-1 text-lg leading-none" title="Hand raised">✋</span>}
-      <button
-        onClick={onPin}
-        className={cn("absolute top-2 right-2 rounded-full bg-black/50 p-2 transition", pinned ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100")}
-        aria-label={pinned ? "Unpin" : `Pin ${p.display_name}`}
-        title={pinned ? "Unpin" : "Pin"}
-      >
-        <Icon name="pin" className="h-4 w-4" />
-      </button>
+      {big ? (
+        <span className={cn("absolute left-3 z-10 flex max-w-[60%] items-center gap-1.5 rounded-full bg-black/45 px-3 py-1 text-xs font-medium backdrop-blur", status ? "top-10" : "top-3")}>
+          {!micOn && <Icon name="micOff" className="h-3.5 w-3.5 text-[#ff6b6b]" title="Muted" />}
+          <span className="truncate">{name}</span>
+          {role && <span className="rounded bg-white/15 px-1.5 text-[10px] uppercase tracking-wide">{role}</span>}
+          {pinned && (
+            <button onClick={onPin} className="-mr-1 ml-1 rounded-full bg-white/15 px-2 text-[10px] hover:bg-white/25" aria-label={`Unpin ${p.display_name}`}>Unpin</button>
+          )}
+        </span>
+      ) : (
+        <>
+          <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/75 to-transparent px-2 pt-5 pb-1.5 text-[11px] sm:text-xs">
+            <span className="truncate font-medium">{name}</span>
+            {role && <span className="hidden rounded bg-white/15 px-1 text-[9px] uppercase tracking-wide sm:inline">{role}</span>}
+          </div>
+          {!micOn && (
+            <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#ef3b3b]" title="Muted">
+              <Icon name="micOff" className="h-3 w-3" />
+            </span>
+          )}
+          <button
+            onClick={onPin}
+            className="absolute inset-0 z-[1] rounded-2xl opacity-0 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#8f7bff]"
+            aria-label={pinned ? `Unpin ${p.display_name}` : `Show ${p.display_name} big`}
+            title={pinned ? "Unpin" : "Show big"}
+          />
+        </>
+      )}
+      {p.hand_raised_at && <span className={cn("absolute z-10 rounded-full bg-[#f2a93b] px-1.5 py-0.5 leading-none", big ? "top-3 right-24 text-lg" : "top-1.5 left-1.5 text-sm")} title="Hand raised">✋</span>}
     </div>
   );
 }
@@ -1109,7 +1246,22 @@ function AudioOut({ track, sinkId }: { track: MediaStreamTrack; sinkId: string }
     const a = ref.current;
     if (!a) return;
     a.srcObject = new MediaStream([track]);
-    void a.play().catch(() => undefined);
+    const play = () => {
+      if (a.paused && a.isConnected) void a.play().catch(() => undefined);
+    };
+    play();
+    // Keep the sound going: some browsers pause audio (device change, tab in the background,
+    // autoplay rules before the first tap). Start it again whenever that happens.
+    a.addEventListener("pause", play);
+    document.addEventListener("visibilitychange", play);
+    document.addEventListener("pointerdown", play);
+    const t = workerTicker(5000, play);
+    return () => {
+      t();
+      a.removeEventListener("pause", play);
+      document.removeEventListener("visibilitychange", play);
+      document.removeEventListener("pointerdown", play);
+    };
   }, [track]);
   useEffect(() => {
     const a = ref.current as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
@@ -1200,7 +1352,7 @@ function ChatPanel({ chat, notes, meId, nameOf, onSend }: { chat: MeetEvent[]; n
   );
 }
 
-function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom, moderate }: { people: Participant[]; waiting: Participant[]; meId: string; isMod: boolean; isHost: boolean; locked: boolean; waitingRoom: boolean; moderate: (a: string, t?: string) => Promise<void> }) {
+function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom, speaking, moderate }: { people: Participant[]; waiting: Participant[]; meId: string; isMod: boolean; isHost: boolean; locked: boolean; waitingRoom: boolean; speaking: Set<string>; moderate: (a: string, t?: string) => Promise<void> }) {
   const [menu, setMenu] = useState<string | null>(null);
   return (
     <div className="flex-1 space-y-5 overflow-y-auto p-4">
@@ -1227,15 +1379,15 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
         <h3 className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">In the meeting ({people.length})</h3>
         <ul className="space-y-1">
           {people.map((p) => (
-            <li key={p.id} className="relative flex items-center gap-2 rounded-xl px-2 py-2 hover:bg-white/5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ background: avatarColour(p.user_id) }}>{initialsOf(p.display_name)}</span>
+            <li key={p.id} className="relative flex items-center gap-3 rounded-2xl px-2 py-2 hover:bg-white/[0.05]">
+              <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2", speaking.has(p.id) && p.audio_on ? "ring-emerald-400" : "ring-transparent")} style={{ background: avatarColour(p.user_id) }}>{initialsOf(p.display_name)}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm">{p.display_name}{p.id === meId && " (you)"}</span>
                 <span className="block text-xs text-white/45">{p.role === "host" ? "Host" : p.role === "cohost" ? "Co-host" : p.is_guest ? "Guest" : "Member"}</span>
               </span>
               {p.hand_raised_at && <span title="Hand raised">✋</span>}
-              <Icon name={p.audio_on ? "mic" : "micOff"} className={cn("h-4 w-4", p.audio_on ? "text-white/70" : "text-red-300")} />
-              <Icon name={p.video_on ? "video" : "videoOff"} className={cn("h-4 w-4", p.video_on ? "text-white/70" : "text-white/35")} />
+              <Icon name={p.audio_on ? "mic" : "micOff"} className={cn("h-4 w-4", p.audio_on ? "text-white/75" : "text-[#ff5a5f]")} title={p.audio_on ? "Mic on" : "Muted"} />
+              <Icon name={p.video_on ? "video" : "videoOff"} className={cn("h-4 w-4", p.video_on ? "text-[#8f7bff]" : "text-white/30")} title={p.video_on ? "Camera on" : "Camera off"} />
               {isMod && p.id !== meId && p.role !== "host" && (
                 <button className="rounded-lg p-1 hover:bg-white/10" aria-label={`Options for ${p.display_name}`} onClick={() => setMenu((m) => (m === p.id ? null : p.id))}>
                   <Icon name="dots" className="h-4 w-4" />
