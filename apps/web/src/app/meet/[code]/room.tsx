@@ -1264,7 +1264,7 @@ function RailButton({ icon, label, onClick, active, badge, accent, danger, disab
         {!!badge && badge > 0 && <Badge n={badge} />}
       </button>
       {/* Name on hover / keyboard focus */}
-      <span className="pointer-events-none absolute top-1/2 left-full z-50 ml-3 -translate-y-1/2 rounded-lg bg-[#1f1b4d] px-2.5 py-1 text-xs font-medium whitespace-nowrap opacity-0 shadow-lg ring-1 ring-white/10 transition group-focus-within:opacity-100 group-hover:opacity-100">
+      <span className="pointer-events-none absolute top-1/2 left-full z-50 ml-3 -translate-y-1/2 rounded-lg bg-[#1f1b4d] px-2.5 py-1 text-xs font-medium whitespace-nowrap opacity-0 shadow-lg ring-1 ring-white/10 transition group-hover:opacity-100 group-has-[:focus-visible]:opacity-100">
         {label}
       </span>
       {children}
