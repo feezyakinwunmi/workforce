@@ -28,6 +28,18 @@ export type MeetEvent = {
   created_at: string;
 };
 
+/** A celebration the host or a co-host sent (meet_shoutouts). */
+export type Shoutout = {
+  id: number;
+  room_id: string;
+  sender_id: string | null;
+  target_id: string | null;
+  name: string;
+  style: "shoutout" | "birthday" | "welldone" | "welcome";
+  message: string | null;
+  created_at: string;
+};
+
 export type RoomRow = {
   id: string;
   code: string;

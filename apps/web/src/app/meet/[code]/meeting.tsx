@@ -46,6 +46,7 @@ export function useLocalMedia() {
   const [camId, setCamId] = useState<string>(() => read("meet-cam") ?? "");
   const [speakerId, setSpeakerId] = useState<string>(() => read("meet-speaker") ?? "");
   const [background, setBackgroundState] = useState<BackgroundMode>({ kind: "none" });
+  const [bgBusy, setBgBusy] = useState(false); // the background engine is downloading (slow on mobile data)
   const [dataSaver, setDataSaver] = useState(() => read("meet-data-saver") === "1");
   const [problem, setProblem] = useState<string | null>(null);
   const [level, setLevel] = useState(0);
@@ -221,7 +222,12 @@ export function useLocalMedia() {
   const setBackground = useCallback(
     async (mode: BackgroundMode) => {
       setBackgroundState(mode);
-      await applyBackground(camRaw, mode);
+      setBgBusy(mode.kind !== "none" && !!camRaw);
+      try {
+        await applyBackground(camRaw, mode);
+      } finally {
+        setBgBusy(false);
+      }
     },
     [camRaw, applyBackground],
   );
@@ -241,7 +247,7 @@ export function useLocalMedia() {
 
   return {
     mic, camRaw, camOut, micOn, camOn, setMicOn, toggleCam, devices, micId, camId, speakerId,
-    chooseMic, chooseCam, chooseSpeaker, background, setBackground, dataSaver, toggleDataSaver,
+    chooseMic, chooseCam, chooseSpeaker, background, setBackground, bgBusy, dataSaver, toggleDataSaver,
     problem, setProblem, level, stopAll,
   };
 }
@@ -665,7 +671,16 @@ export function DeviceSettings({ media, compact }: { media: LocalMedia; compact?
         )}
       </div>
       <div>
-        <p className="mb-2 text-xs text-white/60">Background</p>
+        <p className="mb-2 flex items-center gap-2 text-xs text-white/60">
+          Background
+          {media.bgBusy && (
+            <span role="status" className="flex items-center gap-1.5 text-[#f2c27a]">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#f2c27a] border-t-transparent" aria-hidden />
+              Loading…
+            </span>
+          )}
+          {!media.camOn && <span className="text-white/40">Applies when your camera is on</span>}
+        </p>
         <div className="flex flex-wrap gap-2">
           {BACKGROUNDS.map((b) => (
             <button
@@ -674,7 +689,6 @@ export function DeviceSettings({ media, compact }: { media: LocalMedia; compact?
               title={b.label}
               aria-label={`Background: ${b.label}`}
               aria-pressed={sameMode(media.background, b.mode)}
-              disabled={!media.camOn}
               onClick={() => void media.setBackground(b.mode)}
               className={cn(
                 "h-11 w-16 rounded-lg border-2 text-[10px] font-semibold text-white/90 transition disabled:opacity-40",

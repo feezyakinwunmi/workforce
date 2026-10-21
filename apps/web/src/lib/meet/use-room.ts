@@ -4,7 +4,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, realtimeClient } from "@/lib/supabase/client";
 import { workerTicker } from "./ticker";
-import { PARTICIPANT_COLUMNS, ROOM_COLUMNS, type MeetEvent, type Participant, type PingResult, type RoomRow } from "./types";
+import { PARTICIPANT_COLUMNS, ROOM_COLUMNS, type MeetEvent, type Participant, type PingResult, type RoomRow, type Shoutout } from "./types";
 
 export type PersonLink = "ok" | "reconnecting";
 
@@ -17,7 +17,7 @@ export type PersonLink = "ok" | "reconnecting";
  * Times are compared on the server's clock (phones and laptops are often a minute off), so a
  * wrong device clock never makes people vanish.
  */
-export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) => void) {
+export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) => void, onShoutout: (s: Shoutout) => void = () => {}) {
   const [people, setPeople] = useState<Participant[]>([]);
   const [room, setRoom] = useState<RoomRow | null>(null);
   const [chat, setChat] = useState<MeetEvent[]>([]);
@@ -27,6 +27,9 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
   const lastEvent = useRef<number | null>(null); // events after this id are new
   const commandRef = useRef(onCommand);
   commandRef.current = onCommand;
+  const shoutRef = useRef(onShoutout);
+  shoutRef.current = onShoutout;
+  const lastShout = useRef<number | null>(null);
   const patch = useRef<Record<string, unknown>>({});
   const pingNow = useRef<() => void>(() => {});
   const skew = useRef(0); // server clock − this device's clock (ms)
@@ -64,6 +67,30 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
     for (const e of fresh) if (!["chat", "reaction"].includes(e.kind)) commandRef.current(e);
   }, []);
 
+  // Shout-outs: play new ones (sent in the last minute), never replay old ones on joining.
+  const handleShouts = useCallback((rows: Shoutout[], initial: boolean) => {
+    if (!rows.length) {
+      if (initial) lastShout.current ??= 0;
+      return;
+    }
+    const fresh = rows.filter((r) => r.id > (lastShout.current ?? 0)).sort((a, b) => a.id - b.id);
+    const firstLoad = initial && lastShout.current === null;
+    lastShout.current = Math.max(lastShout.current ?? 0, ...rows.map((r) => r.id));
+    if (firstLoad) return;
+    const now = Date.now() + skew.current;
+    for (const s of fresh) if (now - Date.parse(s.created_at) < 60_000) shoutRef.current(s);
+  }, []);
+
+  const loadShouts = useCallback(
+    async (initial = false) => {
+      let q = createClient().from("meet_shoutouts").select("*").eq("room_id", roomId).order("id", { ascending: true }).limit(50);
+      if (lastShout.current) q = q.gt("id", lastShout.current);
+      const { data } = await q;
+      handleShouts((data ?? []) as Shoutout[], initial);
+    },
+    [roomId, handleShouts],
+  );
+
   const loadPresence = useCallback(async () => {
     const { data: pres } = await createClient().from("meet_presence").select("participant_id, last_seen_at").eq("room_id", roomId);
     if (pres) {
@@ -90,6 +117,7 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
     let ticks = 0;
     void loadPeople();
     void loadEvents(true);
+    void loadShouts(true);
 
     void realtimeClient().then((supabase) => {
       if (stopped) return;
@@ -98,11 +126,13 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
         .on("postgres_changes", { event: "*", schema: "public", table: "meet_participants", filter: `room_id=eq.${roomId}` }, () => void loadPeople())
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "meet_rooms", filter: `id=eq.${roomId}` }, (p: { new: RoomRow }) => setRoom((r) => ({ ...(r ?? p.new), ...p.new })))
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "meet_events", filter: `room_id=eq.${roomId}` }, (p: { new: MeetEvent }) => handleEvents([p.new], false))
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "meet_shoutouts", filter: `room_id=eq.${roomId}` }, (p: { new: Shoutout }) => handleShouts([p.new], false))
         .subscribe((status: string) => {
           live = status === "SUBSCRIBED";
           if (live) {
             void loadPeople();
             void loadEvents();
+            void loadShouts();
           }
         });
     });
@@ -115,6 +145,7 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
       ticks++;
       if (!live || ticks % 6 === 0) {
         void loadEvents();
+        void loadShouts();
         void loadPeople();
       } else if (ticks % 2 === 0) void loadPresence();
     });
@@ -159,6 +190,7 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
       void ping();
       void loadPeople();
       void loadEvents();
+      void loadShouts();
     };
     window.addEventListener("online", catchUp);
     window.addEventListener("offline", catchUp);
@@ -173,7 +205,7 @@ export function useRoom(roomId: string, meId: string, onCommand: (e: MeetEvent) 
       document.removeEventListener("visibilitychange", catchUp);
       if (channel) void createClient().removeChannel(channel);
     };
-  }, [roomId, loadPeople, loadEvents, loadPresence, handleEvents]);
+  }, [roomId, loadPeople, loadEvents, loadPresence, loadShouts, handleEvents, handleShouts]);
 
   const lastOk = useRef(Date.now());
   lastOk.current = lastPingOk;

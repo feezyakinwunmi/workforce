@@ -88,12 +88,20 @@ async function loadSegmenter(): Promise<Segmenter> {
     // Loaded at run time from the CDN, not bundled (keeps the app small for everyone else).
     const vision = await (new Function("u", "return import(u)") as (u: string) => Promise<any>)(`${VISION}/vision_bundle.mjs`);
     const fileset = await vision.FilesetResolver.forVisionTasks(`${VISION}/wasm`);
-    return vision.ImageSegmenter.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: MODEL, delegate: "GPU" },
-      runningMode: "VIDEO",
-      outputCategoryMask: false,
-      outputConfidenceMasks: true,
-    });
+    const make = (delegate: "GPU" | "CPU") =>
+      vision.ImageSegmenter.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: MODEL, delegate },
+        runningMode: "VIDEO",
+        outputCategoryMask: false,
+        outputConfidenceMasks: true,
+      });
+    // The graphics chip is fastest, but many phones (and iPhones) can't use it from a web page:
+    // fall back to the processor instead of giving up.
+    try {
+      return await make("GPU");
+    } catch {
+      return await make("CPU");
+    }
   })();
   try {
     return await segmenterPromise;
@@ -101,6 +109,23 @@ async function loadSegmenter(): Promise<Segmenter> {
     segmenterPromise = null;
     throw e;
   }
+}
+
+const isPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+/** Safari (iPhone, iPad, Mac) has no canvas `filter`, so blur is done another way there. */
+let filterOk: boolean | null = null;
+function canvasFilterWorks() {
+  if (filterOk === null) {
+    try {
+      const c = document.createElement("canvas").getContext("2d")!;
+      c.filter = "blur(2px)";
+      filterOk = c.filter === "blur(2px)";
+    } catch {
+      filterOk = false;
+    }
+  }
+  return filterOk;
 }
 
 /** Wraps a camera track; `track` is what gets published. */
@@ -111,6 +136,7 @@ export class BackgroundProcessor {
   private person = document.createElement("canvas");
   private maskCanvas = document.createElement("canvas");
   private bg = document.createElement("canvas");
+  private small = document.createElement("canvas"); // for blur without canvas filters
   private mode: BackgroundMode = { kind: "none" };
   private seg: Segmenter | null = null;
   private stopped = false;
@@ -119,26 +145,49 @@ export class BackgroundProcessor {
 
   constructor(private source: MediaStreamTrack) {
     const s = source.getSettings();
-    const w = Math.min(s.width ?? 640, 960);
-    const h = Math.round(w * ((s.height ?? 360) / (s.width ?? 640)));
+    this.resize(s.width ?? 640, s.height ?? 360);
+    this.video.muted = true;
+    this.video.playsInline = true;
+    this.video.setAttribute("playsinline", "");
+    this.video.autoplay = true;
+    // iPhones only update a video that is on the page: keep it there, invisible.
+    this.video.style.cssText = "position:fixed;top:0;left:0;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1";
+    document.body.appendChild(this.video);
+    this.video.srcObject = new MediaStream([source]);
+    void this.video.play().catch(() => undefined);
+    document.addEventListener("visibilitychange", this.resume);
+    this.track = this.out.captureStream(isPhone() ? 15 : 24).getVideoTracks()[0];
+    this.loop();
+  }
+
+  /** Canvas size follows the real picture (phones turn it on its side in portrait). */
+  private resize(vw: number, vh: number) {
+    const max = isPhone() ? 640 : 960;
+    const scale = Math.min(1, max / Math.max(vw, vh));
+    const w = Math.max(2, Math.round(vw * scale));
+    const h = Math.max(2, Math.round(vh * scale));
     for (const c of [this.out, this.person, this.maskCanvas, this.bg]) {
       c.width = w;
       c.height = h;
     }
-    this.video.muted = true;
-    this.video.playsInline = true;
-    this.video.srcObject = new MediaStream([source]);
-    void this.video.play();
-    this.track = this.out.captureStream(24).getVideoTracks()[0];
-    this.loop();
+    if (this.mode.kind === "image") this.paintImage();
   }
+
+  private paintImage() {
+    if (this.mode.kind !== "image") return;
+    const id = this.mode.id;
+    const img = BACKGROUND_IMAGES.find((b) => b.id === id) ?? BACKGROUND_IMAGES[0];
+    img.paint(this.bg.getContext("2d")!, this.bg.width, this.bg.height);
+  }
+
+  // Back from the background (phones pause the camera video): play again.
+  private resume = () => {
+    if (!this.stopped && document.visibilityState === "visible" && this.video.paused) void this.video.play().catch(() => undefined);
+  };
 
   async setMode(mode: BackgroundMode) {
     this.mode = mode;
-    if (mode.kind === "image") {
-      const img = BACKGROUND_IMAGES.find((b) => b.id === mode.id) ?? BACKGROUND_IMAGES[0];
-      img.paint(this.bg.getContext("2d")!, this.bg.width, this.bg.height);
-    }
+    this.paintImage();
     if (mode.kind !== "none" && !this.seg) {
       try {
         this.seg = await loadSegmenter();
@@ -152,16 +201,20 @@ export class BackgroundProcessor {
   private loop = () => {
     if (this.stopped) return;
     const ctx = this.out.getContext("2d")!;
+    const vw = this.video.videoWidth, vh = this.video.videoHeight;
+    if (vw && vh && Math.abs(vw / vh - this.out.width / this.out.height) > 0.02) this.resize(vw, vh);
     const { width: w, height: h } = this.out;
+    if (this.video.paused && this.video.readyState >= 1) void this.video.play().catch(() => undefined);
     if (this.video.readyState >= 2) {
       if (this.mode.kind === "none" || !this.seg) {
-        ctx.filter = "none";
+        if (canvasFilterWorks()) ctx.filter = "none";
+        ctx.globalCompositeOperation = "source-over";
         ctx.drawImage(this.video, 0, 0, w, h);
       } else {
         this.composite(ctx, w, h);
       }
     }
-    this.timer = setTimeout(this.loop, 1000 / 24);
+    this.timer = setTimeout(this.loop, 1000 / (isPhone() ? 15 : 24));
   };
 
   private composite(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -191,17 +244,32 @@ export class BackgroundProcessor {
 
     const pctx = this.person.getContext("2d")!;
     pctx.globalCompositeOperation = "copy";
-    pctx.filter = "blur(2px)";
-    pctx.drawImage(this.maskCanvas, 0, 0, w, h);
-    pctx.filter = "none";
+    const filters = canvasFilterWorks();
+    if (filters) pctx.filter = "blur(2px)";
+    pctx.drawImage(this.maskCanvas, 0, 0, w, h); // scaled up smoothly: soft edges even without filters
+    if (filters) pctx.filter = "none";
     pctx.globalCompositeOperation = "source-in";
     pctx.drawImage(this.video, 0, 0, w, h);
 
     ctx.globalCompositeOperation = "copy";
     if (this.mode.kind === "blur") {
-      ctx.filter = `blur(${this.mode.strength === "strong" ? 16 : 7}px)`;
-      ctx.drawImage(this.video, 0, 0, w, h);
-      ctx.filter = "none";
+      const strong = this.mode.strength === "strong";
+      if (filters) {
+        ctx.filter = `blur(${strong ? 16 : 7}px)`;
+        ctx.drawImage(this.video, 0, 0, w, h);
+        ctx.filter = "none";
+      } else {
+        // Safari: shrink the picture a lot and stretch it back with smoothing = a blur.
+        const f = strong ? 24 : 10;
+        this.small.width = Math.max(2, Math.round(w / f));
+        this.small.height = Math.max(2, Math.round(h / f));
+        const sctx = this.small.getContext("2d")!;
+        sctx.imageSmoothingEnabled = true;
+        sctx.drawImage(this.video, 0, 0, this.small.width, this.small.height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(this.small, 0, 0, w, h);
+      }
     } else {
       ctx.drawImage(this.bg, 0, 0, w, h);
     }
@@ -212,7 +280,9 @@ export class BackgroundProcessor {
   stop() {
     this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
+    document.removeEventListener("visibilitychange", this.resume);
     this.track.stop();
     this.video.srcObject = null;
+    this.video.remove();
   }
 }

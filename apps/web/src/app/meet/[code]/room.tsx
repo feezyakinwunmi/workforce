@@ -7,11 +7,12 @@ import { blackVideoTrack, connectMedia, connectPublisher, readStats, signalScore
 import { meetingLink } from "@/lib/meet/paths";
 import { canRecord, MeetRecorder, type RecordInputs } from "@/lib/meet/recorder";
 import { downloadRecording, spaceLeft, type SavedRecording } from "@/lib/meet/recordings-store";
-import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo } from "@/lib/meet/types";
+import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo, type Shoutout } from "@/lib/meet/types";
 import { workerTicker } from "@/lib/meet/ticker";
 import { leaveOnUnload, useRoom, type PersonLink } from "@/lib/meet/use-room";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { Celebration, ShoutoutDialog } from "./celebration";
 import { avatarColour, DeviceSettings, initialsOf, VideoView, type LocalMedia } from "./meeting";
 
 type ExitReason = "left" | "ended" | "removed" | "limit";
@@ -76,7 +77,28 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     [meId, media, toast, exit],
   );
 
-  const { people, admitted, waiting, room, chat, reactions, me, update, send, moderate, refresh, links, meOnline, online } = useRoom(roomId, meId, onCommand);
+  // Shout-outs: played one after another for everyone.
+  const [shoutQueue, setShoutQueue] = useState<Shoutout[]>([]);
+  const onShoutout = useCallback((s: Shoutout) => setShoutQueue((q) => (q.some((x) => x.id === s.id) ? q : [...q, s].slice(-5))), []);
+  const [celebMuted, setCelebMuted] = useState(false);
+  useEffect(() => {
+    try {
+      setCelebMuted(localStorage.getItem("meet-celebrate-muted") === "1");
+    } catch {
+      // private mode
+    }
+  }, []);
+  const muteCelebrations = (m: boolean) => {
+    setCelebMuted(m);
+    try {
+      localStorage.setItem("meet-celebrate-muted", m ? "1" : "0");
+    } catch {
+      // private mode
+    }
+  };
+  const [shoutDialog, setShoutDialog] = useState<{ target: string | null } | null>(null);
+
+  const { people, admitted, waiting, room, chat, reactions, me, update, send, moderate, refresh, links, meOnline, online } = useRoom(roomId, meId, onCommand, onShoutout);
   const myRole = me?.role ?? join.role;
   const isMod = myRole === "host" || myRole === "cohost";
   const endsAt = me?.ends_at ?? room?.ends_at ?? join.ends_at;
@@ -945,6 +967,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
                     )}
                   </div>
                   <Control icon="hand" label={hand ? "Lower hand" : "Raise hand"} active={hand} onClick={() => setHand((h) => !h)} className="hidden sm:flex" />
+                  {isMod && <Control icon="sparkle" label="Celebrate someone" active={!!shoutDialog} onClick={() => setShoutDialog({ target: null })} />}
                 </div>
               </div>
             </div>
@@ -992,7 +1015,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
               </div>
               {shownPanel === "chat" && <ChatPanel chat={chat} notes={notes} meId={meId} nameOf={nameOf} onSend={(b) => send("chat", b)} />}
               {shownPanel === "people" && (
-                <PeoplePanel people={ordered} waiting={waiting} meId={meId} isMod={isMod} isHost={myRole === "host"} locked={!!room?.locked} waitingRoom={room?.waiting_room ?? true} speaking={speaking} moderate={async (a, t) => {
+                <PeoplePanel people={ordered} waiting={waiting} meId={meId} isMod={isMod} isHost={myRole === "host"} locked={!!room?.locked} waitingRoom={room?.waiting_room ?? true} speaking={speaking} onCelebrate={(id) => setShoutDialog({ target: id })} moderate={async (a, t) => {
                   const err = await moderate(a, t);
                   if (err) toast(err, "warn");
                 }} />
@@ -1030,6 +1053,37 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
           )}
         </div>
       </div>
+
+      {shoutQueue[0] && (() => {
+        const s = shoutQueue[0];
+        const person = s.target_id ? admitted.find((p) => p.id === s.target_id) ?? null : null;
+        const video = !person ? null : person.id === meId ? (media.camOn ? media.camOut : null) : person.video_on && !media.dataSaver ? remote[person.id]?.camera ?? null : null;
+        const sender = admitted.find((p) => p.id === s.sender_id);
+        return (
+          <Celebration
+            key={s.id}
+            shout={s}
+            person={person}
+            video={video}
+            from={sender ? (sender.id === meId ? "you" : `${sender.display_name}${sender.role === "host" ? " (host)" : sender.role === "cohost" ? " (co-host)" : ""}`) : "the host"}
+            muted={celebMuted}
+            onMute={muteCelebrations}
+            onDone={() => setShoutQueue((q) => q.filter((x) => x.id !== s.id))}
+          />
+        );
+      })()}
+      {shoutDialog && (
+        <ShoutoutDialog
+          people={ordered}
+          meId={meId}
+          initial={shoutDialog.target}
+          onClose={() => setShoutDialog(null)}
+          onSend={async (v) => {
+            const { error } = await createClient().rpc("meet_shoutout", { p_room: roomId, p_name: v.name, p_target: v.target, p_style: v.style, p_message: v.message || null });
+            return error?.message ?? null;
+          }}
+        />
+      )}
 
       {/* Remote audio */}
       {Object.entries(remote).map(([pid, t]) => (t.mic ? <AudioOut key={pid} track={t.mic} sinkId={media.speakerId} /> : null))}
@@ -1352,7 +1406,7 @@ function ChatPanel({ chat, notes, meId, nameOf, onSend }: { chat: MeetEvent[]; n
   );
 }
 
-function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom, speaking, moderate }: { people: Participant[]; waiting: Participant[]; meId: string; isMod: boolean; isHost: boolean; locked: boolean; waitingRoom: boolean; speaking: Set<string>; moderate: (a: string, t?: string) => Promise<void> }) {
+function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom, speaking, onCelebrate, moderate }: { people: Participant[]; waiting: Participant[]; meId: string; isMod: boolean; isHost: boolean; locked: boolean; waitingRoom: boolean; speaking: Set<string>; onCelebrate: (id: string | null) => void; moderate: (a: string, t?: string) => Promise<void> }) {
   const [menu, setMenu] = useState<string | null>(null);
   return (
     <div className="flex-1 space-y-5 overflow-y-auto p-4">
@@ -1395,6 +1449,7 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
               )}
               {menu === p.id && (
                 <div className="absolute top-10 right-2 z-10 w-44 overflow-hidden rounded-xl bg-[#26225a] text-sm shadow-xl">
+                  <button className="block w-full px-3 py-2 text-left hover:bg-white/10" onClick={() => { setMenu(null); onCelebrate(p.id); }}>🎉 Celebrate</button>
                   {[
                     p.audio_on && ["mute", "Mute"],
                     p.hand_raised_at && ["lower_hand", "Lower hand"],
@@ -1415,6 +1470,7 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
       {isMod && (
         <section className="space-y-2 border-t border-white/10 pt-4">
           <h3 className="text-xs font-semibold tracking-wide text-white/50 uppercase">Host controls</h3>
+          <button className="w-full rounded-xl bg-[#f2a93b] px-3 py-2 text-left text-sm font-semibold text-[#15123a] hover:bg-[#ffb94f]" onClick={() => onCelebrate(null)}>🎉 Celebrate someone</button>
           <button className="w-full rounded-xl bg-white/10 px-3 py-2 text-left text-sm hover:bg-white/15" onClick={() => void moderate("mute_all")}>Mute everyone</button>
           <Toggle label="Waiting room" hint="New people wait until you let them in" on={waitingRoom} onChange={(v) => void moderate(v ? "waiting_room_on" : "waiting_room_off")} />
           <Toggle label="Lock meeting" hint="Nobody new can join" on={locked} onChange={(v) => void moderate(v ? "lock" : "unlock")} />
