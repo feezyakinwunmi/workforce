@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/icons";
+import { Icon, type IconName } from "@/components/icons";
 import { playCelebration, type CelebrationStyle } from "@/lib/meet/celebration-sound";
 import type { Participant, Shoutout } from "@/lib/meet/types";
 import { cn } from "@/lib/utils";
 import { avatarColour, initialsOf, VideoView } from "./meeting";
 
-export const STYLES: Array<{ id: CelebrationStyle; emoji: string; label: string; heading: string; hint: string }> = [
-  { id: "shoutout", emoji: "📣", label: "Shout-out", heading: "Shout-out to", hint: "For being amazing today" },
-  { id: "birthday", emoji: "🎂", label: "Birthday", heading: "Happy birthday", hint: "Many happy returns!" },
-  { id: "welldone", emoji: "🏆", label: "Well done", heading: "Well done", hint: "Closed the deal this week" },
-  { id: "welcome", emoji: "👋", label: "Welcome", heading: "Welcome to the team", hint: "So glad you're here" },
+export const STYLES: Array<{ id: CelebrationStyle; icon: IconName; label: string; heading: string; hint: string }> = [
+  { id: "shoutout", icon: "megaphone", label: "Shout-out", heading: "Shout-out to", hint: "For being amazing today" },
+  { id: "birthday", icon: "cake", label: "Birthday", heading: "Happy birthday", hint: "Many happy returns!" },
+  { id: "welldone", icon: "trophy", label: "Well done", heading: "Well done", hint: "Closed the deal this week" },
+  { id: "welcome", icon: "userPlus", label: "Welcome", heading: "Welcome to the team", hint: "So glad you're here" },
 ];
 const SHOW_MS = 7000;
 const COLOURS = ["#6a4cf5", "#8f7bff", "#f2a93b", "#ffd166", "#ff6b9a", "#34d399", "#38bdf8", "#ffffff"];
@@ -127,7 +127,9 @@ export function Celebration({ shout, person, video, from, muted, onMute, onDone 
               </span>
             )}
           </div>
-          <span className="absolute -right-1 -bottom-1 flex h-14 w-14 items-center justify-center rounded-full bg-[#0c0a27] text-3xl ring-4 ring-[#f2a93b]">{style.emoji}</span>
+          <span className="absolute -right-1 -bottom-1 flex h-14 w-14 items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a] ring-4 ring-[#0c0a27]">
+            <Icon name={style.icon} className="h-7 w-7" />
+          </span>
         </div>
         <p className="text-sm font-semibold tracking-[0.2em] text-[#f2c27a] uppercase drop-shadow">{style.heading}</p>
         <p
@@ -181,7 +183,10 @@ export function ShoutoutDialog({ people, meId, initial, onSend, onClose }: {
     <div className="fixed inset-0 z-[55] flex items-end justify-center bg-black/60 sm:items-center" onClick={onClose}>
       <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[#1a1745] p-5 shadow-2xl ring-1 ring-white/10 sm:rounded-3xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="shout-title">
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="shout-title" className="font-display text-xl font-bold">Celebrate someone 🎉</h2>
+          <h2 id="shout-title" className="flex items-center gap-2.5 font-display text-xl font-bold">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a]"><Icon name="party" className="h-5 w-5" /></span>
+            Celebrate someone
+          </h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-white/70 hover:bg-white/10" aria-label="Close"><Icon name="x" className="h-5 w-5" /></button>
         </div>
 
@@ -213,7 +218,10 @@ export function ShoutoutDialog({ people, meId, initial, onSend, onClose }: {
           {STYLES.map((s) => (
             <button key={s.id} type="button" onClick={() => setStyle(s.id)} aria-pressed={style === s.id}
               className={cn("flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition", style === s.id ? "bg-[#6a4cf5] ring-2 ring-[#f2a93b]" : "bg-white/[0.07] hover:bg-white/[0.12]")}>
-              <span className="text-xl">{s.emoji}</span>{s.label}
+              <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", style === s.id ? "bg-white/20" : "bg-white/[0.08] text-[#f2c27a]")}>
+                <Icon name={s.icon} className="h-[18px] w-[18px]" />
+              </span>
+              {s.label}
             </button>
           ))}
         </div>
@@ -226,8 +234,9 @@ export function ShoutoutDialog({ people, meId, initial, onSend, onClose }: {
           onChange={(e) => setMessage(e.target.value)}
         />
         {error && <p className="mb-3 rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-200" role="alert">{error}</p>}
-        <button onClick={() => void send()} disabled={busy || !name} className="w-full rounded-xl bg-[#f2a93b] py-3 font-semibold text-[#15123a] transition hover:bg-[#ffb94f] disabled:opacity-50">
-          {busy ? "Sending…" : name ? `Celebrate ${name} 🎉` : "Celebrate 🎉"}
+        <button onClick={() => void send()} disabled={busy || !name} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f2a93b] py-3 font-semibold text-[#15123a] transition hover:bg-[#ffb94f] disabled:opacity-50">
+          <Icon name="party" className="h-5 w-5" />
+          {busy ? "Sending…" : name ? `Celebrate ${name}` : "Celebrate"}
         </button>
         <p className="mt-2 text-center text-xs text-white/45">Everyone in the call sees it, with confetti and applause.</p>
       </div>

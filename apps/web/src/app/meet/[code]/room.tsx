@@ -5,6 +5,7 @@ import { Icon, type IconName } from "@/components/icons";
 import { LogoMark } from "@/components/logo";
 import { blackVideoTrack, connectMedia, connectPublisher, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
 import { meetingLink } from "@/lib/meet/paths";
+import { downloadAttendance } from "../attendance";
 import { canRecord, MeetRecorder, type RecordInputs } from "@/lib/meet/recorder";
 import { downloadRecording, spaceLeft, type SavedRecording } from "@/lib/meet/recordings-store";
 import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo, type Shoutout } from "@/lib/meet/types";
@@ -626,6 +627,8 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const recorder = useRef<MeetRecorder | null>(null);
   const [rec, setRec] = useState<{ since: number; audioOnly: boolean } | null>(null);
   const [recMenu, setRecMenu] = useState(false);
+  const [railRec, setRailRec] = useState(false);
+  const [attBusy, setAttBusy] = useState(false);
   const [recBusy, setRecBusy] = useState(false);
   const [savedRec, setSavedRec] = useState<SavedRecording | null>(null);
   const [recSupported, setRecSupported] = useState(false);
@@ -753,6 +756,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       busy={recBusy}
       onPick={(audioOnly) => {
         setPanel(null);
+        setRailRec(false);
         void startRecording(audioOnly);
       }}
     />
@@ -766,13 +770,43 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_-12%,rgba(106,76,245,.38),transparent_65%),radial-gradient(700px_420px_at_105%_110%,rgba(242,169,59,.16),transparent_60%)]" />
 
       {/* Left rail (tablets and computers) */}
-      <nav aria-label="Meeting" className="relative hidden w-[72px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#120f35]/70 py-4 backdrop-blur md:flex">
-        <LogoMark product="meet" tile className="mb-5 h-10 w-10" />
+      <nav aria-label="Meeting" className="relative z-20 hidden w-[72px] shrink-0 flex-col items-center gap-1.5 border-r border-white/[0.06] bg-[#120f35]/70 py-4 backdrop-blur md:flex">
+        <LogoMark product="meet" tile className="mb-4 h-10 w-10" />
         <RailButton icon="video" label="Meeting" active={!shownPanel || shownPanel === "people"} onClick={() => setPanel((p) => (p === "settings" || p === "chat" ? (wide ? "people" : null) : p))} />
-        <RailButton icon="chat" label="Chat" active={shownPanel === "chat"} badge={unreadChat} onClick={() => setPanel((p) => (p === "chat" ? (wide ? "people" : null) : "chat"))} />
         <RailButton icon="users" label="Participants" active={shownPanel === "people"} badge={isMod ? waiting.length : 0} onClick={() => setPanel((p) => (p === "people" ? null : "people"))} />
-        <RailButton icon={copied ? "check" : "link"} label={copied ? "Link copied" : "Copy invite link"} onClick={() => void copyLink()} />
+        <RailButton icon="chat" label="Chat" active={shownPanel === "chat"} badge={unreadChat} onClick={() => setPanel((p) => (p === "chat" ? (wide ? "people" : null) : "chat"))} />
+        <span className="my-1.5 h-px w-8 bg-white/10" aria-hidden />
+        {isMod && <RailButton icon="party" label="Celebrate someone" accent active={!!shoutDialog} onClick={() => setShoutDialog({ target: null })} />}
+        {isMod && recSupported && (
+          <RailButton icon="record" label={rec ? `Stop recording (${mmss(now - rec.since)})` : "Record"} danger={!!rec} active={railRec} disabled={recBusy} onClick={() => (rec ? void stopRecording() : setRailRec((v) => !v))}>
+            {railRec && !rec && (
+              <div className="absolute top-0 left-full z-50 ml-3 w-72 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl ring-1 ring-white/10">
+                <p className="mb-3 font-medium">Record this meeting</p>
+                {recordChoices}
+                <button className="mt-2 w-full py-1 text-sm text-white/60 hover:text-white" onClick={() => setRailRec(false)}>Cancel</button>
+              </div>
+            )}
+          </RailButton>
+        )}
+        {canShare && <RailButton icon="screenShare" label={sharing ? "Stop sharing" : "Share screen"} active={!!sharing} onClick={() => (sharing ? stopShare() : void startShare())} />}
+        <RailButton icon="hand" label={hand ? "Lower hand" : "Raise hand"} active={hand} onClick={() => setHand((h) => !h)} />
+        <RailButton icon="grid" label={layout === "grid" ? "Switch to speaker view" : "Switch to grid view"} active={layout === "grid"} onClick={() => setLayout((l) => (l === "grid" ? "speaker" : "grid"))} />
+        {isMod && (
+          <RailButton
+            icon="download"
+            label="Download attendance"
+            disabled={attBusy}
+            onClick={() => {
+              setAttBusy(true);
+              void downloadAttendance(info.code).then((err) => {
+                setAttBusy(false);
+                toast(err ?? "Attendance downloaded.", err ? "warn" : undefined);
+              });
+            }}
+          />
+        )}
         <span className="flex-1" />
+        <RailButton icon={copied ? "check" : "link"} label={copied ? "Link copied" : "Copy invite link"} onClick={() => void copyLink()} />
         <RailButton icon="settings" label="Settings" active={shownPanel === "settings"} onClick={() => setPanel((p) => (p === "settings" ? (wide ? "people" : null) : "settings"))} />
       </nav>
 
@@ -961,13 +995,14 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
                             setShowReactions(false);
                           }}
                         >
-                          ✋ {hand ? "Lower hand" : "Raise hand"}
+                          <Icon name="hand" className="h-4 w-4" />
+                          {hand ? "Lower hand" : "Raise hand"}
                         </button>
                       </div>
                     )}
                   </div>
                   <Control icon="hand" label={hand ? "Lower hand" : "Raise hand"} active={hand} onClick={() => setHand((h) => !h)} className="hidden sm:flex" />
-                  {isMod && <Control icon="sparkle" label="Celebrate someone" active={!!shoutDialog} onClick={() => setShoutDialog({ target: null })} />}
+                  {isMod && <Control icon="party" label="Celebrate someone" active={!!shoutDialog} onClick={() => setShoutDialog({ target: null })} />}
                 </div>
               </div>
             </div>
@@ -1207,19 +1242,33 @@ function Badge({ n }: { n: number }) {
   return <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f2a93b] px-1 text-[11px] font-bold text-[#15123a]">{n > 9 ? "9+" : n}</span>;
 }
 /** Icon button in the left rail. */
-function RailButton({ icon, label, onClick, active, badge }: { icon: IconName; label: string; onClick: () => void; active?: boolean; badge?: number }) {
+function RailButton({ icon, label, onClick, active, badge, accent, danger, disabled, children }: { icon: IconName; label: string; onClick: () => void; active?: boolean; badge?: number; accent?: boolean; danger?: boolean; disabled?: boolean; children?: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      aria-pressed={active ? true : undefined}
-      className={cn("relative flex h-11 w-11 items-center justify-center rounded-2xl transition", active ? "bg-[#6a4cf5] text-white shadow-[0_8px_24px_-8px_rgba(106,76,245,.9)]" : "text-white/50 hover:bg-white/[0.07] hover:text-white")}
-    >
-      <Icon name={icon} className="h-5 w-5" />
-      {!!badge && badge > 0 && <Badge n={badge} />}
-    </button>
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        aria-pressed={active || danger ? true : undefined}
+        className={cn(
+          "relative flex h-10 w-10 items-center justify-center rounded-2xl transition disabled:opacity-40",
+          danger
+            ? "bg-[#ef3b3b] text-white"
+            : active
+              ? accent ? "bg-[#f2a93b] text-[#15123a]" : "bg-[#6a4cf5] text-white shadow-[0_8px_24px_-8px_rgba(106,76,245,.9)]"
+              : accent ? "text-[#f2c27a] hover:bg-[#f2a93b]/15" : "text-white/55 hover:bg-white/[0.07] hover:text-white",
+        )}
+      >
+        <Icon name={icon} className="h-5 w-5" />
+        {!!badge && badge > 0 && <Badge n={badge} />}
+      </button>
+      {/* Name on hover / keyboard focus */}
+      <span className="pointer-events-none absolute top-1/2 left-full z-50 ml-3 -translate-y-1/2 rounded-lg bg-[#1f1b4d] px-2.5 py-1 text-xs font-medium whitespace-nowrap opacity-0 shadow-lg ring-1 ring-white/10 transition group-focus-within:opacity-100 group-hover:opacity-100">
+        {label}
+      </span>
+      {children}
+    </div>
   );
 }
 /** Round button next to the meeting title. */
@@ -1289,7 +1338,11 @@ function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note, status 
           />
         </>
       )}
-      {p.hand_raised_at && <span className={cn("absolute z-10 rounded-full bg-[#f2a93b] px-1.5 py-0.5 leading-none", big ? "top-3 right-24 text-lg" : "top-1.5 left-1.5 text-sm")} title="Hand raised">✋</span>}
+      {p.hand_raised_at && (
+        <span className={cn("absolute z-10 flex items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a]", big ? "top-3 right-24 h-8 w-8" : "top-1.5 left-1.5 h-6 w-6")} title="Hand raised">
+          <Icon name="hand" className={big ? "h-[18px] w-[18px]" : "h-3.5 w-3.5"} />
+        </span>
+      )}
     </div>
   );
 }
@@ -1439,7 +1492,7 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
                 <span className="block truncate text-sm">{p.display_name}{p.id === meId && " (you)"}</span>
                 <span className="block text-xs text-white/45">{p.role === "host" ? "Host" : p.role === "cohost" ? "Co-host" : p.is_guest ? "Guest" : "Member"}</span>
               </span>
-              {p.hand_raised_at && <span title="Hand raised">✋</span>}
+              {p.hand_raised_at && <Icon name="hand" className="h-4 w-4 text-[#f2a93b]" title="Hand raised" />}
               <Icon name={p.audio_on ? "mic" : "micOff"} className={cn("h-4 w-4", p.audio_on ? "text-white/75" : "text-[#ff5a5f]")} title={p.audio_on ? "Mic on" : "Muted"} />
               <Icon name={p.video_on ? "video" : "videoOff"} className={cn("h-4 w-4", p.video_on ? "text-[#8f7bff]" : "text-white/30")} title={p.video_on ? "Camera on" : "Camera off"} />
               {isMod && p.id !== meId && p.role !== "host" && (
@@ -1449,7 +1502,7 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
               )}
               {menu === p.id && (
                 <div className="absolute top-10 right-2 z-10 w-44 overflow-hidden rounded-xl bg-[#26225a] text-sm shadow-xl">
-                  <button className="block w-full px-3 py-2 text-left hover:bg-white/10" onClick={() => { setMenu(null); onCelebrate(p.id); }}>🎉 Celebrate</button>
+                  <button className="block w-full px-3 py-2 text-left hover:bg-white/10" onClick={() => { setMenu(null); onCelebrate(p.id); }}><span className="flex items-center gap-2"><Icon name="party" className="h-4 w-4 text-[#f2c27a]" />Celebrate</span></button>
                   {[
                     p.audio_on && ["mute", "Mute"],
                     p.hand_raised_at && ["lower_hand", "Lower hand"],
@@ -1470,7 +1523,7 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
       {isMod && (
         <section className="space-y-2 border-t border-white/10 pt-4">
           <h3 className="text-xs font-semibold tracking-wide text-white/50 uppercase">Host controls</h3>
-          <button className="w-full rounded-xl bg-[#f2a93b] px-3 py-2 text-left text-sm font-semibold text-[#15123a] hover:bg-[#ffb94f]" onClick={() => onCelebrate(null)}>🎉 Celebrate someone</button>
+          <button className="w-full rounded-xl bg-[#f2a93b] px-3 py-2 text-left text-sm font-semibold text-[#15123a] hover:bg-[#ffb94f]" onClick={() => onCelebrate(null)}><span className="flex items-center gap-2"><Icon name="party" className="h-4 w-4" />Celebrate someone</span></button>
           <button className="w-full rounded-xl bg-white/10 px-3 py-2 text-left text-sm hover:bg-white/15" onClick={() => void moderate("mute_all")}>Mute everyone</button>
           <Toggle label="Waiting room" hint="New people wait until you let them in" on={waitingRoom} onChange={(v) => void moderate(v ? "waiting_room_on" : "waiting_room_off")} />
           <Toggle label="Lock meeting" hint="Nobody new can join" on={locked} onChange={(v) => void moderate(v ? "lock" : "unlock")} />

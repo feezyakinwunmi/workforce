@@ -80,6 +80,22 @@ export function attendanceCsv(r: Report) {
   return "﻿" + rows.map((row) => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 
+/** Download the attendance CSV now. Returns an error message, or null when it worked. */
+export async function downloadAttendance(code: string): Promise<string | null> {
+  const { data, error: e } = await createClient().rpc("meet_attendance", { p_code: code });
+  if (e || !data) return e?.message ?? "Couldn't get the attendance. Try again.";
+  const r = data as Report;
+  const date = (r.started_at ?? new Date().toISOString()).slice(0, 10);
+  const slug = (r.title || "meeting").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "meeting";
+  const url = URL.createObjectURL(new Blob([attendanceCsv(r)], { type: "text/csv;charset=utf-8" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: `attendance-${slug}-${date}.csv` });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return null;
+}
+
 export function AttendanceButton({ code, dark, className }: { code: string; dark?: boolean; className?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,21 +103,8 @@ export function AttendanceButton({ code, dark, className }: { code: string; dark
   async function download() {
     setBusy(true);
     setError(null);
-    const { data, error: e } = await createClient().rpc("meet_attendance", { p_code: code });
+    setError(await downloadAttendance(code));
     setBusy(false);
-    if (e || !data) {
-      setError(e?.message ?? "Couldn't get the attendance. Try again.");
-      return;
-    }
-    const r = data as Report;
-    const date = (r.started_at ?? new Date().toISOString()).slice(0, 10);
-    const slug = (r.title || "meeting").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "meeting";
-    const url = URL.createObjectURL(new Blob([attendanceCsv(r)], { type: "text/csv;charset=utf-8" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: `attendance-${slug}-${date}.csv` });
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
   return (
