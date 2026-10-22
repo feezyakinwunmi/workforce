@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 /**
  * The Workbase family of marks: one shape resting on the marigold base (from Femi's sketch).
  * The shape says what the product does: Workbase = the curved "work" sail, Meet = a video camera,
- * Book = a calendar with a tick. Same tile, same base, same colours, so they read as one family.
+ * Book = a calendar with a tick, Forms = a sheet with tick boxes. Same tile, same base, same colours, so they read as one family.
  */
-export type Product = "workbase" | "meet" | "book";
+export type Product = "workbase" | "meet" | "book" | "forms";
 
 /** The shape on the base, drawn on the 48-unit tile grid (white on violet). */
 function Shape({ product, on }: { product: Product; on: "tile" | "plain" }) {
@@ -27,6 +27,17 @@ function Shape({ product, on }: { product: Product; on: "tile" | "plain" }) {
         <rect x="16.5" y="9" width="3.2" height="6.5" rx="1.6" fill={fg} />
         <rect x="28.3" y="9" width="3.2" height="6.5" rx="1.6" fill={fg} />
         <path d="m18.6 20.4 3.6 3.4 7-7" fill="none" stroke={detail} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    );
+  }
+  if (product === "forms") {
+    return (
+      <>
+        <rect x="12.5" y="8.5" width="23" height="19.5" rx="3.6" fill={fg} />
+        <rect x="16.3" y="12.6" width="4.4" height="4.4" rx="1.2" fill={detail} />
+        <rect x="23" y="13.7" width="8.8" height="2.2" rx="1.1" fill={detail} />
+        <rect x="16.3" y="19.6" width="4.4" height="4.4" rx="1.2" fill="none" stroke={detail} strokeWidth="1.4" />
+        <rect x="23" y="20.7" width="8.8" height="2.2" rx="1.1" fill={detail} />
       </>
     );
   }

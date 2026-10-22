@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { LogoMark, type Product } from "@/components/logo";
+import { LogoMark, type Product as AnyProduct } from "@/components/logo";
+
+type Product = Exclude<AnyProduct, "forms">;
 import { EmptyState, InfoTip, Notice, PageHeader, Panel } from "@/components/ui";
 import { setFeedbackStatus } from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/admin/server";

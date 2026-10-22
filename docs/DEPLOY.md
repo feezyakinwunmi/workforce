@@ -262,6 +262,22 @@ Our sign-in calls run on Vercel's servers, so without this Supabase counts every
 2. First add a **custom rule → Bypass** for requests whose path starts with `/api/paystack`, `/api/push`, `/api/book/mail` or `/api/cron` (these are called by Paystack, Supabase and Vercel itself, not browsers; without the bypass, payments, push notifications and Book emails stop).
 3. If the site is ever under attack: Firewall → **Attack Mode** on, until it calms down.
 
+## 15. Workbase Forms (form builder with payments)
+
+Forms is part of the same Vercel project with its own address, like Meet and Book. People fill forms without an account; payments go straight to the form owner's bank account through Paystack subaccounts, with Workbase's 3% fee (nothing for Book Pro subscribers).
+
+**A. Database.** Already applied live (migrations 0046 `forms` and 0047 `form_notify`, 22 Oct 2026). Nothing to run.
+
+**B. Its own address.**
+1. Vercel → **Settings → Domains** → **Add** `workbase-forms.vercel.app` (or later `forms.yourdomain.com`). Any address starting with `workbase-forms` or `forms.` opens Forms at its root.
+2. Environment Variables: `NEXT_PUBLIC_FORMS_URL` = `https://workbase-forms.vercel.app` (no slash at the end).
+3. Supabase → **Authentication → URL Configuration** → Redirect URLs: add `https://workbase-forms.vercel.app/**`.
+4. Redeploy. Until then Forms already works at `https://phantomire-workforce.vercel.app/forms`.
+
+**C. Payments.** Nothing new: same `PAYSTACK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and webhook as §8 (references start with `form_`). Like Book, Paystack must allow subaccounts.
+
+**D. Test.** Open the Forms address, sign in, pick "Event registration", add your bank account (Payouts), Publish, then pay ₦100 from your phone and refund it in Paystack. Paste the website code into a WordPress **Custom HTML** block to check the embed.
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

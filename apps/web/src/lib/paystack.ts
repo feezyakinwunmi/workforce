@@ -146,6 +146,16 @@ export async function recordSuccess(tx: Transaction) {
     }
     return data ? { ok: true } : { ok: false, error: "amount or reference didn't match" };
   }
+  // Workbase Forms: paid answers ("form_").
+  if (tx.reference.startsWith("form_")) {
+    if (tx.currency !== "NGN") return { ok: false, error: "unexpected currency" };
+    const { data, error } = await admin.rpc("form_confirm_payment", { p_reference: tx.reference, p_amount_kobo: tx.amount });
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: "amount or reference didn't match" };
+    const [{ notifyMaker }, { siteUrl }] = await Promise.all([import("@/lib/forms/mail"), import("@/lib/utils")]);
+    await notifyMaker(data as string, siteUrl());
+    return { ok: true, responseId: data as string };
+  }
   // Workbase Meet plans (references start with "meet_").
   if (tx.reference.startsWith("meet_")) {
     if (tx.currency !== "NGN") return { ok: false, error: "unexpected currency" };
