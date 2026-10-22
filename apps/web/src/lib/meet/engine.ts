@@ -8,7 +8,9 @@
 
 export type Sdp = { type: "offer" | "answer"; sdp: string };
 export type Source = "mic" | "camera" | "screen";
-export type RemoteRef = { participantId: string; sessionId: string; trackName: string; source: Source };
+/** rid (cameras sent in two sizes only): "a" = sharp, "b" = small. */
+export type RemoteRef = { participantId: string; sessionId: string; trackName: string; source: Source; rid?: Rid };
+export type Rid = "a" | "b";
 type CfTrack = { mid?: string; trackName?: string; sessionId?: string; errorCode?: string };
 type Reply = { sessionDescription?: Sdp; tracks?: CfTrack[]; requiresImmediateRenegotiation?: boolean; error?: string };
 
@@ -81,12 +83,13 @@ export function silentAudioTrack(): MediaStreamTrack {
   return dest.stream.getAudioTracks()[0];
 }
 
-async function iceConfig(api: MediaApi): Promise<RTCConfiguration> {
-  const { iceServers } = await api.post<{ iceServers: RTCIceServer[] }>("ice");
-  return { iceServers, bundlePolicy: "max-bundle" };
+async function iceConfig(api: MediaApi): Promise<{ config: RTCConfiguration; simulcast: boolean }> {
+  const { iceServers, simulcast } = await api.post<{ iceServers: RTCIceServer[]; simulcast?: boolean }>("ice");
+  return { config: { iceServers, bundlePolicy: "max-bundle" }, simulcast: !!simulcast };
 }
 
-export type PublishedTrack = { name: string; kind: "audio" | "video" };
+/** simulcast: this camera is sent in two sizes, so receivers may ask for "a" (sharp) or "b" (small). */
+export type PublishedTrack = { name: string; kind: "audio" | "video"; simulcast?: boolean };
 export type SendInfo = { source: Source; name: string; cloudflare: string; bytes: number; frames: number | null; size: string | null; codec: string | null };
 
 /** "camera.3" → "camera". Track names get a number when a track is published again. */
@@ -108,18 +111,21 @@ export class Publisher {
   cloudflare = new Map<string, string>();
   /** Called when a track was published again under a new name: tell the others. */
   onTracksChanged: () => void = () => {};
+  /** Camera sent in two sizes (see cameraEncodings). */
+  simulcast = false;
   constructor(private api: MediaApi) {}
 
   /** Connect and publish mic + camera. */
-  async start(config: RTCConfiguration, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean) {
+  async start(config: RTCConfiguration, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean, simulcast = false) {
     this.lowData = lowData;
+    this.simulcast = simulcast;
     this.pc = new RTCPeerConnection(config);
     const s = await this.api.post<{ session: string; ticket: string }>("session");
     this.session = s.session;
     this.ticket = s.ticket;
     // On a weak network the browser keeps sound going and lets video suffer first.
     this.tx.set("mic", this.pc.addTransceiver(mic, { direction: "sendonly", sendEncodings: [AUDIO_ENCODING] }));
-    this.tx.set("camera", this.pc.addTransceiver(camera, { direction: "sendonly", sendEncodings: [videoEncoding(lowData)] }));
+    this.tx.set("camera", this.pc.addTransceiver(camera, { direction: "sendonly", sendEncodings: cameraEncodings(lowData, simulcast) }));
     this.names.set("mic", "mic");
     this.names.set("camera", "camera");
     await this.q.run(() => this.publish(["mic", "camera"]));
@@ -129,7 +135,11 @@ export class Publisher {
 
   /** The tracks to announce to the others. */
   tracks(): PublishedTrack[] {
-    return [...this.names.entries()].map(([source, name]) => ({ name, kind: source === "mic" ? "audio" : "video" }));
+    return [...this.names.entries()].map(([source, name]) => ({
+      name,
+      kind: source === "mic" ? "audio" : "video",
+      ...(source === "camera" && this.simulcast ? { simulcast: true } : {}),
+    }));
   }
 
   private async publish(sources: Source[]) {
@@ -153,7 +163,12 @@ export class Publisher {
     if (!sender) return;
     const p = sender.getParameters();
     if (!p.encodings?.length) p.encodings = [{}];
-    Object.assign(p.encodings[0], videoEncoding(lowData));
+    if (this.simulcast && p.encodings.length > 1) {
+      // Data saver: stop the sharp size, keep sending the small one.
+      for (const e of p.encodings) if (e.rid === "a") e.active = !lowData;
+    } else {
+      Object.assign(p.encodings[0], videoEncoding(lowData));
+    }
     await sender.setParameters(p).catch(() => undefined);
   }
 
@@ -196,7 +211,7 @@ export class Publisher {
         if (res?.sessionDescription?.type === "answer") await this.pc.setRemoteDescription(res.sessionDescription);
       }
       const replacement = track ?? (source === "mic" ? silentAudioTrack() : blackVideoTrack());
-      const sendEncodings = source === "camera" ? [videoEncoding(this.lowData)] : source === "screen" ? [SCREEN_ENCODING] : [AUDIO_ENCODING];
+      const sendEncodings = source === "camera" ? cameraEncodings(this.lowData, this.simulcast) : source === "screen" ? [SCREEN_ENCODING] : [AUDIO_ENCODING];
       this.tx.set(source, this.pc.addTransceiver(replacement, { direction: "sendonly", sendEncodings }));
       this.names.set(source, `${source}.${++this.version}`);
       await this.publish([source]);
@@ -279,6 +294,19 @@ function connectedOrTimeout(pc: RTCPeerConnection, ms: number) {
   });
 }
 
+/**
+ * Camera encodings. With simulcast the camera goes out in two sizes: "a" (full, ~600 kbps) and
+ * "b" (half size, ~150 kbps). Each receiver gets the sharp one only for the person on its big
+ * screen and the small one for thumbnails, so a 5-person call downloads ~55% less.
+ */
+function cameraEncodings(lowData: boolean, simulcast: boolean): RTCRtpEncodingParameters[] {
+  if (!simulcast) return [videoEncoding(lowData)];
+  return [
+    { rid: "a", active: !lowData, maxBitrate: 600_000, maxFramerate: 24, priority: "low", networkPriority: "low" },
+    { rid: "b", scaleResolutionDownBy: 2, maxBitrate: 150_000, maxFramerate: 15, priority: "low", networkPriority: "low" },
+  ] as RTCRtpEncodingParameters[];
+}
+
 function videoEncoding(lowData: boolean): RTCRtpEncodingParameters {
   const base = lowData ? { maxBitrate: 150_000, scaleResolutionDownBy: 2, maxFramerate: 15 } : { maxBitrate: 600_000, maxFramerate: 24 };
   return { ...base, priority: "low", networkPriority: "low" } as RTCRtpEncodingParameters;
@@ -292,6 +320,7 @@ export class Subscriber {
   private q = new Queue();
   private byMid = new Map<string, RemoteRef>();
   private pulled = new Map<string, string>(); // key -> mid
+  private rids = new Map<string, Rid>(); // key -> size I asked for (two-size cameras)
   private failures = 0;
   lastError: string | null = null;
   /** Why a track isn't being received yet (for "Connection details"). */
@@ -326,6 +355,7 @@ export class Subscriber {
     this.ticket = "";
     this.byMid.clear();
     this.pulled.clear();
+    this.rids.clear();
   }
 
   /**
@@ -370,7 +400,7 @@ export class Subscriber {
         res = await this.api.post("pull", {
           session: this.session,
           ticket: this.ticket,
-          remotes: todo.map((r) => ({ sessionId: r.sessionId, trackName: r.trackName })),
+          remotes: todo.map((r) => ({ sessionId: r.sessionId, trackName: r.trackName, ...(r.rid ? { rid: r.rid } : {}) })),
         });
       } catch (e) {
         this.lastError = e instanceof Error ? e.message : String(e);
@@ -398,6 +428,7 @@ export class Subscriber {
         if (!ref) continue;
         this.byMid.set(t.mid, ref);
         this.pulled.set(Subscriber.key(ref), t.mid);
+        if (ref.rid) this.rids.set(Subscriber.key(ref), ref.rid);
         ok.push(ref);
       }
       if (res.sessionDescription?.type === "offer") {
@@ -417,6 +448,45 @@ export class Subscriber {
     });
   }
 
+  /** The size I currently receive for this two-size camera (undefined = not two-size / not received). */
+  ridOf(r: { sessionId: string; trackName: string }) {
+    return this.rids.get(Subscriber.key(r));
+  }
+
+  /** How many cameras I receive sharp / small (for the call health report). */
+  ridSummary() {
+    let a = 0, b = 0;
+    for (const v of this.rids.values()) v === "a" ? a++ : b++;
+    return { a, b };
+  }
+
+  /**
+   * Switch cameras I already receive between sharp ("a") and small ("b"). No new connection and
+   * no renegotiation: Cloudflare just forwards the other size. Failures are harmless (the old size
+   * keeps playing) and retried by the caller.
+   */
+  setRids(changes: Array<{ ref: RemoteRef; rid: Rid }>) {
+    return this.q.run(async () => {
+      const list = changes
+        .map((c) => ({ ...c, key: Subscriber.key(c.ref), mid: this.pulled.get(Subscriber.key(c.ref)) }))
+        .filter((c): c is typeof c & { mid: string } => !!c.mid && this.rids.get(c.key) !== c.rid);
+      if (!list.length || !this.session) return;
+      const res = await this.api.post("update", {
+        session: this.session,
+        ticket: this.ticket,
+        tracks: list.map((c) => ({ mid: c.mid, sessionId: c.ref.sessionId, trackName: c.ref.trackName, rid: c.rid })),
+      });
+      const failed = new Set((res.tracks ?? []).filter((t) => t.errorCode).map((t) => t.mid));
+      for (const c of list) if (!failed.has(c.mid)) this.rids.set(c.key, c.rid);
+      if (res.sessionDescription?.type === "offer") {
+        if (this.pc.signalingState === "have-local-offer") await this.pc.setLocalDescription({ type: "rollback" }).catch(() => undefined);
+        await this.pc.setRemoteDescription(res.sessionDescription);
+        await this.pc.setLocalDescription(await this.pc.createAnswer());
+        await this.api.post("renegotiate", { session: this.session, ticket: this.ticket, answer: this.pc.localDescription!.toJSON() });
+      }
+    });
+  }
+
   /** Stop receiving these tracks. */
   drop(refs: Array<{ sessionId: string; trackName: string; participantId?: string }>) {
     return this.q.run(async () => {
@@ -429,6 +499,7 @@ export class Subscriber {
         this.pulled.delete(k);
         const ref = this.byMid.get(mid);
         this.byMid.delete(mid);
+        this.rids.delete(k);
         if (ref) this.onRemoved(ref);
       }
       if (!mids.length) return;
@@ -475,21 +546,40 @@ export class Subscriber {
   }
 }
 
-/** Starts both connections. */
-/** A fresh sending connection (when only my sending side broke). */
-export async function connectPublisher(roomId: string, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean) {
-  const api = new MediaApi(roomId);
+/**
+ * Start sending. Tries the two-size camera first; if Cloudflare (or this browser) refuses it, sends
+ * one size like before, so a call never fails because of it.
+ */
+let simulcastBroken = false; // refused once on this page: don't try again
+async function startPublisher(api: MediaApi, config: RTCConfiguration, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean, simulcast: boolean) {
+  if (simulcast && !simulcastBroken) {
+    const pub = new Publisher(api);
+    try {
+      await pub.start(config, mic, camera, lowData, true);
+      return pub;
+    } catch {
+      pub.close();
+      simulcastBroken = true;
+    }
+  }
   const pub = new Publisher(api);
-  await pub.start(await iceConfig(api), mic, camera, lowData);
+  await pub.start(config, mic, camera, lowData, false);
   return pub;
 }
 
+/** A fresh sending connection (when only my sending side broke). */
+export async function connectPublisher(roomId: string, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean) {
+  const api = new MediaApi(roomId);
+  const { config, simulcast } = await iceConfig(api);
+  return startPublisher(api, config, mic, camera, lowData, simulcast);
+}
+
+/** Starts both connections. */
 export async function connectMedia(roomId: string, mic: MediaStreamTrack, camera: MediaStreamTrack, lowData: boolean) {
   const api = new MediaApi(roomId);
-  const config = await iceConfig(api);
-  const pub = new Publisher(api);
+  const { config, simulcast } = await iceConfig(api);
   const sub = new Subscriber(api);
-  await Promise.all([pub.start(config, mic, camera, lowData), sub.start(config)]);
+  const [pub] = await Promise.all([startPublisher(api, config, mic, camera, lowData, simulcast), sub.start(config)]);
   return { pub, sub };
 }
 

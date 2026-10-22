@@ -111,6 +111,9 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const silence = useRef<MediaStreamTrack | null>(null);
   const pulled = useRef(new Map<string, RemoteRef>());
   const pullTries = useRef(new Map<string, { n: number; next: number }>());
+  // Which size of each person's camera to receive (worked out from the layout, further down).
+  const videoPlan = useRef<Record<string, "a" | "b" | "none">>({});
+  const resizeAt = useRef<Record<string, number>>({});
   // Call health, sent with the heartbeat every 20 s (technical counters only; see migration 0045).
   const diag = useRef({
     load: Math.random().toString(36).slice(2, 10), since: Date.now(),
@@ -351,9 +354,29 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         if (source === "camera" && media.dataSaver) continue;
         if (source === "screen" && !p.screen_on) continue;
         if (!["mic", "camera", "screen"].includes(source)) continue;
-        want.set(`${p.sfu_session}/${t.name}`, { participantId: p.id, sessionId: p.sfu_session!, trackName: t.name, source });
+        // Cameras: sharp for the big screen, small for thumbnails, none for people out of view
+        // on bigger calls. Sound is always received in full.
+        const size = source === "camera" ? videoPlan.current[p.id] ?? "b" : undefined;
+        if (size === "none") continue;
+        want.set(`${p.sfu_session}/${t.name}`, {
+          participantId: p.id, sessionId: p.sfu_session!, trackName: t.name, source,
+          ...(size && t.simulcast ? { rid: size } : {}),
+        });
       }
     }
+    // Cameras I already receive whose size should change (someone else is on the big screen now).
+    const resize: Array<{ ref: RemoteRef; rid: "a" | "b" }> = [];
+    for (const [k, r] of want) {
+      if (!r.rid || !pulled.current.has(k)) continue;
+      const cur = s.ridOf(r);
+      // At most one try per camera every 5 s (a failed switch keeps the old size playing).
+      if (cur && cur !== r.rid && Date.now() - (resizeAt.current[k] ?? 0) > 5000) {
+        resizeAt.current[k] = Date.now();
+        resize.push({ ref: r, rid: r.rid });
+      }
+      pulled.current.set(k, r);
+    }
+    if (resize.length) void s.setRids(resize).catch((e) => noteError(`resize: ${e instanceof Error ? e.message : e}`));
     const drop = [...pulled.current.entries()].filter(([k]) => !want.has(k)).map(([, r]) => r);
     const nowMs = Date.now();
     // Tracks that failed wait a little longer each time (2, 4, 8, then 15 s) instead of being
@@ -466,9 +489,15 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       }
       const now = new Set(Object.entries(levels.current).filter(([, l]) => l > 0.1).map(([id]) => id));
       setSpeaking((prev) => (prev.size === now.size && [...now].every((x) => prev.has(x)) ? prev : now));
+      // The big screen follows whoever talks, but only once they've been the loudest for ~1.5 s
+      // (5 checks in a row): otherwise it flips with every cough and keeps switching video sizes.
       const top = Object.entries(levels.current).filter(([id]) => id !== meId).sort((a, b) => b[1] - a[1])[0];
-      if (top && top[1] > 0.15) setLoudest(top[0]);
+      if (top && top[1] > 0.15) {
+        streak.id === top[0] ? streak.n++ : ((streak.id = top[0]), (streak.n = 1));
+        if (streak.n >= 5) setLoudest(top[0]);
+      } else streak.n = 0;
     }, 300);
+    const streak = { id: "", n: 0 };
     return () => clearInterval(t);
   }, [meId]);
 
@@ -580,7 +609,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         diag: {
           load: d.load, secs: Math.round((Date.now() - d.since) / 1000), ua: navigator.userAgent.slice(0, 160),
           send: p?.pc.connectionState ?? "none", recv: s?.pc.connectionState ?? "none", route, turn,
-          people: admittedRef.current, heard: `${heard}/${expect}`, saver: mediaRef.current.dataSaver, hidden: document.visibilityState === "hidden",
+          people: admittedRef.current, heard: `${heard}/${expect}`, sim: !!p?.simulcast, sizes: s?.ridSummary(), saver: mediaRef.current.dataSaver, hidden: document.visibilityState === "hidden",
           subResets: d.subResets, pubRebuilds: d.pubRebuilds, pullOk: d.pullOk, pullFail: d.pullFail, pullRefused: d.pullRefused,
           heals: d.heals, republish: d.republish, autoSaver: d.autoSaver, rejoins: d.rejoins, errors: d.errors,
         },
@@ -708,6 +737,58 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const gridMode = layout === "grid" && !screenOwner && !pinned && ordered.length > 1;
   const stageId = screenOwner ? null : pinned && ordered.some((p) => p.id === pinned) ? pinned : others.length ? (loudest && others.some((p) => p.id === loudest) ? loudest : others[0].id) : meId;
   const strip = screenOwner ? ordered : ordered.filter((p) => p.id !== stageId);
+
+  // ----- which cameras to receive, and in which size --------------------------
+  // Thumbnails seen in the strip (it scrolls sideways when there are many people).
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [stripSeen, setStripSeen] = useState<Set<string>>(new Set());
+  const seenAt = useRef<Record<string, number>>({});
+  const stripKey = strip.map((p) => p.id).join(",");
+  useEffect(() => {
+    const root = stripRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) =>
+        setStripSeen((prev) => {
+          const next = new Set(prev);
+          for (const e of entries) {
+            const id = (e.target as HTMLElement).dataset.pid;
+            if (!id) continue;
+            if (e.isIntersecting) next.add(id);
+            else next.delete(id);
+          }
+          return next;
+        }),
+      { root, rootMargin: "0px 160px" },
+    );
+    root.querySelectorAll<HTMLElement>("[data-pid]").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [stripKey, gridMode]);
+  const [tabHidden, setTabHidden] = useState(false);
+  useEffect(() => {
+    const f = () => setTabHidden(document.visibilityState === "hidden");
+    f();
+    document.addEventListener("visibilitychange", f);
+    return () => document.removeEventListener("visibilitychange", f);
+  }, []);
+  const plan: Record<string, "a" | "b" | "none"> = {};
+  const planNow = Date.now();
+  for (const p of others) {
+    let size: "a" | "b" | "none";
+    if (gridMode) size = others.length <= 2 ? "a" : "b";
+    else if (p.id === stageId) size = "a";
+    else {
+      if (stripSeen.has(p.id)) seenAt.current[p.id] = planNow;
+      // Off-screen people still get a small picture on calls up to 7, or if seen in the last 20 s.
+      const recently = planNow - (seenAt.current[p.id] ?? 0) < 20_000;
+      size = others.length <= 6 || stripSeen.has(p.id) || recently ? "b" : "none";
+    }
+    if (tabHidden && size === "a") size = "b";
+    plan[p.id] = size;
+  }
+  videoPlan.current = plan;
+  const planKey = Object.entries(plan).sort().map(([k, v]) => k + v).join();
+  useEffect(() => setRetry((n) => n + 1), [planKey]);
   const shownPanel = panel;
   const started = room?.started_at ?? info.starts_at;
   const whenLine = useMemo(() => {
@@ -1121,9 +1202,9 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
 
             {/* Everyone else, in a strip under the stage */}
             {!gridMode && strip.length > 0 && (
-              <div className="meet-strip flex h-[88px] shrink-0 gap-2.5 overflow-x-auto pb-1 sm:h-28 sm:gap-3">
+              <div ref={stripRef} className="meet-strip flex h-[88px] shrink-0 gap-2.5 overflow-x-auto pb-1 sm:h-28 sm:gap-3">
                 {strip.map((p) => (
-                  <div key={p.id} className="aspect-video h-full shrink-0">{tileFor(p)}</div>
+                  <div key={p.id} data-pid={p.id} className="aspect-video h-full shrink-0">{tileFor(p)}</div>
                 ))}
               </div>
             )}

@@ -51,6 +51,9 @@ async function call(path: string, method: "POST" | "PUT" | "GET", body?: unknown
   return json;
 }
 
+/** Ask for this size; if it isn't there or the line is too slow, take the next one ("a" before "b"). */
+const simulcastPick = (rid: string) => ({ preferredRid: rid, priorityOrdering: "asciibetical", ridNotAvailable: "asciibetical" });
+
 export const sfu = {
   newSession: async () => {
     const res = await call("/sessions/new", "POST");
@@ -64,9 +67,14 @@ export const sfu = {
       tracks: tracks.map((t) => ({ location: "local", mid: t.mid, trackName: t.trackName })),
     }),
   /** Subscribe to other people's tracks: Cloudflare returns an offer when renegotiation is needed. */
-  pull: (sessionId: string, remotes: Array<{ sessionId: string; trackName: string }>) =>
+  pull: (sessionId: string, remotes: Array<{ sessionId: string; trackName: string; rid?: string }>) =>
     call(`/sessions/${encodeURIComponent(sessionId)}/tracks/new`, "POST", {
-      tracks: remotes.map((r) => ({ location: "remote", sessionId: r.sessionId, trackName: r.trackName })),
+      tracks: remotes.map((r) => ({ location: "remote", sessionId: r.sessionId, trackName: r.trackName, ...(r.rid ? { simulcast: simulcastPick(r.rid) } : {}) })),
+    }),
+  /** Change which size of a two-size (simulcast) camera I receive: "a" = sharp, "b" = small. */
+  update: (sessionId: string, tracks: Array<{ mid: string; sessionId: string; trackName: string; rid: string }>) =>
+    call(`/sessions/${encodeURIComponent(sessionId)}/tracks/update`, "PUT", {
+      tracks: tracks.map((t) => ({ location: "remote", mid: t.mid, sessionId: t.sessionId, trackName: t.trackName, simulcast: simulcastPick(t.rid) })),
     }),
   /** What Cloudflare knows about a session (its tracks and their status). */
   state: (sessionId: string) => call(`/sessions/${encodeURIComponent(sessionId)}`, "GET"),

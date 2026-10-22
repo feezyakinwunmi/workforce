@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 const UUID = /^[0-9a-f-]{36}$/i;
 // "camera", or "camera.2" after a track was published again.
 const NAME = /^(mic|camera|screen|screen-audio)(\.[0-9]{1,4})?$/;
+const RID = /^[ab]$/; // camera sizes: a = sharp, b = small
 
 type Check = { ok: boolean; participant_id?: string; sessions?: string[] };
 
@@ -52,7 +53,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     switch (body.op) {
       case "ice":
-        return NextResponse.json({ iceServers: await iceServers() });
+        // simulcast = cameras sent in two sizes (receivers pick sharp or small). MEET_SIMULCAST=off
+        // in the server settings turns it off for new connections, without anyone reloading.
+        return NextResponse.json({ iceServers: await iceServers(), simulcast: process.env.MEET_SIMULCAST !== "off" });
 
       case "session": {
         const session = await sfu.newSession();
@@ -81,13 +84,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         // alone ("not in the meeting") instead of refusing the whole request, which used to cut
         // everyone else's sound while the receiving side was rebuilt.
         const allowed = new Set(check.sessions ?? []);
-        const ok = remotes.filter((r) => allowed.has(String(r?.sessionId)) && NAME.test(String(r?.trackName)) && r.sessionId !== session);
+        const ok = remotes
+          .filter((r) => allowed.has(String(r?.sessionId)) && NAME.test(String(r?.trackName)) && r.sessionId !== session)
+          .map((r) => ({ sessionId: String(r.sessionId), trackName: String(r.trackName), ...(RID.test(String((r as { rid?: string }).rid)) ? { rid: String((r as { rid?: string }).rid) } : {}) }));
+        const okKeys = new Set(ok.map((r) => `${r.sessionId}/${r.trackName}`));
         const refused = remotes
-          .filter((r) => !ok.includes(r))
+          .filter((r) => !okKeys.has(`${r?.sessionId}/${r?.trackName}`))
           .map((r) => ({ sessionId: String(r?.sessionId ?? ""), trackName: String(r?.trackName ?? ""), errorCode: "not_in_meeting", errorDescription: "That person isn't in this meeting right now." }));
         if (!ok.length) return NextResponse.json({ tracks: refused });
         const res = await sfu.pull(session, ok);
         return NextResponse.json({ ...res, tracks: [...(res.tracks ?? []), ...refused] });
+      }
+      case "update": {
+        // Switch between the sharp and small size of cameras I already receive.
+        const tracks = body.tracks as Array<{ mid: string; sessionId: string; trackName: string; rid: string }>;
+        const allowed = new Set(check.sessions ?? []);
+        if (!Array.isArray(tracks) || !tracks.length || tracks.length > 60
+            || !tracks.every((t) => typeof t?.mid === "string" && t.mid.length < 20 && allowed.has(String(t.sessionId)) && NAME.test(String(t.trackName)) && RID.test(String(t.rid)))) {
+          return bad("Bad update request");
+        }
+        return NextResponse.json(await sfu.update(session, tracks));
       }
       case "state": {
         // Only the tracks' names and status go back to the browser.

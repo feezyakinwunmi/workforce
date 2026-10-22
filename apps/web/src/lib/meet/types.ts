@@ -1,4 +1,5 @@
-export type MeetTrack = { name: "mic" | "camera" | "screen"; kind: "audio" | "video" };
+/** simulcast: camera sent in two sizes ("a" sharp, "b" small). name may carry a number ("camera.2"). */
+export type MeetTrack = { name: string; kind: "audio" | "video"; simulcast?: boolean };
 
 export type Participant = {
   id: string;
