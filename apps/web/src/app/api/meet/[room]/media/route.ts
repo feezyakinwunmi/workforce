@@ -76,12 +76,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       case "pull": {
         const remotes = body.remotes as Array<{ sessionId: string; trackName: string }>;
         if (!Array.isArray(remotes) || !remotes.length || remotes.length > 60) return bad("Bad subscribe request");
-        // Only tracks published by people in this meeting.
+        // Only tracks published by people in this meeting. Someone who just rejoined has a new
+        // session and the browser may still ask for the old one for a moment: answer for that track
+        // alone ("not in the meeting") instead of refusing the whole request, which used to cut
+        // everyone else's sound while the receiving side was rebuilt.
         const allowed = new Set(check.sessions ?? []);
-        if (!remotes.every((r) => allowed.has(String(r?.sessionId)) && NAME.test(String(r?.trackName)) && r.sessionId !== session)) {
-          return bad("That person isn't in this meeting.", 403);
-        }
-        return NextResponse.json(await sfu.pull(session, remotes));
+        const ok = remotes.filter((r) => allowed.has(String(r?.sessionId)) && NAME.test(String(r?.trackName)) && r.sessionId !== session);
+        const refused = remotes
+          .filter((r) => !ok.includes(r))
+          .map((r) => ({ sessionId: String(r?.sessionId ?? ""), trackName: String(r?.trackName ?? ""), errorCode: "not_in_meeting", errorDescription: "That person isn't in this meeting right now." }));
+        if (!ok.length) return NextResponse.json({ tracks: refused });
+        const res = await sfu.pull(session, ok);
+        return NextResponse.json({ ...res, tracks: [...(res.tracks ?? []), ...refused] });
       }
       case "state": {
         // Only the tracks' names and status go back to the browser.

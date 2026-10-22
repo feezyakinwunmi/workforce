@@ -255,6 +255,39 @@ export function useLocalMedia() {
 // ---------------------------------------------------------------------------
 // Small pieces
 // ---------------------------------------------------------------------------
+
+/**
+ * Links opened from WhatsApp, Instagram, Facebook, TikTok… open in that app's built-in browser,
+ * where calls often break (sound drops, camera or mic missing). Ask people to open Chrome/Safari.
+ */
+function InAppBrowserNotice() {
+  const [kind, setKind] = useState<"android" | "ios" | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    const inApp = /; wv\)|FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Snapchat|TikTok|musical_ly|Twitter|Line\/|GSA\//i.test(ua);
+    if (inApp) setKind(/iPhone|iPad|iPod/i.test(ua) ? "ios" : "android");
+  }, []);
+  if (!kind) return null;
+  const url = typeof window !== "undefined" ? window.location.href : "";
+  const chrome = `intent://${url.replace(/^https?:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;end`;
+  return (
+    <div role="alert" className="space-y-2 rounded-xl bg-[#f2a93b]/15 px-4 py-3 text-sm text-[#ffe0ad]">
+      <p className="font-semibold text-[#f2c27a]">Open this meeting in {kind === "ios" ? "Safari" : "Chrome"}</p>
+      <p>You opened the link inside another app. Calls there often lose sound. {kind === "ios" ? "Tap the menu (••• or the share icon) and choose Open in Safari." : "Tap below to open it in Chrome."}</p>
+      <div className="flex flex-wrap gap-2">
+        {kind === "android" && <a href={chrome} className="rounded-lg bg-[#f2a93b] px-3 py-1.5 font-semibold text-[#15123a]">Open in Chrome</a>}
+        <button
+          type="button"
+          className="rounded-lg bg-white/10 px-3 py-1.5 font-medium text-white hover:bg-white/15"
+          onClick={() => void navigator.clipboard?.writeText(url).then(() => setCopied(true), () => undefined)}
+        >
+          {copied ? "Link copied" : "Copy link"}
+        </button>
+      </div>
+    </div>
+  );
+}
 export function VideoView({ track, mirror, className, contain }: { track: MediaStreamTrack | null | undefined; mirror?: boolean; className?: string; contain?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -546,6 +579,7 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
                   This meeting is being recorded. By joining, your video, sound and name may appear in the recording.
                 </p>
               )}
+              <InAppBrowserNotice />
               {error && <p role="alert" className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-200">{error}</p>}
               {info.locked && !info.is_host && <p className="text-sm text-white/60">The host locked this meeting. Only people already let in can join.</p>}
               <div className="flex flex-wrap items-center gap-3">

@@ -21,9 +21,24 @@ export class MediaApi {
       body: JSON.stringify({ op, ...body }),
     });
     const json = (await res.json().catch(() => ({}))) as T & { error?: string };
-    if (!res.ok) throw new Error(json.error || `Media request failed (${res.status})`);
+    if (!res.ok) throw new MediaRequestError(json.error || `Media request failed (${res.status})`, res.status);
     return json;
   }
+}
+
+export class MediaRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+/** Is this error a sign that our own receiving session is gone (so it must be rebuilt)? */
+function sessionGone(e: unknown) {
+  if (!(e instanceof MediaRequestError)) return false;
+  // 403 = a person/permission problem, 429 = slow down, 5xx = service hiccup: none of these
+  // mean our connection is broken, and rebuilding it would cut everyone's sound.
+  if (e.status === 404 || e.status === 410) return true;
+  return e.status === 400 && /session/i.test(e.message);
 }
 
 /** Runs async jobs one after another (Cloudflare wants one change at a time per session). */
@@ -358,10 +373,12 @@ export class Subscriber {
           remotes: todo.map((r) => ({ sessionId: r.sessionId, trackName: r.trackName })),
         });
       } catch (e) {
-        // The session may have expired or broken: after two failures in a row, start a fresh one.
         this.lastError = e instanceof Error ? e.message : String(e);
         for (const r of todo) this.problems.set(Subscriber.key(r), this.lastError);
-        if (++this.failures >= 2) {
+        // Rebuild the receiving side ONLY when Cloudflare no longer knows our session (it drops one
+        // that never connected). Any other failure is retried later and everything already being
+        // received keeps playing.
+        if (sessionGone(e) && ++this.failures >= 2) {
           this.failures = 0;
           this.reset();
         }
@@ -385,6 +402,8 @@ export class Subscriber {
       }
       if (res.sessionDescription?.type === "offer") {
         try {
+          // A failed earlier change may have left our own offer pending: undo it first.
+          if (this.pc.signalingState === "have-local-offer") await this.pc.setLocalDescription({ type: "rollback" }).catch(() => undefined);
           await this.pc.setRemoteDescription(res.sessionDescription);
           const answer = await this.pc.createAnswer();
           await this.pc.setLocalDescription(answer);
@@ -420,10 +439,18 @@ export class Subscriber {
         this.reset();
         return;
       }
-      const offer = await this.pc.createOffer();
-      await this.pc.setLocalDescription(offer);
-      const res = await this.api.post("close", { session: this.session, ticket: this.ticket, mids, offer: this.pc.localDescription!.toJSON() });
-      if (res.sessionDescription?.type === "answer") await this.pc.setRemoteDescription(res.sessionDescription);
+      try {
+        const offer = await this.pc.createOffer();
+        await this.pc.setLocalDescription(offer);
+        const res = await this.api.post("close", { session: this.session, ticket: this.ticket, mids, offer: this.pc.localDescription!.toJSON() });
+        if (res.sessionDescription?.type === "answer") await this.pc.setRemoteDescription(res.sessionDescription);
+        else throw new Error("No answer");
+      } catch {
+        // Couldn't tell Cloudflare: undo our half of the change so the connection stays usable, and
+        // just stop sending those tracks from its side (no renegotiation needed).
+        if (this.pc.signalingState === "have-local-offer") await this.pc.setLocalDescription({ type: "rollback" }).catch(() => undefined);
+        await this.api.post("close", { session: this.session, ticket: this.ticket, mids }).catch(() => undefined);
+      }
     });
   }
 
@@ -496,10 +523,28 @@ export function signalScore(rtt: number | null, lossRate: number, connected: boo
   return 3;
 }
 
-/** Loudness 0–1 of an audio track, for the "speaking" ring. Returns a stop function. */
+/**
+ * Loudness 0–1 of MY microphone, for the "speaking" ring. Uses ONE shared AudioContext: phones
+ * (iPhones above all) allow only a few, and one per person used to break call sound there.
+ * Returns a stop function.
+ */
+let sharedAc: AudioContext | null = null;
+function audioContext() {
+  if (!sharedAc || sharedAc.state === "closed") {
+    sharedAc = new AudioContext();
+    const resume = () => void sharedAc?.resume().catch(() => undefined);
+    document.addEventListener("pointerdown", resume);
+    document.addEventListener("visibilitychange", resume);
+  }
+  return sharedAc;
+}
 export function watchLevel(track: MediaStreamTrack, onLevel: (level: number) => void) {
-  const AC = window.AudioContext;
-  const ac = new AC();
+  let ac: AudioContext;
+  try {
+    ac = audioContext();
+  } catch {
+    return () => {};
+  }
   const src = ac.createMediaStreamSource(new MediaStream([track]));
   const an = ac.createAnalyser();
   an.fftSize = 512;
@@ -513,6 +558,17 @@ export function watchLevel(track: MediaStreamTrack, onLevel: (level: number) => 
   }, 150);
   return () => {
     clearInterval(t);
-    void ac.close();
+    try {
+      src.disconnect();
+    } catch {
+      // already gone
+    }
   };
+}
+
+/** Loudness 0–1 of someone else's sound, from what the browser reports for that stream (no audio processing). */
+export function receiverLevel(pc: RTCPeerConnection | undefined, track: MediaStreamTrack) {
+  const r = pc?.getReceivers().find((x) => x.track === track);
+  const src = r?.getSynchronizationSources?.()[0];
+  return src && typeof src.audioLevel === "number" ? Math.min(1, src.audioLevel * 4) : 0;
 }

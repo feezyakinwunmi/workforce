@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/icons";
 import { LogoMark } from "@/components/logo";
-import { blackVideoTrack, connectMedia, connectPublisher, readStats, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
+import { blackVideoTrack, connectMedia, connectPublisher, readStats, receiverLevel, signalScore, silentAudioTrack, sourceOf, watchLevel, type Publisher, type RemoteRef, type SendInfo, type Source, type Subscriber } from "@/lib/meet/engine";
 import { meetingLink } from "@/lib/meet/paths";
 import { downloadAttendance } from "../attendance";
 import { canRecord, MeetRecorder, type RecordInputs } from "@/lib/meet/recorder";
@@ -110,6 +110,18 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const black = useMemo(() => (typeof document === "undefined" ? null : blackVideoTrack()), []);
   const silence = useRef<MediaStreamTrack | null>(null);
   const pulled = useRef(new Map<string, RemoteRef>());
+  const pullTries = useRef(new Map<string, { n: number; next: number }>());
+  // Call health, sent with the heartbeat every 20 s (technical counters only; see migration 0045).
+  const diag = useRef({
+    load: Math.random().toString(36).slice(2, 10), since: Date.now(),
+    subResets: 0, pubRebuilds: 0, pullOk: 0, pullFail: 0, pullRefused: 0, heals: 0, republish: 0, autoSaver: 0, rejoins: 0,
+    errors: [] as string[],
+  });
+  const noteError = (m: string) => {
+    const e = diag.current.errors;
+    e.push(`${Math.round((Date.now() - diag.current.since) / 1000)}s ${m.slice(0, 90)}`);
+    if (e.length > 8) e.shift();
+  };
   const [retry, setRetry] = useState(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remote, setRemote] = useState<RemoteMedia>({});
@@ -147,9 +159,14 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
             return { ...r, [ref.participantId]: cur };
           });
         // A track published again under a new name: tell the others so they receive the new one.
-        p.onTracksChanged = () => update({ tracks: p.tracks() });
+        p.onTracksChanged = () => {
+          diag.current.republish++;
+          update({ tracks: p.tracks() });
+        };
         s.onReset = () => {
+          diag.current.subResets++;
           pulled.current.clear();
+          pullTries.current.clear();
           setRetry((n) => n + 1);
         };
         setConnected(true);
@@ -198,13 +215,18 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         np.close();
         return;
       }
-      np.onTracksChanged = () => update({ tracks: np.tracks() });
+      np.onTracksChanged = () => {
+        diag.current.republish++;
+        update({ tracks: np.tracks() });
+      };
       pub.current = np;
+      diag.current.pubRebuilds++;
       old.close();
       if (sharingRef.current) await np.shareScreen(sharingRef.current);
       update({ sfu_session: np.session, tracks: np.tracks() });
-    } catch {
+    } catch (e) {
       // Still no network: the watchdog tries again.
+      noteError(`send rebuild: ${e instanceof Error ? e.message : e}`);
     } finally {
       rebuildingPub.current = false;
     }
@@ -259,6 +281,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   useEffect(() => {
     if (!me || me.status !== "left" || rejoining.current || exited.current) return;
     rejoining.current = true;
+    diag.current.rejoins++;
     void (async () => {
       const { error } = await createClient().rpc("meet_join", { p_code: info.code, p_name: join.name });
       rejoining.current = false;
@@ -332,7 +355,10 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       }
     }
     const drop = [...pulled.current.entries()].filter(([k]) => !want.has(k)).map(([, r]) => r);
-    const fresh = [...want.entries()].filter(([k]) => !pulled.current.has(k)).map(([, r]) => r);
+    const nowMs = Date.now();
+    // Tracks that failed wait a little longer each time (2, 4, 8, then 15 s) instead of being
+    // asked for every 2 s: a flood of requests made calls with several people worse.
+    const fresh = [...want.entries()].filter(([k]) => !pulled.current.has(k) && (pullTries.current.get(k)?.next ?? 0) <= nowMs).map(([, r]) => r);
     for (const r of drop) pulled.current.delete(`${r.sessionId}/${r.trackName}`);
     for (const r of fresh) pulled.current.set(`${r.sessionId}/${r.trackName}`, r);
     if (drop.length) void s.drop(drop).catch(() => undefined);
@@ -340,10 +366,32 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       // Someone who just joined may still be connecting: try what didn't work again shortly.
       const again = (refs: RemoteRef[]) => {
         if (!refs.length || sub.current !== s) return;
-        for (const r of refs) pulled.current.delete(`${r.sessionId}/${r.trackName}`);
-        if (!retryTimer.current) retryTimer.current = setTimeout(() => ((retryTimer.current = null), setRetry((n) => n + 1)), 2000);
+        const at = Date.now();
+        let soonest = Infinity;
+        for (const r of refs) {
+          const k = `${r.sessionId}/${r.trackName}`;
+          pulled.current.delete(k);
+          const t = pullTries.current.get(k) ?? { n: 0, next: 0 };
+          t.n++;
+          t.next = at + Math.min(15_000, 2000 * 2 ** Math.min(t.n - 1, 3));
+          pullTries.current.set(k, t);
+          soonest = Math.min(soonest, t.next);
+        }
+        if (!retryTimer.current) retryTimer.current = setTimeout(() => ((retryTimer.current = null), setRetry((n) => n + 1)), Math.max(500, soonest - at));
       };
-      void s.pull(fresh).then(again, () => again(fresh));
+      void s.pull(fresh).then(
+        (failed) => {
+          diag.current.pullOk += fresh.length - failed.length;
+          diag.current.pullRefused += failed.length;
+          for (const r of fresh) if (!failed.includes(r)) pullTries.current.delete(`${r.sessionId}/${r.trackName}`);
+          again(failed);
+        },
+        (e) => {
+          diag.current.pullFail++;
+          noteError(`pull: ${e instanceof Error ? e.message : e}`);
+          again(fresh);
+        },
+      );
     }
   }, [connected, admitted, meId, media.dataSaver, retry]);
   useEffect(() => () => void (retryTimer.current && clearTimeout(retryTimer.current)), []);
@@ -406,14 +454,16 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const levels = useRef<Record<string, number>>({});
   const [speaking, setSpeaking] = useState<Set<string>>(new Set());
   const [loudest, setLoudest] = useState<string | null>(null);
+  // Mine from the microphone (one shared AudioContext); everyone else's from the stream stats.
   useEffect(() => {
-    const stops: Array<() => void> = [];
-    for (const [pid, tracks] of Object.entries(remote)) if (tracks.mic) stops.push(watchLevel(tracks.mic, (l) => (levels.current[pid] = l)));
-    if (media.mic) stops.push(watchLevel(media.mic, (l) => (levels.current[meId] = media.micOn ? l : 0)));
-    return () => stops.forEach((s) => s());
-  }, [remote, media.mic, media.micOn, meId]);
+    if (!media.mic) return;
+    return watchLevel(media.mic, (l) => (levels.current[meId] = media.micOn ? l : 0));
+  }, [media.mic, media.micOn, meId]);
   useEffect(() => {
     const t = setInterval(() => {
+      for (const [pid, tracks] of Object.entries(remoteRef.current)) {
+        levels.current[pid] = tracks.mic ? receiverLevel(sub.current?.pc, tracks.mic) : 0;
+      }
       const now = new Set(Object.entries(levels.current).filter(([, l]) => l > 0.1).map(([id]) => id));
       setSpeaking((prev) => (prev.size === now.size && [...now].every((x) => prev.has(x)) ? prev : now));
       const top = Object.entries(levels.current).filter(([id]) => id !== meId).sort((a, b) => b[1] - a[1])[0];
@@ -428,6 +478,11 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
   const inbound = useRef<Record<string, { bytes: number; at: number }>>({});
   const [weak, setWeak] = useState<Set<string>>(new Set());
   const remoteRef = useRef(remote);
+  // Whose mic is on: someone muted may send nothing at all (iPhones), which isn't a broken stream.
+  const micOnRef = useRef<Record<string, boolean>>({});
+  const admittedRef = useRef(0);
+  admittedRef.current = admitted.length;
+  micOnRef.current = Object.fromEntries(admitted.map((p) => [p.id, !!p.audio_on]));
   remoteRef.current = remote;
   const weakSelf = useRef(0);
   const autoSaver = useRef(false);
@@ -451,6 +506,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       weakSelf.current = ok && score <= 1 && !sharingRef.current && document.visibilityState === "visible" ? weakSelf.current + 1 : 0;
       if (weakSelf.current === 4 && !autoSaver.current && !mediaRef.current.dataSaver) {
         autoSaver.current = true;
+        diag.current.autoSaver++;
         mediaRef.current.toggleDataSaver();
         toast("Your connection is weak, so we turned on Data saver to keep the sound clear. You can turn it off in Settings.", "warn");
       }
@@ -468,9 +524,11 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         else if (now - prev.at > 8000) next.add(pid);
         // Nothing from them for 12 s although their own connection is fine (they're still
         // checking in) and mine is up: my copy of their stream is stuck, so receive it again.
-        if (prev && now - prev.at > 12_000 && linksRef.current[pid] === "ok" && sub.current.pc.connectionState === "connected"
-            && now - (healed.current[pid] ?? 0) > 30_000) {
+        // (20 s, at most once a minute per person: each re-receive renegotiates the whole connection.)
+        if (prev && now - prev.at > 20_000 && micOnRef.current[pid] && linksRef.current[pid] === "ok" && sub.current.pc.connectionState === "connected"
+            && now - (healed.current[pid] ?? 0) > 60_000) {
           healed.current[pid] = now;
+          diag.current.heals++;
           inbound.current[pid] = { bytes, at: now };
           const refs = [...pulled.current.values()].filter((r) => r.participantId === pid);
           for (const r of refs) pulled.current.delete(`${r.sessionId}/${r.trackName}`);
@@ -485,6 +543,56 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       void tick().finally(() => (busy = false));
     });
   }, [connected, toast]);
+
+  // ----- call health report (every 20 s with the heartbeat) -------------------
+  const heardBytes = useRef<Record<string, number>>({});
+  useEffect(() => {
+    if (!connected) return;
+    const report = async () => {
+      const p = pub.current, s = sub.current;
+      // Which route my sending connection uses: host/srflx = direct, relay = through TURN.
+      let route = "";
+      try {
+        const st = await p?.pc.getStats();
+        st?.forEach((x) => {
+          if (x.type === "transport" && x.selectedCandidatePairId) {
+            const pair = st.get(x.selectedCandidatePairId) as { localCandidateId?: string; currentRoundTripTime?: number } | undefined;
+            const local = pair?.localCandidateId ? (st.get(pair.localCandidateId) as { candidateType?: string; protocol?: string; relayProtocol?: string } | undefined) : undefined;
+            route = [local?.candidateType, local?.protocol, local?.relayProtocol, pair?.currentRoundTripTime != null ? `${Math.round(pair.currentRoundTripTime * 1000)}ms` : ""].filter(Boolean).join("/");
+          }
+        });
+      } catch {
+        // no stats
+      }
+      // How many of the people I should hear are actually reaching me.
+      let expect = 0, heard = 0;
+      for (const [, tracks] of Object.entries(remoteRef.current)) {
+        if (!tracks.mic || !s) continue;
+        expect++;
+        const b = (await s.info(tracks.mic)).bytes;
+        if (b > (heardBytes.current[tracks.mic.id] ?? 0)) heard++;
+        heardBytes.current[tracks.mic.id] = b;
+      }
+      const servers = p?.pc.getConfiguration().iceServers ?? [];
+      const turn = servers.some((x) => ([] as string[]).concat(x.urls ?? []).some((u) => u.startsWith("turn")));
+      const d = diag.current;
+      update({
+        diag: {
+          load: d.load, secs: Math.round((Date.now() - d.since) / 1000), ua: navigator.userAgent.slice(0, 160),
+          send: p?.pc.connectionState ?? "none", recv: s?.pc.connectionState ?? "none", route, turn,
+          people: admittedRef.current, heard: `${heard}/${expect}`, saver: mediaRef.current.dataSaver, hidden: document.visibilityState === "hidden",
+          subResets: d.subResets, pubRebuilds: d.pubRebuilds, pullOk: d.pullOk, pullFail: d.pullFail, pullRefused: d.pullRefused,
+          heals: d.heals, republish: d.republish, autoSaver: d.autoSaver, rejoins: d.rejoins, errors: d.errors,
+        },
+      });
+    };
+    const first = setTimeout(() => void report(), 5000);
+    const stop = workerTicker(20_000, () => void report());
+    return () => {
+      clearTimeout(first);
+      stop();
+    };
+  }, [connected, update]);
 
   // ----- time limit ---------------------------------------------------------
   const [now, setNow] = useState(() => Date.now());
@@ -529,7 +637,11 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
 
   // Leaving: the button, closing the tab, or going back.
   useEffect(() => {
-    const onHide = () => void leaveOnUnload(roomId);
+    // persisted = the browser only put the page aside (switching apps on a phone) and may bring it
+    // back: don't leave then, or everyone has to reconnect to you when you return.
+    const onHide = (e: PageTransitionEvent) => {
+      if (!e.persisted) void leaveOnUnload(roomId);
+    };
     window.addEventListener("pagehide", onHide);
     return () => window.removeEventListener("pagehide", onHide);
   }, [roomId]);
