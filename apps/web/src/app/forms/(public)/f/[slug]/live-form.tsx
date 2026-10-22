@@ -1,11 +1,11 @@
 "use client";
 
 import { FormView, type Uploader } from "@/app/forms/form-view";
-import type { PublicForm } from "@/lib/forms/schema";
+import type { Answers, PublicForm } from "@/lib/forms/schema";
 import { createClient } from "@/lib/supabase/client";
-import { startUpload, submitForm } from "../../actions";
+import { startUpload, submitForm, updateAnswer } from "../../actions";
 
-export function LiveForm({ form, embed, homeUrl }: { form: PublicForm; embed: boolean; homeUrl: string }) {
+export function LiveForm({ form, embed, homeUrl, edit }: { form: PublicForm; embed: boolean; homeUrl: string; edit?: { token: string; answers: Answers } }) {
   // Our server hands out a one-time link; the file then goes straight from the phone to Storage.
   const upload: Uploader = async (fieldId, file) => {
     const start = await startUpload(form.slug, fieldId, { name: file.name, size: file.size, type: file.type });
@@ -24,7 +24,9 @@ export function LiveForm({ form, embed, homeUrl }: { form: PublicForm; embed: bo
       pro={form.pro}
       homeUrl={homeUrl}
       upload={upload}
-      onSubmit={(raw, captcha) => submitForm(form.slug, raw, captcha, embed ? document.referrer : "")}
+      initial={edit?.answers}
+      editing={Boolean(edit)}
+      onSubmit={(raw, captcha) => (edit ? updateAnswer(form.slug, edit.token, raw, captcha) : submitForm(form.slug, raw, captcha, embed ? document.referrer : ""))}
     />
   );
 }

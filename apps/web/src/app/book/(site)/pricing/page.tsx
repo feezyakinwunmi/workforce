@@ -9,7 +9,7 @@ export default async function BookPricing() {
   const start = user ? base || "/" : `/signup?next=${encodeURIComponent(base || "/")}`;
   const plans = [
     { name: "Free", price: "₦0", per: "forever", items: ["Your booking page and link", "Unlimited services and bookings", "Deposits and full payments by Paystack", "Workbase keeps 3% of online payments", "Email reminders and calendar files", "Video calls with Workbase Meet"], cta: user ? "Open Book" : "Start free" },
-    { name: "Book Pro", price: "₦2,000", per: "a month", items: ["Everything in Free", "No Workbase fee on payments", "No “Powered by” badge", "Your own colour"], cta: user ? "Upgrade in Settings" : "Start free, upgrade later", hot: true },
+    { name: "Pro", price: "₦2,000", per: "a month", items: ["Everything in Free", "No Workbase fee on payments", "No “Powered by” badge", "Your own colour", "Also covers Workbase Forms: no fee, Google Sheets, 10 GB files"], cta: user ? "Upgrade in Settings" : "Start free, upgrade later", hot: true },
   ];
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">

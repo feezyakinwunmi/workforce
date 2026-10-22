@@ -67,6 +67,8 @@ export type FormSettings = {
   max_responses?: number;
   /** Email the maker for each answer (default on). */
   notify?: boolean;
+  /** People get a private link to change their answer while the form is open. */
+  allow_edit?: boolean;
   color?: string;
   payment?: Payment;
 };
@@ -220,6 +222,7 @@ export function sanitizeForm(raw: unknown): FormDef {
     redirect_url: /^https:\/\/[^\s]+$/i.test(s(st.redirect_url, 500).trim()) ? s(st.redirect_url, 500).trim() : undefined,
     max_responses: Math.max(0, Math.min(1_000_000, Math.round(n(st.max_responses) ?? 0))) || undefined,
     notify: st.notify === false ? false : true,
+    allow_edit: st.allow_edit === true || undefined,
     color: /^#[0-9a-f]{6}$/i.test(s(st.color, 7)) ? s(st.color, 7) : undefined,
     payment: p.enabled
       ? { enabled: true, amount: kobo(p.amount), custom: p.custom === true, min: kobo(p.min), label: s(p.label, 80).trim() }

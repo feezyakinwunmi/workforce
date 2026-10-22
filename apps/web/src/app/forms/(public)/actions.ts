@@ -2,6 +2,7 @@
 
 import { after } from "next/server";
 import type { SubmitResult } from "@/app/forms/form-view";
+import { syncAnswer } from "@/lib/forms/google";
 import { notifyMaker } from "@/lib/forms/mail";
 import { checkAnswers, fileTypesFor, filesIn, MAX_FILE_BYTES, safeFileName, type PublicForm } from "@/lib/forms/schema";
 import { formsOrigin, formsRequestBase, visitorIp } from "@/lib/forms/server";
@@ -44,9 +45,19 @@ export async function submitForm(slug: string, raw: Record<string, unknown>, cap
   const r = data as Submitted;
   const [origin, base] = await Promise.all([formsOrigin(), formsRequestBase()]);
 
+  // Private link to change the answer later (only when the form allows it).
+  let editUrl: string | undefined;
+  if (form.settings.allow_edit) {
+    const { data: token } = await admin.rpc("form_issue_edit_token", { p_response: r.id });
+    if (token) editUrl = `${origin}${base}/f/${slug}?edit=${token}`;
+  }
+
   if (r.status === "received") {
-    after(() => notifyMaker(r.id, origin, base));
-    return { done: { message: form.settings.success_message || "Thanks! Your answers were sent.", redirect: form.settings.redirect_url } };
+    after(async () => {
+      await notifyMaker(r.id, origin, base);
+      await syncAnswer(r.id);
+    });
+    return { done: { message: form.settings.success_message || "Thanks! Your answers were sent.", redirect: form.settings.redirect_url, editUrl } };
   }
   if (!paystackConfigured() || !r.reference || !r.subaccount || !r.email) {
     return { error: "Payments aren't available right now. Please try again later." };
@@ -82,9 +93,37 @@ export async function startUpload(slug: string, fieldId: string, file: { name: s
   if (!(file.size > 0 && file.size <= MAX_FILE_BYTES)) return { error: "Files can be up to 10 MB." };
   if (!fileTypesFor(field.accept).includes(String(file.type))) return { error: "This kind of file isn't allowed here." };
   const path = `${form.id}/${crypto.randomUUID()}/${safeFileName(String(file.name))}`;
-  const { error } = await admin.rpc("form_upload_start", { p_slug: slug, p_field: fieldId, p_path: path, p_ip: await visitorIp() });
+  const { error } = await admin.rpc("form_upload_start", { p_slug: slug, p_field: fieldId, p_path: path, p_ip: await visitorIp(), p_size: file.size });
   if (error) return { error: error.message };
   const { data, error: e2 } = await admin.storage.from("form-files").createSignedUploadUrl(path);
   if (e2 || !data) return { error: "Couldn't start the upload. Try again." };
   return { path: data.path, token: data.token };
+}
+
+/** Save changes made through an answer's private edit link (same checks as a new answer). */
+export async function updateAnswer(slug: string, token: string, raw: Record<string, unknown>, captcha: string | null): Promise<SubmitResult> {
+  if (typeof slug !== "string" || !/^[a-z0-9]{8}$/.test(slug) || typeof token !== "string" || !/^[0-9a-f]{64}$/.test(token) || !raw || typeof raw !== "object") {
+    return { error: "This edit link isn't valid." };
+  }
+  const human = await checkHuman(captcha ?? "");
+  if (human) return { error: human };
+  const admin = createAdminClient();
+  const { data: f } = await admin.rpc("form_public", { p_slug: slug });
+  const form = f as PublicForm | null;
+  if (!form || !form.settings.allow_edit) return { error: "This answer can't be changed any more." };
+  const { answers, email, amount, errors } = checkAnswers(form, raw, { formId: form.id });
+  if (Object.keys(errors).length) return { errors };
+  const { data: id, error } = await admin.rpc("form_update_response", {
+    p_slug: slug,
+    p_token: token,
+    p_answers: answers,
+    p_email: email,
+    p_amount_kobo: amount,
+    p_files: filesIn(answers).map((x) => x.path),
+    p_ip: await visitorIp(),
+  });
+  if (error) return { error: error.message };
+  after(() => syncAnswer(id as string));
+  const [origin, base] = await Promise.all([formsOrigin(), formsRequestBase()]);
+  return { done: { message: "Your changes were saved.", editUrl: `${origin}${base}/f/${slug}?edit=${token}` } };
 }

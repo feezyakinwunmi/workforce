@@ -276,6 +276,16 @@ Forms is part of the same Vercel project with its own address, like Meet and Boo
 
 **C. Payments.** Nothing new: same `PAYSTACK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and webhook as §8 (references start with `form_`). Like Book, Paystack must allow subaccounts.
 
+**E. Google Sheets sync (Pro).** Uses the same Google Cloud project as "Continue with Google" (§13).
+1. Google Cloud → **APIs & Services → Library** → search **Google Sheets API** → **Enable**.
+2. **OAuth consent screen** (Google Auth Platform) → **Data access** → **Add or remove scopes** → tick `.../auth/drive.file` ("See, edit, create and delete only the specific Google Drive files you use with this app") → Save. It is a non-sensitive scope: no Google review needed.
+3. Make sure the app is **In production** (Audience → Publish app). In "Testing" only listed test users can connect, and their connection stops after 7 days.
+4. **Credentials** → open your OAuth client (Web application) → **Authorized redirect URIs** → add both:
+   `https://phantomire-workforce.vercel.app/forms/google/callback` and `https://workbase-forms.vercel.app/google/callback` → Save.
+5. Vercel → Environment Variables (Production, server only, never `NEXT_PUBLIC_`): `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (the same client's ID and secret) → Redeploy.
+6. Check: on Pro, open a form → Answers → **Connect Google Sheets**. A sheet "<form name> (Workbase Forms)" appears in your Drive with every answer.
+Note: Google sign-ins are stored encrypted with a key made from `SUPABASE_SERVICE_ROLE_KEY`. If you ever change that key, makers simply click Connect again.
+
 **D. Test.** Open the Forms address, sign in, pick "Event registration", add your bank account (Payouts), Publish, then pay ₦100 from your phone and refund it in Paystack. Paste the website code into a WordPress **Custom HTML** block to check the embed.
 
 ## Good to know

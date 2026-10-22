@@ -120,7 +120,7 @@ export const PRODUCT_LABEL: Record<string, string> = {
   workbase_pro: "Workbase Pro",
   meet_pro: "Meet Pro",
   meet_business: "Meet Business",
-  book_pro: "Book Pro",
+  book_pro: "Pro (Book + Forms)",
   book_fees: "Book 3% fees",
   forms_fees: "Forms 3% fees",
 };

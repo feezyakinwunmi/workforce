@@ -289,6 +289,10 @@ export function Builder({ id, initial, hasPayout, payoutsHref }: { id: string; i
 
             <Panel title="Answers" icon="mail">
               <Toggle label="Email me each new answer" on={def.settings.notify !== false} onChange={(on) => setSettings({ notify: on })} />
+              <div className="mt-3">
+                <Toggle label="Let people change their answers later" on={Boolean(def.settings.allow_edit)} onChange={(on) => setSettings({ allow_edit: on || undefined })} />
+                <p className="mt-1 text-xs text-slate-500">After sending, they get a private link to edit while the form is open.</p>
+              </div>
               <label className="label mt-3" htmlFor="s-max">Stop after this many answers</label>
               <input id="s-max" className="input max-w-[10rem]" inputMode="numeric" placeholder="No limit"
                 value={def.settings.max_responses ? String(def.settings.max_responses) : ""}

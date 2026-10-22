@@ -82,8 +82,8 @@ const FEATURES: Array<[IconName, string, string]> = [
   ["layers", "Drag, drop or tap", "Tap a question type to add it, drag to reorder (or use the arrows on a phone)."],
   ["cash", "Take payments", "Fixed prices, prices per option or pay-what-you-want. Paystack: card, transfer, USSD."],
   ["globe", "On your website", "Copy one line of code into any site. Works with WordPress, Wix and Squarespace."],
-  ["mail", "Answers by email", "Every answer lands in your inbox and in a table you can download."],
-  ["shield", "Spam protection", "A quiet human check and speed limits keep bots out."],
+  ["mail", "Answers by email and Sheets", "Every answer lands in your inbox, a table you can download and (Pro) your Google Sheet."],
+  ["pencil", "Steps, logic and edits", "Split long forms into pages, show questions only when they apply, and let people fix their answers later."],
   ["whatsapp", "Share anywhere", "A short link for WhatsApp, Instagram bio or a QR code on a flyer."],
 ];
 
@@ -106,7 +106,7 @@ function Landing({ base }: { base: string }) {
             <Link href={start} className="btn-primary px-6 py-3 text-base">Make a free form</Link>
             <Link href={`/login?next=${encodeURIComponent(base || "/")}`} className="btn-secondary px-6 py-3 text-base">Sign in</Link>
           </div>
-          <p className="mt-4 text-sm text-slate-500">Free. We keep 3% of online payments; the rest goes straight to your bank.</p>
+          <p className="mt-4 text-sm text-slate-500">Free. We keep 3% of online payments; the rest goes straight to your bank. Pro (₦2,000 a month) takes no fee and adds Google Sheets sync.</p>
         </div>
         <FormIllustration />
       </section>

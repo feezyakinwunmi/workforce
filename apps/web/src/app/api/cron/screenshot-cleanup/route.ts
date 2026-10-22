@@ -9,7 +9,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * 2. deletes companies whose owner closed them more than 14 days ago (migration 0028):
  *    first their stored files, then the company row, which cascades to all its data;
  * 3. removes Workbase Forms files nobody needs any more (migration 0049): uploads never sent
- *    with an answer, and files of deleted answers or forms.
+ *    with an answer, and files of deleted answers or forms;
+ * 4. retries Google Sheets rows that didn't go through (migration 0050).
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -76,5 +77,15 @@ export async function GET(request: Request) {
     await admin.from("form_uploads").delete().in("path", paths);
     formFiles += paths.length;
   }
-  return NextResponse.json({ removed, deleted: deleted.length, formFiles });
+  // Answers that didn't reach their Google Sheet yet.
+  let sheetRows = 0;
+  const { data: backlog } = await admin.rpc("form_sheet_backlog", { p_limit: 300 });
+  if (backlog?.length) {
+    const { syncAnswer } = await import("@/lib/forms/google");
+    for (const id of backlog as string[]) {
+      await syncAnswer(id);
+      sheetRows++;
+    }
+  }
+  return NextResponse.json({ removed, deleted: deleted.length, formFiles, sheetRows });
 }

@@ -9,6 +9,7 @@ export function FormsNav({ base }: { base: string }) {
   const items = [
     [base || "/", "My forms", (p: string) => p === (base || "/") || p.startsWith(`${base}/build`)],
     [`${base}/payouts`, "Payouts", (p: string) => p.startsWith(`${base}/payouts`)],
+    [`${base}/plan`, "Plan", (p: string) => p.startsWith(`${base}/plan`)],
   ] as const;
   return (
     <>

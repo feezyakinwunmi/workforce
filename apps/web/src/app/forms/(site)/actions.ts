@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { filesIn, sanitizeForm, TEMPLATES, type Answers } from "@/lib/forms/schema";
-import { formsRequestBase, requireMaker } from "@/lib/forms/server";
-import { createSubaccount, listBanks, paystackConfigured, resolveAccount } from "@/lib/paystack";
+import { formsOrigin, formsRequestBase, requireMaker } from "@/lib/forms/server";
+import { createSubaccount, initializeTransaction, listBanks, paystackConfigured, resolveAccount } from "@/lib/paystack";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rebuildSheet } from "@/lib/forms/google";
 import type { FormState } from "@/lib/types";
 
 const isId = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
@@ -88,8 +89,10 @@ export async function deleteResponse(form: FormData) {
   const { supabase } = await requireMaker();
   const id = form.get("id");
   if (isId(id)) {
-    const { data } = await supabase.from("form_responses").delete().eq("id", id).select("answers");
-    await removeFiles(supabase, (data ?? []) as Array<{ answers: Answers }>).catch(() => undefined);
+    // Read first: the maker may not read every column, so the delete itself returns nothing.
+    const { data } = await supabase.from("form_responses").select("answers").eq("id", id);
+    const { error } = await supabase.from("form_responses").delete().eq("id", id);
+    if (!error) await removeFiles(supabase, (data ?? []) as Array<{ answers: Answers }>).catch(() => undefined);
   }
   revalidatePath("/forms", "layout");
 }
@@ -154,4 +157,51 @@ export async function copyBookPayout(): Promise<FormState> {
   if (error) return { error: error.message };
   revalidatePath("/forms", "layout");
   return { success: `Payments will go to ${p.account_name} (${p.bank_name} ••••${p.account_last4}).` };
+}
+
+// ---------------------------------------------------------------- Google Sheets
+
+async function ownForm(id: unknown) {
+  const { supabase } = await requireMaker();
+  if (!isId(id)) return null;
+  const { data } = await supabase.from("forms").select("id").eq("id", id).maybeSingle();
+  return data ? (id as string) : null;
+}
+
+/** Write the whole sheet again (after changing questions, or to fix an error). */
+export async function resyncSheet(form: FormData): Promise<void> {
+  const id = await ownForm(form.get("id"));
+  if (id) await rebuildSheet(id);
+  revalidatePath("/forms", "layout");
+}
+
+/** Stop sending answers to the sheet (the spreadsheet stays in the maker's Drive). */
+export async function disconnectSheet(form: FormData): Promise<void> {
+  const id = await ownForm(form.get("id"));
+  if (id) await createAdminClient().from("form_sheets").delete().eq("form_id", id);
+  revalidatePath("/forms", "layout");
+}
+
+// ---------------------------------------------------------------- Pro (Book + Forms)
+
+export async function payPro(form: FormData) {
+  const { supabase } = await requireMaker();
+  const base = await formsRequestBase();
+  const months = Number(form.get("months"));
+  const { data, error } = await supabase.rpc("book_start_payment", { p_months: months });
+  if (error) redirect(`${base}/plan?payment=${encodeURIComponent(error.message)}`);
+  const d = data as { reference: string; amount_kobo: number; email: string };
+  let url: string;
+  try {
+    url = await initializeTransaction({
+      email: d.email,
+      amountKobo: d.amount_kobo,
+      reference: d.reference,
+      callbackUrl: `${await formsOrigin()}${base}/pay/callback`,
+      metadata: { product: "workbase-pro-book-forms", months },
+    });
+  } catch (e) {
+    redirect(`${base}/plan?payment=${encodeURIComponent(e instanceof Error ? e.message : "Couldn't start the payment")}`);
+  }
+  redirect(url);
 }

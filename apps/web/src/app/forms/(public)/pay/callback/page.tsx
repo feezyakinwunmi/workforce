@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { EditLink } from "@/app/forms/edit-link";
 import { Icon } from "@/components/icons";
 import { formsRequestBase } from "@/lib/forms/server";
 import { naira, type FormSettings } from "@/lib/forms/schema";
@@ -13,17 +15,25 @@ export default async function FormPayCallback({ searchParams }: { searchParams: 
   const base = await formsRequestBase();
   const reference = sp.reference ?? sp.trxref ?? "";
   let ok = false;
-  let info: { title: string; slug: string; settings: FormSettings; amount: number } | null = null;
+  // Pro (Book + Forms) bought from the Forms plan page.
+  if (/^bookpro_[0-9a-f]{32}$/.test(reference)) {
+    if (paystackConfigured()) {
+      const tx = await verifyTransaction(reference);
+      if (tx) ok = (await recordSuccess(tx)).ok;
+    }
+    redirect(`${base}/plan?${ok ? "paid=1" : "payment=failed"}`);
+  }
+  let info: { title: string; slug: string; settings: FormSettings; amount: number; token: string | null } | null = null;
   if (paystackConfigured() && /^form_[0-9a-f]{32}$/.test(reference)) {
     const tx = await verifyTransaction(reference);
     if (tx) ok = (await recordSuccess(tx)).ok;
     const { data } = await createAdminClient()
       .from("form_responses")
-      .select("amount_kobo, form:forms(title, slug, settings)")
+      .select("amount_kobo, edit_token, form:forms(title, slug, settings)")
       .eq("pay_reference", reference)
       .maybeSingle();
-    const row = data as { amount_kobo: number; form: { title: string; slug: string; settings: FormSettings } | null } | null;
-    if (row?.form) info = { ...row.form, amount: row.amount_kobo };
+    const row = data as { amount_kobo: number; edit_token: string | null; form: { title: string; slug: string; settings: FormSettings } | null } | null;
+    if (row?.form) info = { ...row.form, amount: row.amount_kobo, token: row.edit_token };
   }
   const accent = info?.settings.color || "#6a4cf5";
   return (
@@ -39,6 +49,7 @@ export default async function FormPayCallback({ searchParams }: { searchParams: 
             <p className="mx-auto mt-3 max-w-md whitespace-pre-wrap text-slate-600">
               {info?.settings.success_message || "Thank you! Your answers and payment were received. Paystack has emailed you a receipt."}
             </p>
+            {info?.token && info.settings.allow_edit && <EditLink href={`${base}/f/${info.slug}?edit=${info.token}`} />}
             {info?.settings.redirect_url && (
               <a href={info.settings.redirect_url} className="mt-6 inline-flex font-medium underline underline-offset-4" style={{ color: accent }}>Continue</a>
             )}

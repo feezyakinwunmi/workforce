@@ -34,7 +34,7 @@ export function PageForm({ page, pro, base }: { page: HostPage; pro: boolean; ba
         <TimezoneSelect defaultValue={page.timezone} />
       </label>
       <fieldset>
-        <legend className="label">Colour {pro ? "" : <span className="ml-1 text-xs font-normal text-slate-500">(Book Pro)</span>}</legend>
+        <legend className="label">Colour {pro ? "" : <span className="ml-1 text-xs font-normal text-slate-500">(Pro)</span>}</legend>
         <input type="hidden" name="color" value={color} />
         <div className="flex flex-wrap gap-2">
           {COLORS.map((c) => (

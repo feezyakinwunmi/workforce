@@ -243,7 +243,7 @@ function Landing({ base }: { base: string }) {
         </div>
         <div className="mt-12 rounded-3xl bg-[#15123a] px-6 py-10 text-center text-white sm:px-10">
           <h2 className="font-display text-2xl font-bold sm:text-3xl">Free to start. ₦2,000 a month for Pro.</h2>
-          <p className="mx-auto mt-2 max-w-xl text-white/70">Free takes 3% of online payments. Book Pro takes nothing, removes our badge and lets you use your own colour.</p>
+          <p className="mx-auto mt-2 max-w-xl text-white/70">Free takes 3% of online payments. Pro takes nothing, removes our badge and lets you use your own colour, and covers Workbase Forms too.</p>
           <div className="mt-6 flex justify-center gap-3">
             <Link href={start} className="rounded-xl bg-[#6a4cf5] px-6 py-3 font-semibold hover:bg-[#5b3fe0]">Create your free page</Link>
             <Link href={`${base}/pricing`} className="rounded-xl bg-white/10 px-6 py-3 font-semibold hover:bg-white/15">See pricing</Link>

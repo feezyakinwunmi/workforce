@@ -152,8 +152,9 @@ export async function recordSuccess(tx: Transaction) {
     const { data, error } = await admin.rpc("form_confirm_payment", { p_reference: tx.reference, p_amount_kobo: tx.amount });
     if (error) return { ok: false, error: error.message };
     if (!data) return { ok: false, error: "amount or reference didn't match" };
-    const [{ notifyMaker }, { siteUrl }] = await Promise.all([import("@/lib/forms/mail"), import("@/lib/utils")]);
+    const [{ notifyMaker }, { syncAnswer }, { siteUrl }] = await Promise.all([import("@/lib/forms/mail"), import("@/lib/forms/google"), import("@/lib/utils")]);
     await notifyMaker(data as string, siteUrl());
+    await syncAnswer(data as string);
     return { ok: true, responseId: data as string };
   }
   // Workbase Meet plans (references start with "meet_").

@@ -22,7 +22,7 @@ export default async function BookSettings({ searchParams }: { searchParams: Pro
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       <h1 className="font-display text-2xl font-bold text-slate-900">Settings</h1>
-      {sp.paid && <Notice tone="success">Payment received. You're on Book Pro.</Notice>}
+      {sp.paid && <Notice tone="success">Payment received. You're on Pro (Book + Forms).</Notice>}
       {sp.payment && <Notice tone="error">{sp.payment === "failed" ? "The payment didn't go through." : sp.payment}</Notice>}
 
       <section className="card p-5">
@@ -53,12 +53,12 @@ export default async function BookSettings({ searchParams }: { searchParams: Pro
       <section id="plan" className="card scroll-mt-20 p-5">
         <h2 className="font-semibold text-slate-900">Plan</h2>
         {pro ? (
-          <p className="mt-2 text-sm text-slate-600">You're on <b>Book Pro</b>{until ? ` until ${until}` : ""}: no Workbase fee, no badge, your own colour.</p>
+          <p className="mt-2 text-sm text-slate-600">You're on <b>Pro</b>{until ? ` until ${until}` : ""}: no Workbase fee, no badge, your own colour. It covers Workbase Forms too.</p>
         ) : (
           <p className="mt-2 text-sm text-slate-600">You're on <b>Free</b>: Workbase keeps 3% of online payments and shows a small "Powered by Workbase Book" badge.</p>
         )}
         <form action={payPro} className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-slate-700">{pro ? "Add more time:" : `Book Pro, ${naira(plan.price_kobo)} a month:`}</span>
+          <span className="text-sm text-slate-700">{pro ? "Add more time:" : `Pro (Book + Forms), ${naira(plan.price_kobo)} a month:`}</span>
           <select name="months" defaultValue="1" className="input w-auto" aria-label="How long">
             <option value="1">1 month</option>
             <option value="3">3 months</option>

@@ -15,16 +15,20 @@ import {
   pagesOf,
   safeFileName,
   visibleIds,
+  isFileAnswer,
+  type Answer,
+  type Answers,
   type Field,
   type FileAnswer,
   type FormDef,
 } from "@/lib/forms/schema";
 import { cn } from "@/lib/utils";
+import { EditLink } from "./edit-link";
 
 export type SubmitResult = {
   error?: string;
   errors?: Record<string, string>;
-  done?: { message: string; redirect?: string };
+  done?: { message: string; redirect?: string; editUrl?: string };
   pay?: { url: string; amount: number };
 };
 
@@ -42,6 +46,9 @@ type Props = {
   homeUrl?: string;
   onSubmit?: (raw: Record<string, unknown>, captcha: string | null) => Promise<SubmitResult>;
   upload?: Uploader;
+  /** Answers to start from (editing an earlier answer through its private link). */
+  initial?: Answers;
+  editing?: boolean;
 };
 
 /** Read the answers out of the <form> (one key per question id). */
@@ -82,7 +89,7 @@ export function FormView(props: Props) {
   );
 }
 
-function FormBody({ form, mode, embed = false, payments = true, accepting = true, pro = false, homeUrl, onSubmit, upload }: Props) {
+function FormBody({ form, mode, embed = false, payments = true, accepting = true, pro = false, homeUrl, onSubmit, upload, initial, editing = false }: Props) {
   const ref = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -91,8 +98,10 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
   const [pay, setPay] = useState<SubmitResult["pay"] | null>(null);
   const [captcha, setCaptcha] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
-  const [ratings, setRatings] = useState<Record<string, number>>({});
-  const [files, setFiles] = useState<Record<string, FileAnswer | "uploading" | null>>({});
+  const [ratings, setRatings] = useState<Record<string, number>>(() =>
+    Object.fromEntries(form.fields.filter((f) => f.type === "rating" && typeof initial?.[f.id] === "number").map((f) => [f.id, initial![f.id] as number])));
+  const [files, setFiles] = useState<Record<string, FileAnswer | "uploading" | null>>(() =>
+    Object.fromEntries(form.fields.filter((f) => f.type === "file" && isFileAnswer(initial?.[f.id])).map((f) => [f.id, initial![f.id] as FileAnswer])));
   const [step, setStep] = useState(0);
 
   const priced = hasPrices(form);
@@ -221,6 +230,7 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
               Continue
             </a>
           )}
+          {done.editUrl && <EditLink href={done.editUrl} embed={embed} />}
           {mode === "preview" && (
             <button type="button" className="btn-secondary btn-sm mt-6" onClick={() => { setDone(null); setStep(0); }}>
               Back to the form
@@ -255,6 +265,7 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
     }} noValidate className={shell} style={{ borderTop: `4px solid ${accent}` }}>
       <div className="px-5 pt-7 pb-2 sm:px-8">
         <h1 className="font-display text-2xl font-bold text-slate-900 sm:text-3xl">{form.title}</h1>
+        {editing && <p className="mt-2 inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">You&apos;re changing an answer you already sent</p>}
         {form.description && at === 0 && <p className="mt-2 whitespace-pre-wrap text-slate-600">{form.description}</p>}
         {steps.length > 1 && (
           <div className="mt-4" aria-label={`Step ${at + 1} of ${steps.length}`}>
@@ -289,7 +300,7 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
         {pages.map((p, pi) =>
           p.fields.map((f) => (
             <div key={f.id} hidden={pi !== current.i || !shown.has(f.id)}>
-              <Question field={f} error={errors[f.id]} priced={Boolean(payment?.enabled)} accent={accent}
+              <Question field={f} error={errors[f.id]} priced={Boolean(payment?.enabled)} accent={accent} initial={initial?.[f.id]}
                 rating={ratings[f.id] ?? 0}
                 onRate={(v) => {
                   setRatings((r) => ({ ...r, [f.id]: v }));
@@ -308,7 +319,8 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
               {payment.label ? `${payment.label} amount` : "Amount"} (₦)
               {payment.amount === 0 && <span className="text-red-600"> *</span>}
             </label>
-            <input id={AMOUNT_KEY} name={AMOUNT_KEY} inputMode="decimal" className="input max-w-xs" placeholder={payment.min ? `At least ${naira(payment.min)}` : "e.g. 5,000"} />
+            <input id={AMOUNT_KEY} name={AMOUNT_KEY} inputMode="decimal" className="input max-w-xs"
+              defaultValue={typeof initial?.[AMOUNT_KEY] === "number" ? String((initial[AMOUNT_KEY] as number) / 100) : undefined} placeholder={payment.min ? `At least ${naira(payment.min)}` : "e.g. 5,000"} />
             {errors[AMOUNT_KEY] && <p className="mt-1.5 text-sm text-red-600">{errors[AMOUNT_KEY]}</p>}
           </div>
         )}
@@ -339,7 +351,7 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
           )}
           <button type="submit" className="btn-primary px-6 py-2.5 text-base" style={{ background: accent }} disabled={!accepting || busy || uploading}>
             {busy ? "Sending…" : uploading ? "Uploading…" : !last ? <>Next <Icon name="arrowRight" className="h-4 w-4" /></>
-              : form.settings.submit_label || (priced && total > 0 ? "Continue to payment" : "Submit")}
+              : editing ? "Save changes" : form.settings.submit_label || (priced && total > 0 ? "Continue to payment" : "Submit")}
           </button>
         </div>
         {priced && last && total > 0 && <p className="mt-2 text-xs text-slate-500">Paid securely with Paystack: card, bank transfer or USSD.</p>}
@@ -360,11 +372,12 @@ function Badge({ homeUrl, embed }: { homeUrl?: string; embed: boolean }) {
 
 const size = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
-function Question({ field: f, error, priced, accent, rating, onRate, file, onFile }: {
-  field: Field; error?: string; priced: boolean; accent: string; rating: number; onRate: (v: number) => void;
+function Question({ field: f, error, priced, accent, rating, onRate, file, onFile, initial }: {
+  field: Field; error?: string; priced: boolean; accent: string; rating: number; onRate: (v: number) => void; initial?: Answer;
   file: FileAnswer | "uploading" | null; onFile: (f: File | null) => void;
 }) {
   const pick = useRef<HTMLInputElement>(null);
+  const text = typeof initial === "string" || typeof initial === "number" ? String(initial) : undefined;
   if (f.type === "heading") {
     return (
       <div className="border-b border-slate-200 pt-2 pb-2">
@@ -384,7 +397,7 @@ function Question({ field: f, error, priced, accent, rating, onRate, file, onFil
     return (
       <div id={id}>
         <label className="flex items-start gap-3 text-sm text-slate-800">
-          <input type="checkbox" name={f.id} className="mt-0.5 h-5 w-5 shrink-0 rounded" style={{ accentColor: accent }} />
+          <input type="checkbox" name={f.id} defaultChecked={initial === true} className="mt-0.5 h-5 w-5 shrink-0 rounded" style={{ accentColor: accent }} />
           <span>{f.label}{req}</span>
         </label>
         {f.help && <p className="mt-1 ml-8 text-sm text-slate-500">{f.help}</p>}
@@ -436,9 +449,9 @@ function Question({ field: f, error, priced, accent, rating, onRate, file, onFil
       )}
       {help}
       {f.type === "textarea" ? (
-        <textarea id={`in-${f.id}`} name={f.id} rows={4} className={cn("input", bad)} placeholder={f.placeholder} maxLength={5000} />
+        <textarea id={`in-${f.id}`} name={f.id} rows={4} className={cn("input", bad)} placeholder={f.placeholder} maxLength={5000} defaultValue={text} />
       ) : f.type === "select" ? (
-        <select id={`in-${f.id}`} name={f.id} className={cn("input", bad)} defaultValue="">
+        <select id={`in-${f.id}`} name={f.id} className={cn("input", bad)} defaultValue={text ?? ""}>
           <option value="" disabled>Choose…</option>
           {f.options?.map((o) => (
             <option key={o.id} value={o.label}>{o.label}{priced && o.price ? ` (+${naira(o.price)})` : ""}</option>
@@ -448,7 +461,8 @@ function Question({ field: f, error, priced, accent, rating, onRate, file, onFil
         <div className="space-y-2">
           {f.options?.map((o) => (
             <label key={o.id} className={cn("flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 transition hover:bg-slate-50", error ? "border-red-300" : "border-slate-200")}>
-              <input type={f.type} name={f.id} value={o.label} className="h-4.5 w-4.5 shrink-0" style={{ accentColor: accent }} />
+              <input type={f.type} name={f.id} value={o.label} className="h-4.5 w-4.5 shrink-0" style={{ accentColor: accent }}
+                defaultChecked={Array.isArray(initial) ? initial.includes(o.label) : initial === o.label} />
               <span>{o.label}</span>
               {price(o.price)}
             </label>
@@ -474,6 +488,7 @@ function Question({ field: f, error, priced, accent, rating, onRate, file, onFil
           className={cn("input", bad, f.type === "date" || f.type === "number" ? "max-w-xs" : "")}
           placeholder={f.placeholder}
           maxLength={f.type === "text" ? 500 : 200}
+          defaultValue={text}
         />
       )}
       {err}
