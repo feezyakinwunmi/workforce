@@ -4,7 +4,7 @@ import { Icon, type IconName } from "@/components/icons";
 import { Notice, PageHeader, Panel, StatStrip } from "@/components/ui";
 import { naira } from "@/lib/billing";
 import { requireAdmin } from "@/lib/admin/server";
-import { productLabel, when, type Overview } from "@/lib/admin/types";
+import { productLabel, when, type FormsReport, type Overview } from "@/lib/admin/types";
 import { cn } from "@/lib/utils";
 import { dayColumns, daysParam, n, nairaShort, plural, RangeSwitch, sum, Table, td, whole } from "./_parts";
 
@@ -39,7 +39,11 @@ function ProductCard({ href, icon, title, money, rows }: { href: string; icon: I
 export default async function AdminOverview({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const { db, base } = await requireAdmin();
   const days = daysParam((await searchParams).days);
-  const { data, error } = await db.rpc("admin_overview", { p_days: days });
+  const [{ data, error }, { data: formsData }] = await Promise.all([
+    db.rpc("admin_overview", { p_days: days }),
+    db.rpc("admin_forms", { p_days: 7 }),
+  ]);
+  const fm = formsData as FormsReport | null;
   if (error || !data) return <Notice tone="error">Couldn&apos;t load the numbers: {error?.message ?? "no data"}. Has migration 0038 been run?</Notice>;
   const o = data as Overview;
   const t = o.totals;
@@ -75,7 +79,7 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
         ]}
       />
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <ProductCard
           href={`${base}/workbase`}
           icon="clock"
@@ -110,6 +114,18 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
             ["Taking payments", n(t.book_pages_payouts)],
             ["Bookings, 7 days", n(t.book_bookings_7d)],
             ["Book Pro", n(t.book_pro)],
+          ]}
+        />
+        <ProductCard
+          href={`${base}/forms`}
+          icon="note"
+          title="Forms"
+          money={m.forms_fees ?? 0}
+          rows={[
+            ["Forms", n(fm?.forms.total ?? 0)],
+            ["Live", n(fm?.forms.live ?? 0)],
+            ["Answers, 7 days", n(fm?.answers.received ?? 0)],
+            ["Taking payments", n(fm?.forms.paid_forms ?? 0)],
           ]}
         />
       </div>

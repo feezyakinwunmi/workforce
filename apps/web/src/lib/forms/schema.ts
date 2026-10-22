@@ -19,9 +19,17 @@ export type FieldType =
   | "checkbox"
   | "consent"
   | "rating"
-  | "heading";
+  | "file"
+  | "heading"
+  | "page";
 
 export type Option = { id: string; label: string; /** kobo; only used when payments are on */ price?: number };
+
+/** Show a question (or a whole page) only when an earlier answer matches. */
+export type Condition = { field: string; op: "is" | "not" | "filled" | "empty"; value?: string };
+
+/** What a file question takes. */
+export type FileAccept = "any" | "image" | "document";
 
 export type Field = {
   id: string;
@@ -33,7 +41,12 @@ export type Field = {
   options?: Option[];
   min?: number;
   max?: number;
+  when?: Condition;
+  accept?: FileAccept;
 };
+
+/** A file someone attached (stored in the private form-files bucket). */
+export type FileAnswer = { path: string; name: string; size: number; type: string };
 
 export type Payment = {
   enabled: boolean;
@@ -62,7 +75,7 @@ export type FormDef = { title: string; description: string; fields: Field[]; set
 
 export type PublicForm = FormDef & { id: string; slug: string; accepting: boolean; payments: boolean; pro: boolean };
 
-export type Answer = string | string[] | number | boolean;
+export type Answer = string | string[] | number | boolean | FileAnswer;
 export type Answers = Record<string, Answer>;
 
 /** Key used for the "pay what you want" amount in the answers. */
@@ -70,6 +83,32 @@ export const AMOUNT_KEY = "__amount";
 
 export const MIN_PAYMENT = 10000; // ₦100, Paystack's floor for us
 export const MAX_FIELDS = 60;
+export const MAX_FILE_FIELDS = 5;
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+/** File types people may upload, by what the question accepts. */
+export const FILE_TYPES: Record<Exclude<FileAccept, "any">, string[]> = {
+  image: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"],
+  document: [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "text/csv",
+  ],
+};
+export const ANY_FILE_TYPES = [...FILE_TYPES.image, ...FILE_TYPES.document, "application/zip"];
+export const fileTypesFor = (accept?: FileAccept) => (accept === "image" ? FILE_TYPES.image : accept === "document" ? FILE_TYPES.document : ANY_FILE_TYPES);
+/** For the <input accept> attribute (extensions help phones pick the right files). */
+export const acceptAttr = (accept?: FileAccept) =>
+  accept === "image" ? "image/*,.heic" : accept === "document" ? ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" : "image/*,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip";
+/** A safe file name for storage paths. */
+export const safeFileName = (name: string) =>
+  (name.normalize("NFKD").replace(/[^\w.\- ]+/g, "").replace(/\s+/g, "-").replace(/^[.-]+/, "").slice(-80) || "file");
 
 export const FIELD_TYPES: Array<{ type: FieldType; label: string; hint: string }> = [
   { type: "text", label: "Short answer", hint: "Name, company, one line" },
@@ -83,8 +122,13 @@ export const FIELD_TYPES: Array<{ type: FieldType; label: string; hint: string }
   { type: "checkbox", label: "Checkboxes", hint: "Pick any number" },
   { type: "rating", label: "Rating", hint: "1 to 5 stars" },
   { type: "consent", label: "Agreement", hint: "A box they must tick" },
+  { type: "file", label: "File upload", hint: "CV, receipt, photo (10 MB)" },
   { type: "heading", label: "Section title", hint: "Text between questions" },
+  { type: "page", label: "New page", hint: "Split the form into steps" },
 ];
+
+/** Types that hold no answer. */
+export const isStatic = (t: FieldType) => t === "heading" || t === "page";
 
 export const CHOICE_TYPES: FieldType[] = ["select", "radio", "checkbox"];
 export const isChoice = (t: FieldType) => CHOICE_TYPES.includes(t);
@@ -93,7 +137,11 @@ export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export function newField(type: FieldType): Field {
   const label = FIELD_TYPES.find((t) => t.type === type)?.label ?? "Question";
-  const f: Field = { id: uid(), type, label: type === "heading" ? "New section" : type === "consent" ? "I agree to the terms" : label };
+  const f: Field = {
+    id: uid(),
+    type,
+    label: type === "heading" ? "New section" : type === "consent" ? "I agree to the terms" : type === "page" ? "Next page" : type === "file" ? "Upload a file" : label,
+  };
   if (isChoice(type)) f.options = [{ id: uid(), label: "Option 1" }, { id: uid(), label: "Option 2" }];
   if (type === "consent") f.required = true;
   return f;
@@ -117,10 +165,13 @@ const safeId = (v: unknown) => (typeof v === "string" && /^[a-z0-9]{1,16}$/i.tes
 export function sanitizeForm(raw: unknown): FormDef {
   const r = (raw ?? {}) as Record<string, unknown>;
   const ids = new Set<string>();
+  const answerable = new Map<string, FieldType>(); // earlier questions a condition may point at
+  let files = 0;
   const fields: Field[] = (Array.isArray(r.fields) ? r.fields : []).slice(0, MAX_FIELDS).flatMap((x) => {
     const f = (x ?? {}) as Record<string, unknown>;
     const type = FIELD_TYPES.find((t) => t.type === f.type)?.type;
     if (!type) return [];
+    if (type === "file" && ++files > MAX_FILE_FIELDS) return [];
     let id = safeId(f.id);
     while (ids.has(id)) id = uid();
     ids.add(id);
@@ -129,7 +180,15 @@ export function sanitizeForm(raw: unknown): FormDef {
     if (help) out.help = help;
     const placeholder = s(f.placeholder, 120).trim();
     if (placeholder && ["text", "textarea", "email", "phone", "number"].includes(type)) out.placeholder = placeholder;
-    if (type !== "heading" && f.required === true) out.required = true;
+    if (!isStatic(type) && f.required === true) out.required = true;
+    const w = (f.when ?? null) as Record<string, unknown> | null;
+    if (w && typeof w.field === "string" && answerable.has(w.field) && ["is", "not", "filled", "empty"].includes(w.op as string)) {
+      const op = w.op as Condition["op"];
+      const value = s(w.value, 200).trim();
+      if (op === "filled" || op === "empty") out.when = { field: w.field, op };
+      else if (value) out.when = { field: w.field, op, value };
+    }
+    if (type === "file") out.accept = f.accept === "image" || f.accept === "document" ? f.accept : "any";
     if (isChoice(type)) {
       const optIds = new Set<string>();
       out.options = (Array.isArray(f.options) ? f.options : []).slice(0, 50).flatMap((o) => {
@@ -150,6 +209,7 @@ export function sanitizeForm(raw: unknown): FormDef {
       if (min !== undefined) out.min = min;
       if (max !== undefined) out.max = max;
     }
+    if (!isStatic(type)) answerable.set(id, type);
     return [out];
   });
   const st = (r.settings ?? {}) as Record<string, unknown>;
@@ -193,6 +253,52 @@ export const hasPrices = (def: Pick<FormDef, "fields" | "settings">) =>
   Boolean(def.settings.payment?.enabled && (def.settings.payment.amount > 0 || def.settings.payment.custom ||
     def.fields.some((f) => f.options?.some((o) => (o.price ?? 0) > 0))));
 
+/** Is this raw answer (from the browser or stored) empty? */
+function blank(v: unknown) {
+  if (v === undefined || v === null || v === false || v === "false") return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === "object") return !(v as FileAnswer).path;
+  return String(v).trim() === "";
+}
+
+function matches(c: Condition, v: unknown) {
+  if (c.op === "filled") return !blank(v);
+  if (c.op === "empty") return blank(v);
+  const want = (c.value ?? "").trim().toLowerCase();
+  const got = Array.isArray(v) ? v.map((x) => String(x).trim().toLowerCase()) : blank(v) ? [] : [String(v).trim().toLowerCase()];
+  const hit = got.includes(want);
+  return c.op === "is" ? hit : !hit;
+}
+
+/**
+ * Which fields are showing for these answers. A page break's condition hides the whole page;
+ * a question whose condition points at a hidden question counts that one as unanswered.
+ */
+export function visibleIds(def: Pick<FormDef, "fields">, raw: Record<string, unknown>) {
+  const shown = new Set<string>();
+  let pageShown = true;
+  for (const f of def.fields) {
+    const ok = !f.when || matches(f.when, shown.has(f.when.field) ? raw[f.when.field] : undefined);
+    if (f.type === "page") {
+      pageShown = ok;
+      if (ok) shown.add(f.id);
+      continue;
+    }
+    if (pageShown && ok) shown.add(f.id);
+  }
+  return shown;
+}
+
+/** The form split at its page breaks: [{ page (the break, or null for the first), fields }]. */
+export function pagesOf(def: Pick<FormDef, "fields">) {
+  const pages: Array<{ page: Field | null; fields: Field[] }> = [{ page: null, fields: [] }];
+  for (const f of def.fields) {
+    if (f.type === "page") pages.push({ page: f, fields: [] });
+    else pages[pages.length - 1].fields.push(f);
+  }
+  return pages.filter((p, i) => i === 0 || p.page);
+}
+
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PHONE = /^[+0-9 ()-]{7,20}$/;
 
@@ -200,12 +306,26 @@ const PHONE = /^[+0-9 ()-]{7,20}$/;
  * Check raw answers (from the browser) against the form. Returns clean answers, the payer's email
  * (the first email question) and the amount, or errors by field id.
  */
-export function checkAnswers(def: Pick<FormDef, "fields" | "settings">, raw: Record<string, unknown>) {
+export function checkAnswers(def: Pick<FormDef, "fields" | "settings">, raw: Record<string, unknown>, opts: { formId?: string } = {}) {
   const errors: Record<string, string> = {};
   const answers: Answers = {};
+  const shown = visibleIds(def, raw);
   for (const f of def.fields) {
-    if (f.type === "heading") continue;
-    const v = raw[f.id];
+    if (isStatic(f.type) || !shown.has(f.id)) continue; // hidden questions keep no answer
+    const v = f.type === "file" ? parseFile(raw[f.id]) : raw[f.id];
+    if (f.type === "file") {
+      if (!v) {
+        if (f.required) errors[f.id] = "Please attach a file.";
+        continue;
+      }
+      const file = v as FileAnswer;
+      const prefix = opts.formId ? `${opts.formId}/` : "";
+      if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[\w.\- ]{1,80}$/i.test(file.path) || (prefix && !file.path.startsWith(prefix))) errors[f.id] = "Please attach the file again.";
+      else if (!fileTypesFor(f.accept).includes(file.type)) errors[f.id] = "This kind of file isn't allowed here.";
+      else if (!(file.size > 0 && file.size <= MAX_FILE_BYTES)) errors[f.id] = "Files can be up to 10 MB.";
+      else answers[f.id] = { path: file.path, name: file.name.slice(0, 120), size: file.size, type: file.type };
+      continue;
+    }
     const text = typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
     const empty =
       f.type === "checkbox" ? !(Array.isArray(v) && v.length) : f.type === "consent" ? v !== true && v !== "true" && v !== "on" : text === "";
@@ -285,9 +405,31 @@ export function checkAnswers(def: Pick<FormDef, "fields" | "settings">, raw: Rec
   return { answers, email, amount, errors };
 }
 
+/** A file answer from the browser: a JSON string or an object with path, name, size and type. */
+export function parseFile(v: unknown): FileAnswer | null {
+  let o: unknown = v;
+  if (typeof v === "string") {
+    if (!v.trim()) return null;
+    try {
+      o = JSON.parse(v);
+    } catch {
+      return null;
+    }
+  }
+  const f = o as Partial<FileAnswer> | null;
+  if (!f || typeof f !== "object" || typeof f.path !== "string" || !f.path) return null;
+  return { path: f.path, name: String(f.name ?? "file"), size: Number(f.size) || 0, type: String(f.type ?? "") };
+}
+
+export const isFileAnswer = (a: unknown): a is FileAnswer => Boolean(a && typeof a === "object" && !Array.isArray(a) && (a as FileAnswer).path);
+
+/** File answers in a set of answers (to verify on submit, or remove with the answer). */
+export const filesIn = (answers: Answers) => Object.values(answers).filter(isFileAnswer);
+
 /** Display an answer as text (responses table, CSV, emails). */
 export function answerText(a: Answer | undefined, type?: FieldType): string {
   if (a === undefined || a === null) return "";
+  if (isFileAnswer(a)) return a.name;
   if (Array.isArray(a)) return a.join(", ");
   if (typeof a === "boolean") return a ? "Yes" : "No";
   if (type === "rating") return `${a} / 5`;
@@ -358,6 +500,32 @@ export const TEMPLATES: Array<{ key: string; name: string; blurb: string; make: 
       ],
       settings: { submit_label: "Order and pay", payment: { enabled: true, amount: 0, custom: false, min: 0, label: "Order" } },
     }),
+  },
+  {
+    key: "job",
+    name: "Job application",
+    blurb: "Steps, CV upload, smart questions",
+    make: () => {
+      const role = { id: uid(), type: "radio" as const, label: "Which role are you applying for?", required: true, options: [opt("Developer"), opt("Designer"), opt("Sales")] };
+      return {
+        title: "Job application",
+        description: "Apply in three short steps. It takes about five minutes.",
+        fields: [
+          { id: uid(), type: "text", label: "Full name", required: true },
+          { id: uid(), type: "email", label: "Email", required: true },
+          { id: uid(), type: "phone", label: "Phone or WhatsApp", required: true },
+          { id: uid(), type: "page", label: "The role" },
+          role,
+          { id: uid(), type: "text", label: "GitHub or portfolio link", when: { field: role.id, op: "is", value: "Developer" } },
+          { id: uid(), type: "text", label: "Link to your design work", when: { field: role.id, op: "is", value: "Designer" } },
+          { id: uid(), type: "select", label: "Years of experience", required: true, options: [opt("Less than 1"), opt("1 to 3"), opt("3 to 5"), opt("More than 5")] },
+          { id: uid(), type: "page", label: "Your CV" },
+          { id: uid(), type: "file", label: "Upload your CV", required: true, accept: "document" },
+          { id: uid(), type: "textarea", label: "Why do you want to join us?" },
+        ],
+        settings: { submit_label: "Send application", success_message: "Thanks for applying! We'll be in touch within a week." },
+      };
+    },
   },
   {
     key: "feedback",

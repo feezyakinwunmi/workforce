@@ -266,7 +266,7 @@ Our sign-in calls run on Vercel's servers, so without this Supabase counts every
 
 Forms is part of the same Vercel project with its own address, like Meet and Book. People fill forms without an account; payments go straight to the form owner's bank account through Paystack subaccounts, with Workbase's 3% fee (nothing for Book Pro subscribers).
 
-**A. Database.** Already applied live (migrations 0046 `forms` and 0047 `form_notify`, 22 Oct 2026). Nothing to run.
+**A. Database.** Already applied live (migrations 0046 `forms`, 0047 `form_notify`, 0048 `forms_v2` with the private `form-files` bucket, 0049 `form_upload_cleanup`; 22 Oct 2026). Nothing to run. Leftover uploads are cleaned by the nightly cron, so `CRON_SECRET` (§9) must be set.
 
 **B. Its own address.**
 1. Vercel → **Settings → Domains** → **Add** `workbase-forms.vercel.app` (or later `forms.yourdomain.com`). Any address starting with `workbase-forms` or `forms.` opens Forms at its root.

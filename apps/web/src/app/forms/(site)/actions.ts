@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { sanitizeForm, TEMPLATES } from "@/lib/forms/schema";
+import { filesIn, sanitizeForm, TEMPLATES, type Answers } from "@/lib/forms/schema";
 import { formsRequestBase, requireMaker } from "@/lib/forms/server";
 import { createSubaccount, listBanks, paystackConfigured, resolveAccount } from "@/lib/paystack";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -65,17 +65,32 @@ export async function setFormFlags(id: string, flags: { published?: boolean; acc
   return { ok: true };
 }
 
+type Client = Awaited<ReturnType<typeof requireMaker>>["supabase"];
+
+/** Remove attached files right away (the nightly clean-up catches anything this misses). */
+async function removeFiles(supabase: Client, rows: Array<{ answers: Answers }>) {
+  const paths = rows.flatMap((r) => filesIn(r.answers ?? {}).map((f) => f.path));
+  for (let i = 0; i < paths.length; i += 100) await supabase.storage.from("form-files").remove(paths.slice(i, i + 100));
+}
+
 export async function deleteForm(form: FormData) {
   const { supabase } = await requireMaker();
   const id = form.get("id");
-  if (isId(id)) await supabase.from("forms").delete().eq("id", id);
+  if (isId(id)) {
+    const { data } = await supabase.from("form_responses").select("answers").eq("form_id", id).limit(5000);
+    await removeFiles(supabase, (data ?? []) as Array<{ answers: Answers }>).catch(() => undefined);
+    await supabase.from("forms").delete().eq("id", id);
+  }
   redirect((await formsRequestBase()) || "/");
 }
 
 export async function deleteResponse(form: FormData) {
   const { supabase } = await requireMaker();
   const id = form.get("id");
-  if (isId(id)) await supabase.from("form_responses").delete().eq("id", id);
+  if (isId(id)) {
+    const { data } = await supabase.from("form_responses").delete().eq("id", id).select("answers");
+    await removeFiles(supabase, (data ?? []) as Array<{ answers: Answers }>).catch(() => undefined);
+  }
   revalidatePath("/forms", "layout");
 }
 

@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import type { SubmitResult } from "@/app/forms/form-view";
 import { notifyMaker } from "@/lib/forms/mail";
-import { checkAnswers, type PublicForm } from "@/lib/forms/schema";
+import { checkAnswers, fileTypesFor, filesIn, MAX_FILE_BYTES, safeFileName, type PublicForm } from "@/lib/forms/schema";
 import { formsOrigin, formsRequestBase, visitorIp } from "@/lib/forms/server";
 import { initializeTransaction, paystackConfigured } from "@/lib/paystack";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -27,9 +27,10 @@ export async function submitForm(slug: string, raw: Record<string, unknown>, cap
   if (!form) return { error: "This form doesn't exist or was taken down." };
   if (!form.accepting) return { error: "This form isn't taking answers any more." };
 
-  const { answers, email, amount, errors } = checkAnswers(form, raw);
+  const { answers, email, amount, errors } = checkAnswers(form, raw, { formId: form.id });
   if (Object.keys(errors).length) return { errors };
 
+  // The database checks each file was uploaded for this form, is in Storage and isn't reused.
   const { data, error } = await admin.rpc("form_submit", {
     p_slug: slug,
     p_answers: answers,
@@ -37,6 +38,7 @@ export async function submitForm(slug: string, raw: Record<string, unknown>, cap
     p_amount_kobo: amount,
     p_page: typeof page === "string" ? page.slice(0, 300) : "",
     p_ip: await visitorIp(),
+    p_files: filesIn(answers).map((f) => f.path),
   });
   if (error) return { error: error.message };
   const r = data as Submitted;
@@ -63,4 +65,26 @@ export async function submitForm(slug: string, raw: Record<string, unknown>, cap
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Couldn't start the payment." };
   }
+}
+
+/**
+ * A one-time upload link for a file question. Visitors have no account, so the file goes
+ * straight to private Storage through a signed link that only works for this one path.
+ */
+export async function startUpload(slug: string, fieldId: string, file: { name: string; size: number; type: string }):
+  Promise<{ path?: string; token?: string; error?: string }> {
+  if (typeof slug !== "string" || !/^[a-z0-9]{8}$/.test(slug) || typeof fieldId !== "string" || !file) return { error: "This form doesn't exist." };
+  const admin = createAdminClient();
+  const { data: f } = await admin.rpc("form_public", { p_slug: slug });
+  const form = f as PublicForm | null;
+  const field = form?.fields.find((x) => x.id === fieldId && x.type === "file");
+  if (!form || !field) return { error: "This question doesn't take files." };
+  if (!(file.size > 0 && file.size <= MAX_FILE_BYTES)) return { error: "Files can be up to 10 MB." };
+  if (!fileTypesFor(field.accept).includes(String(file.type))) return { error: "This kind of file isn't allowed here." };
+  const path = `${form.id}/${crypto.randomUUID()}/${safeFileName(String(file.name))}`;
+  const { error } = await admin.rpc("form_upload_start", { p_slug: slug, p_field: fieldId, p_path: path, p_ip: await visitorIp() });
+  if (error) return { error: error.message };
+  const { data, error: e2 } = await admin.storage.from("form-files").createSignedUploadUrl(path);
+  if (e2 || !data) return { error: "Couldn't start the upload. Try again." };
+  return { path: data.path, token: data.token };
 }

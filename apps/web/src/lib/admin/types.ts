@@ -122,6 +122,7 @@ export const PRODUCT_LABEL: Record<string, string> = {
   meet_business: "Meet Business",
   book_pro: "Book Pro",
   book_fees: "Book 3% fees",
+  forms_fees: "Forms 3% fees",
 };
 export const productLabel = (p: string) => PRODUCT_LABEL[p] ?? p;
 
@@ -189,6 +190,20 @@ export type BookReport = {
   }>;
 };
 
+export type FormsReport = {
+  days: number;
+  forms: { total: number; live: number; drafts: number; makers: number; paid_forms: number; new: number };
+  payouts: number;
+  answers: { received: number; paid: number; unpaid: number; embedded: number };
+  files: { count: number; bytes: number };
+  money: { paid_kobo: number; fees_kobo: number; fees_all_time_kobo: number };
+  daily: Array<{ day: string; answers: number; paid_kobo: number; fees_kobo: number }>;
+  form_list: Array<{
+    id: string; slug: string; title: string; published: boolean; accepting: boolean; created_at: string; answers_total: number;
+    owner: string | null; owner_email: string | null; takes_payments: boolean; payouts: boolean; answers_period: number; paid_period_kobo: number; last_answer: string | null;
+  }>;
+};
+
 export type AccountsReport = {
   totals: { accounts: number; confirmed: number; in_company: number; active_7d: number; new_7d: number };
   rows: Array<{
@@ -202,7 +217,7 @@ export type MoneyReport = {
   payments: Array<{ product: string; status: "success" | "failed" | "pending"; amount_kobo: number; at: string; reference: string | null; who: string | null; organization_id: string | null; failure_reason: string | null; detail: string | null }>;
 };
 
-export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_business", "book_pro", "book_fees"] as const;
+export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_business", "book_pro", "book_fees", "forms_fees"] as const;
 
 export type FeedbackItem = {
   id: string;

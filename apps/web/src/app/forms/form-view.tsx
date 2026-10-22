@@ -1,14 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { Turnstile } from "@/components/turnstile";
 import {
+  acceptAttr,
   AMOUNT_KEY,
   checkAnswers,
+  fileTypesFor,
   hasPrices,
+  isStatic,
+  MAX_FILE_BYTES,
   naira,
+  pagesOf,
+  safeFileName,
+  visibleIds,
   type Field,
+  type FileAnswer,
   type FormDef,
 } from "@/lib/forms/schema";
 import { cn } from "@/lib/utils";
@@ -20,6 +28,9 @@ export type SubmitResult = {
   pay?: { url: string; amount: number };
 };
 
+/** Uploads one file for a question; returns what to store as the answer. */
+export type Uploader = (fieldId: string, file: File) => Promise<{ file?: FileAnswer; error?: string }>;
+
 type Props = {
   form: FormDef;
   mode: "live" | "preview";
@@ -30,6 +41,7 @@ type Props = {
   pro?: boolean;
   homeUrl?: string;
   onSubmit?: (raw: Record<string, unknown>, captcha: string | null) => Promise<SubmitResult>;
+  upload?: Uploader;
 };
 
 /** Read the answers out of the <form> (one key per question id). */
@@ -37,7 +49,7 @@ function readForm(el: HTMLFormElement, fields: Field[]) {
   const fd = new FormData(el);
   const raw: Record<string, unknown> = {};
   for (const f of fields) {
-    if (f.type === "heading") continue;
+    if (isStatic(f.type)) continue;
     if (f.type === "checkbox") raw[f.id] = fd.getAll(f.id).map(String);
     else if (f.type === "consent") raw[f.id] = fd.get(f.id) === "on";
     else raw[f.id] = String(fd.get(f.id) ?? "");
@@ -46,9 +58,8 @@ function readForm(el: HTMLFormElement, fields: Field[]) {
   return raw;
 }
 
-/** Tell the page around an embedded form how tall it is (forms-embed.js listens). */
-// Measures the form itself, not the page: the page is never shorter than the frame, so it
-// could only ever grow.
+// Tell the page around an embedded form how tall it is (forms-embed.js listens). Measures the
+// form itself, not the page: the page is never shorter than the frame, so it could only grow.
 function useEmbedHeight(on: boolean, root: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const el = root.current;
@@ -71,43 +82,78 @@ export function FormView(props: Props) {
   );
 }
 
-function FormBody({ form, mode, embed = false, payments = true, accepting = true, pro = false, homeUrl, onSubmit }: Props) {
+function FormBody({ form, mode, embed = false, payments = true, accepting = true, pro = false, homeUrl, onSubmit, upload }: Props) {
   const ref = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [total, setTotal] = useState(0);
+  const [raw, setRaw] = useState<Record<string, unknown>>({});
   const [done, setDone] = useState<SubmitResult["done"] | null>(null);
   const [pay, setPay] = useState<SubmitResult["pay"] | null>(null);
   const [captcha, setCaptcha] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [files, setFiles] = useState<Record<string, FileAnswer | "uploading" | null>>({});
+  const [step, setStep] = useState(0);
 
   const priced = hasPrices(form);
   const accent = form.settings.color || "#6a4cf5";
   const payment = form.settings.payment;
 
-  const recalc = useCallback(() => {
-    if (!priced || !ref.current) return;
-    setTotal(checkAnswers(form, readForm(ref.current, form.fields)).amount);
-  }, [form, priced]);
-  useEffect(recalc, [recalc]);
+  const shown = useMemo(() => visibleIds(form, raw), [form, raw]);
+  const pages = useMemo(() => pagesOf(form), [form]);
+  // Pages whose page break is hidden by its condition are skipped.
+  const steps = useMemo(() => pages.map((p, i) => ({ ...p, i })).filter((p) => !p.page || shown.has(p.page.id)), [pages, shown]);
+  const at = Math.min(step, steps.length - 1);
+  const current = steps[at];
+  const last = at === steps.length - 1;
+  const total = useMemo(() => (priced ? checkAnswers(form, raw).amount : 0), [form, raw, priced]);
+  const uploading = Object.values(files).includes("uploading");
+
+  const refresh = useCallback(() => {
+    if (ref.current) setRaw(readForm(ref.current, form.fields));
+  }, [form.fields]);
+  // Ratings and files live in hidden inputs: read the form again once they're on the page.
+  useEffect(refresh, [refresh, ratings, files]);
+
+  const pageOf = (id: string) => steps.findIndex((p) => p.fields.some((f) => f.id === id));
 
   const scrollUp = () => {
     if (embed) window.parent.postMessage({ type: "workbase-form", scroll: true }, "*");
     else ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  /** Show these errors and move to the page of the first one. */
+  function showErrors(errs: Record<string, string>) {
+    setErrors(errs);
+    const first = form.fields.find((f) => errs[f.id]);
+    const p = first ? pageOf(first.id) : -1;
+    if (p >= 0 && p !== at) setStep(p);
+    setTimeout(() => {
+      if (first) document.getElementById(`q-${first.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      else scrollUp();
+    }, 50);
+  }
+
+  function next() {
+    if (!ref.current || uploading) return;
+    const now = readForm(ref.current, form.fields);
+    const { errors: all } = checkAnswers(form, now);
+    const here = new Set(current.fields.map((f) => f.id));
+    const errs = Object.fromEntries(Object.entries(all).filter(([k]) => here.has(k)));
+    if (Object.keys(errs).length) return showErrors(errs);
+    setErrors({});
+    setStep(at + 1);
+    setTimeout(scrollUp, 30);
+  }
+
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!ref.current || busy) return;
-    const raw = readForm(ref.current, form.fields);
-    const local = checkAnswers(form, raw);
-    if (Object.keys(local.errors).length) {
-      setErrors(local.errors);
-      const first = form.fields.find((f) => local.errors[f.id]);
-      if (first) document.getElementById(`q-${first.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
+    if (!last) return next();
+    if (uploading) return setErrors({ _form: "Wait for the file to finish uploading." });
+    const now = readForm(ref.current, form.fields);
+    const local = checkAnswers(form, now);
+    if (Object.keys(local.errors).length) return showErrors(local.errors);
     setErrors({});
     if (mode === "preview" || !onSubmit) {
       setDone({ message: "Everything checks out. On the live form, this is where the answers are sent." });
@@ -115,13 +161,9 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
     }
     setBusy(true);
     try {
-      const res = await onSubmit(raw, captcha);
+      const res = await onSubmit(now, captcha);
       setResetKey((k) => k + 1);
-      if (res.errors || res.error) {
-        setErrors({ ...(res.errors ?? {}), ...(res.error ? { _form: res.error } : {}) });
-        scrollUp();
-        return;
-      }
+      if (res.errors || res.error) return showErrors({ ...(res.errors ?? {}), ...(res.error ? { _form: res.error } : {}) });
       if (res.pay) {
         if (embed) {
           setPay(res.pay);
@@ -142,6 +184,27 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
     }
   }
 
+  async function attach(f: Field, file: File | null) {
+    setErrors(({ [f.id]: _, ...rest }) => rest);
+    if (!file) {
+      setFiles((x) => ({ ...x, [f.id]: null }));
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) return setErrors((e) => ({ ...e, [f.id]: "Files can be up to 10 MB." }));
+    if (!fileTypesFor(f.accept).includes(file.type)) return setErrors((e) => ({ ...e, [f.id]: "This kind of file isn't allowed here." }));
+    if (mode === "preview" || !upload) {
+      const zero = "00000000-0000-0000-0000-000000000000";
+      setFiles((x) => ({ ...x, [f.id]: { path: `${zero}/${zero}/${safeFileName(file.name)}`, name: file.name, size: file.size, type: file.type } }));
+      return;
+    }
+    setFiles((x) => ({ ...x, [f.id]: "uploading" }));
+    const r = await upload(f.id, file).catch(() => ({ error: "Upload failed. Check your connection and try again." }) as { file?: FileAnswer; error?: string });
+    if (r.error || !r.file) {
+      setFiles((x) => ({ ...x, [f.id]: null }));
+      setErrors((e) => ({ ...e, [f.id]: r.error ?? "Upload failed. Try again." }));
+    } else setFiles((x) => ({ ...x, [f.id]: r.file! }));
+  }
+
   const shell = cn("card overflow-hidden", embed ? "shadow-none" : "shadow-sm");
 
   if (done) {
@@ -159,7 +222,7 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
             </a>
           )}
           {mode === "preview" && (
-            <button type="button" className="btn-secondary btn-sm mt-6" onClick={() => setDone(null)}>
+            <button type="button" className="btn-secondary btn-sm mt-6" onClick={() => { setDone(null); setStep(0); }}>
               Back to the form
             </button>
           )}
@@ -186,13 +249,24 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
 
   return (
     <form ref={ref} onSubmit={submit} onChange={(e) => {
-      recalc();
+      refresh();
       const name = (e.target as unknown as HTMLInputElement).name;
       if (name && errors[name]) setErrors(({ [name]: _, ...rest }) => rest);
     }} noValidate className={shell} style={{ borderTop: `4px solid ${accent}` }}>
       <div className="px-5 pt-7 pb-2 sm:px-8">
         <h1 className="font-display text-2xl font-bold text-slate-900 sm:text-3xl">{form.title}</h1>
-        {form.description && <p className="mt-2 whitespace-pre-wrap text-slate-600">{form.description}</p>}
+        {form.description && at === 0 && <p className="mt-2 whitespace-pre-wrap text-slate-600">{form.description}</p>}
+        {steps.length > 1 && (
+          <div className="mt-4" aria-label={`Step ${at + 1} of ${steps.length}`}>
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>Step {at + 1} of {steps.length}</span>
+              {current.page && <span className="truncate pl-3 font-medium text-slate-700">{current.page.label}</span>}
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-full rounded-full transition-all" style={{ width: `${((at + 1) / steps.length) * 100}%`, background: accent }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {!accepting && (
@@ -205,18 +279,30 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
       )}
 
       <fieldset disabled={!accepting || busy} className="space-y-6 px-5 py-6 sm:px-8">
-        {form.fields.map((f) => (
-          <Question key={f.id} field={f} error={errors[f.id]} priced={Boolean(payment?.enabled)} accent={accent}
-            rating={ratings[f.id] ?? 0}
-            onRate={(v) => {
-              setRatings((r) => ({ ...r, [f.id]: v }));
-              setErrors(({ [f.id]: _, ...rest }) => rest);
-              setTimeout(recalc, 0);
-            }}
-          />
-        ))}
+        {current.page && (current.page.help || at > 0) && (
+          <div className="border-b border-slate-200 pb-3">
+            <h2 className="font-display text-xl font-bold text-slate-900">{current.page.label}</h2>
+            {current.page.help && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{current.page.help}</p>}
+          </div>
+        )}
+        {/* Every question stays in the form (so its answer is kept); only this page's showing ones are visible. */}
+        {pages.map((p, pi) =>
+          p.fields.map((f) => (
+            <div key={f.id} hidden={pi !== current.i || !shown.has(f.id)}>
+              <Question field={f} error={errors[f.id]} priced={Boolean(payment?.enabled)} accent={accent}
+                rating={ratings[f.id] ?? 0}
+                onRate={(v) => {
+                  setRatings((r) => ({ ...r, [f.id]: v }));
+                  setErrors(({ [f.id]: _, ...rest }) => rest);
+                }}
+                file={files[f.id] ?? null}
+                onFile={(file) => attach(f, file)}
+              />
+            </div>
+          )),
+        )}
 
-        {payment?.enabled && payment.custom && (
+        {last && payment?.enabled && payment.custom && (
           <div id={`q-${AMOUNT_KEY}`}>
             <label className="label" htmlFor={AMOUNT_KEY}>
               {payment.label ? `${payment.label} amount` : "Amount"} (₦)
@@ -233,20 +319,30 @@ function FormBody({ form, mode, embed = false, payments = true, accepting = true
         {Object.keys(errors).some((k) => k !== "_form") && !errors._form && (
           <p className="mb-3 text-sm text-red-600">Please check the answers marked in red.</p>
         )}
-        {mode === "live" && <Turnstile resetKey={resetKey} onToken={setCaptcha} className="mb-3" />}
+        {mode === "live" && last && <Turnstile resetKey={resetKey} onToken={setCaptcha} className="mb-3" />}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {priced ? (
+          {at > 0 ? (
+            <button type="button" className="btn-secondary px-4 py-2.5" onClick={() => { setErrors({}); setStep(at - 1); setTimeout(scrollUp, 30); }}>
+              <Icon name="arrowLeft" className="h-4 w-4" /> Back
+            </button>
+          ) : priced && last ? (
             <p className="text-sm text-slate-600">
               {payment?.label || "Total"}: <span className="font-display text-xl font-bold text-slate-900">{naira(total)}</span>
             </p>
           ) : (
             <span />
           )}
-          <button type="submit" className="btn-primary px-6 py-2.5 text-base" style={{ background: accent }} disabled={!accepting || busy}>
-            {busy ? "Sending…" : form.settings.submit_label || (priced && total > 0 ? "Continue to payment" : "Submit")}
+          {at > 0 && priced && last && (
+            <p className="text-sm text-slate-600">
+              {payment?.label || "Total"}: <span className="font-display text-xl font-bold text-slate-900">{naira(total)}</span>
+            </p>
+          )}
+          <button type="submit" className="btn-primary px-6 py-2.5 text-base" style={{ background: accent }} disabled={!accepting || busy || uploading}>
+            {busy ? "Sending…" : uploading ? "Uploading…" : !last ? <>Next <Icon name="arrowRight" className="h-4 w-4" /></>
+              : form.settings.submit_label || (priced && total > 0 ? "Continue to payment" : "Submit")}
           </button>
         </div>
-        {priced && total > 0 && <p className="mt-2 text-xs text-slate-500">Paid securely with Paystack: card, bank transfer or USSD.</p>}
+        {priced && last && total > 0 && <p className="mt-2 text-xs text-slate-500">Paid securely with Paystack: card, bank transfer or USSD.</p>}
       </div>
       {!pro && <Badge homeUrl={homeUrl} embed={embed} />}
     </form>
@@ -262,9 +358,13 @@ function Badge({ homeUrl, embed }: { homeUrl?: string; embed: boolean }) {
   );
 }
 
-function Question({ field: f, error, priced, accent, rating, onRate }: {
+const size = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+function Question({ field: f, error, priced, accent, rating, onRate, file, onFile }: {
   field: Field; error?: string; priced: boolean; accent: string; rating: number; onRate: (v: number) => void;
+  file: FileAnswer | "uploading" | null; onFile: (f: File | null) => void;
 }) {
+  const pick = useRef<HTMLInputElement>(null);
   if (f.type === "heading") {
     return (
       <div className="border-b border-slate-200 pt-2 pb-2">
@@ -288,6 +388,40 @@ function Question({ field: f, error, priced, accent, rating, onRate }: {
           <span>{f.label}{req}</span>
         </label>
         {f.help && <p className="mt-1 ml-8 text-sm text-slate-500">{f.help}</p>}
+        {err}
+      </div>
+    );
+  }
+
+  if (f.type === "file") {
+    const ready = file && file !== "uploading" ? file : null;
+    return (
+      <div id={id}>
+        <p className="label">{f.label}{req}</p>
+        {help}
+        <input type="hidden" name={f.id} value={ready ? JSON.stringify(ready) : ""} />
+        <input ref={pick} type="file" className="sr-only" accept={acceptAttr(f.accept)} aria-label={f.label} tabIndex={-1}
+          onChange={(e) => {
+            onFile(e.target.files?.[0] ?? null);
+            e.target.value = "";
+          }} />
+        {ready ? (
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+            <Icon name="paperclip" className="h-4 w-4 shrink-0 text-slate-500" />
+            <span className="min-w-0 flex-1 truncate text-slate-800">{ready.name}</span>
+            <span className="shrink-0 text-xs text-slate-500">{size(ready.size)}</span>
+            <button type="button" className="shrink-0 text-sm font-medium text-slate-500 hover:text-red-600" onClick={() => onFile(null)}>Remove</button>
+          </div>
+        ) : (
+          <button type="button" disabled={file === "uploading"} onClick={() => pick.current?.click()}
+            className={cn("flex w-full flex-col items-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-sm transition hover:bg-slate-50", error ? "border-red-300" : "border-slate-300")}>
+            <Icon name={file === "uploading" ? "refresh" : "paperclip"} className={cn("h-5 w-5 text-slate-500", file === "uploading" && "animate-spin")} />
+            <span className="font-medium text-slate-800">{file === "uploading" ? "Uploading…" : "Choose a file"}</span>
+            <span className="text-xs text-slate-500">
+              {f.accept === "image" ? "Photo" : f.accept === "document" ? "PDF, Word, Excel or text" : "Photo, PDF, Word, Excel or zip"} · up to 10 MB
+            </span>
+          </button>
+        )}
         {err}
       </div>
     );

@@ -1,5 +1,5 @@
 import { Icon } from "@/components/icons";
-import { AMOUNT_KEY, answerText, naira, type Answers } from "@/lib/forms/schema";
+import { AMOUNT_KEY, answerText, isFileAnswer, isStatic, naira, type Answers } from "@/lib/forms/schema";
 import { formsRequestBase, myForm } from "@/lib/forms/server";
 import { cn } from "@/lib/utils";
 import { deleteResponse } from "../../../actions";
@@ -15,7 +15,7 @@ export default async function ResponsesPage({ params, searchParams }: { params: 
   if (sp.show !== "all") q = q.neq("status", "pending_payment");
   const { data } = await q.order("created_at", { ascending: false }).limit(500);
   const rows = (data ?? []) as Row[];
-  const questions = form.fields.filter((f) => f.type !== "heading");
+  const questions = form.fields.filter((f) => !isStatic(f.type));
   const priced = Boolean(form.settings.payment?.enabled) || rows.some((r) => r.amount_kobo > 0);
   const custom = rows.some((r) => r.answers[AMOUNT_KEY] !== undefined);
   const paidTotal = rows.filter((r) => r.status === "paid").reduce((s, r) => s + r.amount_kobo, 0);
@@ -59,7 +59,15 @@ export default async function ResponsesPage({ params, searchParams }: { params: 
                     {new Date(r.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" })}
                   </td>
                   {questions.map((f) => (
-                    <td key={f.id} className="max-w-[20rem] px-4 py-3 break-words whitespace-pre-wrap text-slate-800">{answerText(r.answers[f.id], f.type)}</td>
+                    <td key={f.id} className="max-w-[20rem] px-4 py-3 break-words whitespace-pre-wrap text-slate-800">
+                      {isFileAnswer(r.answers[f.id]) ? (
+                        <a href={`${base}/build/${form.id}/file?p=${encodeURIComponent((r.answers[f.id] as { path: string }).path)}`} target="_blank" rel="noopener"
+                          className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-brand-50 hover:text-brand-700">
+                          <Icon name="paperclip" className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{answerText(r.answers[f.id], f.type)}</span>
+                        </a>
+                      ) : answerText(r.answers[f.id], f.type)}
+                    </td>
                   ))}
                   {custom && <td className="px-4 py-3">{r.answers[AMOUNT_KEY] ? naira(Number(r.answers[AMOUNT_KEY])) : ""}</td>}
                   {priced && (

@@ -7,7 +7,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * removed through the Storage API:
  * 1. removes screenshots older than 90 days (migration 0019);
  * 2. deletes companies whose owner closed them more than 14 days ago (migration 0028):
- *    first their stored files, then the company row, which cascades to all its data.
+ *    first their stored files, then the company row, which cascades to all its data;
+ * 3. removes Workbase Forms files nobody needs any more (migration 0049): uploads never sent
+ *    with an answer, and files of deleted answers or forms.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -60,5 +62,19 @@ export async function GET(request: Request) {
     console.log(`Deleted closed company ${org.id}`);
     deleted.push(org.id);
   }
-  return NextResponse.json({ removed, deleted: deleted.length });
+  // Form files nobody needs any more.
+  let formFiles = 0;
+  for (let round = 0; round < 10; round++) {
+    const { data, error } = await admin.rpc("form_stale_uploads", { p_limit: 500 });
+    if (error) break; // migration 0049 not there yet: skip quietly
+    const paths = (data ?? []) as string[];
+    if (!paths.length) break;
+    for (let i = 0; i < paths.length; i += 100) {
+      const { error: rmError } = await admin.storage.from("form-files").remove(paths.slice(i, i + 100));
+      if (rmError) return NextResponse.json({ error: rmError.message, removed, deleted: deleted.length, formFiles }, { status: 500 });
+    }
+    await admin.from("form_uploads").delete().in("path", paths);
+    formFiles += paths.length;
+  }
+  return NextResponse.json({ removed, deleted: deleted.length, formFiles });
 }

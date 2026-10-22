@@ -2,7 +2,7 @@
 import { sendEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formsLink } from "./paths";
-import { AMOUNT_KEY, answerText, naira, type Answers, type Field, type FormSettings } from "./schema";
+import { AMOUNT_KEY, answerText, isStatic, naira, type Answers, type Field, type FormSettings } from "./schema";
 
 export async function notifyMaker(responseId: string, origin?: string, base?: string) {
   try {
@@ -26,7 +26,7 @@ export async function notifyMaker(responseId: string, origin?: string, base?: st
     const email = (owner as { email: string } | null)?.email;
     if (!email) return;
     const lines = row.form.fields
-      .filter((f) => f.type !== "heading" && row.answers[f.id] !== undefined)
+      .filter((f) => !isStatic(f.type) && row.answers[f.id] !== undefined)
       .slice(0, 30)
       .map((f) => `${f.label}: ${answerText(row.answers[f.id], f.type).slice(0, 300)}`);
     if (row.answers[AMOUNT_KEY]) lines.push(`Amount chosen: ${naira(Number(row.answers[AMOUNT_KEY]))}`);

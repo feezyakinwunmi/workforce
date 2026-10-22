@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { AMOUNT_KEY, answerText, type Answers, type Field } from "@/lib/forms/schema";
+import { AMOUNT_KEY, answerText, isFileAnswer, isStatic, type Answers, type Field } from "@/lib/forms/schema";
+import { formsOrigin, formsRequestBase } from "@/lib/forms/server";
 import { getMeetUser } from "@/lib/meet/server";
 
 /** Spreadsheet-safe cell: quotes, and a leading ' so a value can't run as a formula. */
@@ -10,11 +11,12 @@ function cell(value: string) {
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const link = `${await formsOrigin()}${await formsRequestBase()}/build/${id}/file?p=`;
   const { supabase, user } = await getMeetUser();
   if (!user || !/^[0-9a-f-]{36}$/i.test(id)) return new NextResponse("Not found", { status: 404 });
   const { data: form } = await supabase.from("forms").select("title, fields").eq("id", id).maybeSingle();
   if (!form) return new NextResponse("Not found", { status: 404 });
-  const fields = ((form as { fields: Field[] }).fields ?? []).filter((f) => f.type !== "heading");
+  const fields = ((form as { fields: Field[] }).fields ?? []).filter((f) => !isStatic(f.type));
 
   const rows: Array<{ answers: Answers; amount_kobo: number; status: string; created_at: string; email: string | null; page: string }> = [];
   for (let from = 0; ; from += 1000) {
@@ -32,7 +34,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const lines = rows.map((r) =>
     [
       new Date(r.created_at).toLocaleString("en-GB", { timeZone: "Africa/Lagos" }),
-      ...fields.map((f) => answerText(r.answers[f.id], f.type)),
+      ...fields.map((f) => {
+        const a = r.answers[f.id];
+        // Files: the name and a link that opens it (after signing in as the form's maker).
+        return isFileAnswer(a) ? `${a.name} ${link}${encodeURIComponent(a.path)}` : answerText(a, f.type);
+      }),
       r.answers[AMOUNT_KEY] ? String(Number(r.answers[AMOUNT_KEY]) / 100) : "",
       r.amount_kobo ? String(r.amount_kobo / 100) : "",
       r.amount_kobo === 0 ? "" : r.status === "paid" ? "Paid" : "Not paid",

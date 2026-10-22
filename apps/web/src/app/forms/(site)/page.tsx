@@ -26,7 +26,7 @@ export default async function FormsHome({ searchParams }: { searchParams: SP }) 
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       {sp.error && <Notice tone="error" className="mb-6">{sp.error}</Notice>}
       <h1 className="font-display text-2xl font-bold text-slate-900">Start a new form</h1>
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
         {TEMPLATES.map((t) => (
           <form key={t.key} action={createForm}>
             <input type="hidden" name="template" value={t.key} />
@@ -74,6 +74,7 @@ const TEMPLATE_ICON: Record<string, IconName> = {
   event: "calendar",
   order: "cash",
   feedback: "smile",
+  job: "briefcase",
   donation: "wallet",
 };
 

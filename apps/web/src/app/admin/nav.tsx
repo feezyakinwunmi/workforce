@@ -11,6 +11,7 @@ export function AdminNav({ base, newFeedback = 0 }: { base: string; newFeedback?
     ["/workbase", "Workbase"],
     ["/meet", "Meet"],
     ["/book", "Book"],
+    ["/forms", "Forms"],
     ["/money", "Money"],
     ["/companies", "Companies"],
     ["/accounts", "Accounts"],

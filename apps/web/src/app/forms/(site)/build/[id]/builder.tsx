@@ -7,11 +7,13 @@ import { FormView } from "@/app/forms/form-view";
 import {
   FIELD_TYPES,
   isChoice,
+  isStatic,
   MAX_FIELDS,
   naira,
   newField,
   toKobo,
   uid,
+  type Condition,
   type Field,
   type FieldType,
   type FormDef,
@@ -34,6 +36,8 @@ const TYPE_ICON: Record<FieldType, IconName> = {
   rating: "sparkle",
   consent: "shield",
   heading: "layers",
+  file: "paperclip",
+  page: "arrowRight",
 };
 
 const COLORS = ["#6a4cf5", "#15123a", "#0f766e", "#0369a1", "#be123c", "#c2410c", "#a16207", "#4d7c0f"];
@@ -77,7 +81,11 @@ export function Builder({ id, initial, hasPayout, payoutsHref }: { id: string; i
     return () => window.removeEventListener("beforeunload", warn);
   }, [save]);
 
-  const setFields = useCallback((fn: (f: Field[]) => Field[]) => setDef((d) => ({ ...d, fields: fn(d.fields) })), []);
+  // A condition may only point at an earlier question: moving or deleting questions drops any that broke.
+  const setFields = useCallback((fn: (f: Field[]) => Field[]) => setDef((d) => {
+    const fields = fn(d.fields);
+    return { ...d, fields: fields.map((f, i) => (f.when && !fields.slice(0, i).some((x) => x.id === f.when!.field && !isStatic(x.type)) ? { ...f, when: undefined } : f)) };
+  }), []);
   const setSettings = useCallback((patch: Partial<FormSettings>) => setDef((d) => ({ ...d, settings: { ...d.settings, ...patch } })), []);
   const updateField = useCallback((fid: string, patch: Partial<Field>) => setFields((fs) => fs.map((f) => (f.id === fid ? { ...f, ...patch } : f))), [setFields]);
 
@@ -207,6 +215,9 @@ export function Builder({ id, initial, hasPayout, payoutsHref }: { id: string; i
                   {drop === i && <DropLine />}
                   <FieldCard
                     field={f}
+                    earlier={def.fields.slice(0, i).filter((x) => !isStatic(x.type))}
+                    page={def.fields.slice(0, i + 1).filter((x) => x.type === "page").length + 1}
+                    hasPages={def.fields.some((x) => x.type === "page")}
                     index={i}
                     count={def.fields.length}
                     open={selected === f.id}
@@ -387,8 +398,8 @@ function PaymentSettings({ payment, set, hasPayout, payoutsHref, hasEmail, choic
   );
 }
 
-function FieldCard({ field: f, index, count, open, priced, onOpen, onChange, onMove, onDragStart, onDragEnd, onDuplicate, onDelete }: {
-  field: Field; index: number; count: number; open: boolean; priced: boolean;
+function FieldCard({ field: f, earlier, page, hasPages, index, count, open, priced, onOpen, onChange, onMove, onDragStart, onDragEnd, onDuplicate, onDelete }: {
+  field: Field; earlier: Field[]; page: number; hasPages: boolean; index: number; count: number; open: boolean; priced: boolean;
   onOpen: () => void; onChange: (p: Partial<Field>) => void; onMove: (to: number) => void;
   onDragStart: () => void; onDragEnd: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
@@ -403,7 +414,7 @@ function FieldCard({ field: f, index, count, open, priced, onOpen, onChange, onM
   );
 
   return (
-    <div className={cn("card transition", open ? "border-brand-400 shadow-md shadow-brand-900/5" : "hover:border-slate-300")}>
+    <div className={cn("card transition", f.type === "page" && "border-dashed bg-slate-50", open ? "border-brand-400 shadow-md shadow-brand-900/5" : "hover:border-slate-300")}>
       <div className="flex items-start gap-2 p-3 sm:p-4">
         <span
           draggable
@@ -421,10 +432,12 @@ function FieldCard({ field: f, index, count, open, priced, onOpen, onChange, onM
         <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
           <span className="flex items-center gap-2 text-xs text-slate-500">
             <Icon name={TYPE_ICON[f.type]} className="h-3.5 w-3.5" />
-            {typeLabel}
+            {f.type === "page" ? `Page ${page} starts here` : typeLabel}
             {f.required && <span className="badge bg-red-50 text-red-700">Required</span>}
+            {f.when && <span className="badge bg-sky-50 text-sky-700">Only if…</span>}
+            {hasPages && index === 0 && f.type !== "page" && <span className="text-slate-400">· Page 1</span>}
           </span>
-          <span className={cn("mt-1 block truncate font-medium text-slate-900", f.type === "heading" && "font-display text-lg")}>{f.label}</span>
+          <span className={cn("mt-1 block truncate font-medium text-slate-900", isStatic(f.type) && "font-display text-lg")}>{f.label}</span>
           {!open && isChoice(f.type) && (
             <span className="mt-1 block truncate text-sm text-slate-500">
               {f.options?.map((o) => (priced && o.price ? `${o.label} (${naira(o.price)})` : o.label)).join(" · ")}
@@ -440,11 +453,11 @@ function FieldCard({ field: f, index, count, open, priced, onOpen, onChange, onM
       {open && (
         <div className="space-y-3 border-t border-slate-200 p-3 sm:p-4">
           <div>
-            <label className="label" htmlFor={`l-${f.id}`}>{f.type === "heading" ? "Title" : f.type === "consent" ? "What they agree to" : "Question"}</label>
+            <label className="label" htmlFor={`l-${f.id}`}>{f.type === "heading" ? "Title" : f.type === "page" ? "Page title" : f.type === "consent" ? "What they agree to" : "Question"}</label>
             <input ref={labelRef} id={`l-${f.id}`} className="input" maxLength={300} value={f.label} onChange={(e) => onChange({ label: e.target.value })} />
           </div>
           <div>
-            <label className="label" htmlFor={`h-${f.id}`}>{f.type === "heading" ? "Text under the title" : "Help text (optional)"}</label>
+            <label className="label" htmlFor={`h-${f.id}`}>{isStatic(f.type) ? "Text under the title (optional)" : "Help text (optional)"}</label>
             <input id={`h-${f.id}`} className="input" maxLength={500} value={f.help ?? ""} onChange={(e) => onChange({ help: e.target.value || undefined })} />
           </div>
           {["text", "textarea", "email", "phone", "number"].includes(f.type) && (
@@ -468,6 +481,19 @@ function FieldCard({ field: f, index, count, open, priced, onOpen, onChange, onM
             </div>
           )}
           {isChoice(f.type) && <OptionsEditor field={f} priced={priced} onChange={onChange} />}
+          {f.type === "file" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-slate-600">Accept</span>
+              {([["any", "Any file"], ["image", "Photos only"], ["document", "Documents only"]] as const).map(([v, l]) => (
+                <button key={v} type="button" onClick={() => onChange({ accept: v })}
+                  className={cn("rounded-full border px-3 py-1 text-xs", (f.accept ?? "any") === v ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-300 text-slate-600 hover:border-slate-400")}>
+                  {l}
+                </button>
+              ))}
+              <span className="text-xs text-slate-500">Up to 10 MB each.</span>
+            </div>
+          )}
+          <ConditionEditor field={f} earlier={earlier} onChange={(when) => onChange({ when })} />
           {swap.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-slate-600">Show as</span>
@@ -480,7 +506,7 @@ function FieldCard({ field: f, index, count, open, priced, onOpen, onChange, onM
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            {f.type !== "heading" ? (
+            {!isStatic(f.type) ? (
               <Toggle label="Required" on={Boolean(f.required)} onChange={(required) => onChange({ required: required || undefined })} />
             ) : (
               <span />
@@ -556,6 +582,50 @@ function OptionsEditor({ field: f, priced, onChange }: { field: Field; priced: b
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+const OPS: Array<[Condition["op"], string]> = [["is", "is"], ["not", "is not"], ["filled", "is answered"], ["empty", "is not answered"]];
+
+/** "Show only if <earlier question> <is> <value>". A condition on a page break hides the whole page. */
+function ConditionEditor({ field: f, earlier, onChange }: { field: Field; earlier: Field[]; onChange: (w: Condition | undefined) => void }) {
+  const w = f.when;
+  const src = earlier.find((x) => x.id === w?.field);
+  if (!earlier.length) return null;
+  if (!w) {
+    return (
+      <button type="button" className="btn-secondary btn-sm" onClick={() => {
+        const first = [...earlier].reverse().find((x) => isChoice(x.type)) ?? earlier[earlier.length - 1];
+        onChange({ field: first.id, op: isChoice(first.type) ? "is" : "filled", value: first.options?.[0]?.label });
+      }}>
+        <Icon name="eye" className="h-4 w-4" /> {f.type === "page" ? "Show this page only if…" : "Show only if…"}
+      </button>
+    );
+  }
+  const needsValue = w.op === "is" || w.op === "not";
+  return (
+    <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+      <p className="mb-2 text-sm font-medium text-slate-800">{f.type === "page" ? "Show this page only if" : "Show this question only if"}</p>
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
+        <select aria-label="Question" className="input" value={w.field} onChange={(e) => {
+          const nf = earlier.find((x) => x.id === e.target.value)!;
+          onChange({ field: nf.id, op: isChoice(nf.type) ? "is" : "filled", value: nf.options?.[0]?.label });
+        }}>
+          {earlier.map((x) => <option key={x.id} value={x.id}>{x.label.slice(0, 60)}</option>)}
+        </select>
+        <select aria-label="Condition" className="input" value={w.op} onChange={(e) => onChange({ ...w, op: e.target.value as Condition["op"] })}>
+          {OPS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        {needsValue && (src && isChoice(src.type) ? (
+          <select aria-label="Answer" className="input" value={w.value ?? ""} onChange={(e) => onChange({ ...w, value: e.target.value })}>
+            {src.options?.map((o) => <option key={o.id} value={o.label}>{o.label}</option>)}
+          </select>
+        ) : (
+          <input aria-label="Answer" className="input" maxLength={200} placeholder="Answer" value={w.value ?? ""} onChange={(e) => onChange({ ...w, value: e.target.value })} />
+        ))}
+      </div>
+      <button type="button" className="mt-2 text-xs font-medium text-slate-500 hover:text-red-600" onClick={() => onChange(undefined)}>Always show</button>
     </div>
   );
 }
