@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { LogoMark } from "@/components/logo";
 import { BackgroundProcessor, type BackgroundMode } from "@/lib/meet/background";
+import { NOISE_LABEL, VoiceCleaner, type NoiseMode } from "@/lib/meet/voice";
 import { watchLevel } from "@/lib/meet/engine";
 import { MEET_NAME } from "@/lib/meet/paths";
 import type { JoinResult, PingResult, RoomInfo } from "@/lib/meet/types";
@@ -27,6 +28,9 @@ const read = (k: string) => {
     return null;
   }
 };
+/** Microphone settings: the browser's own echo/noise handling (and Apple's voice isolation where offered). */
+const VOICE = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, voiceIsolation: true } as MediaTrackConstraints;
+
 const write = (k: string, v: string) => {
   try {
     localStorage.setItem(k, v);
@@ -36,7 +40,10 @@ const write = (k: string, v: string) => {
 };
 
 export function useLocalMedia() {
-  const [mic, setMic] = useState<MediaStreamTrack | null>(null);
+  const [micRaw, setMicRaw] = useState<MediaStreamTrack | null>(null);
+  const [mic, setMic] = useState<MediaStreamTrack | null>(null); // what others hear (cleaned, or the plain mic)
+  const [noise, setNoiseState] = useState<NoiseMode>(() => (["off", "on", "strong"].includes(read("meet-noise") ?? "") ? (read("meet-noise") as NoiseMode) : "on"));
+  const cleaner = useRef<VoiceCleaner | null>(null);
   const [camRaw, setCamRaw] = useState<MediaStreamTrack | null>(null);
   const [camOut, setCamOut] = useState<MediaStreamTrack | null>(null); // what others see (raw or with background)
   const [micOn, setMicOn] = useState(true);
@@ -63,7 +70,7 @@ export function useLocalMedia() {
   const openMic = useCallback(async (deviceId?: string) => {
     try {
       const s = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: { deviceId: deviceId ? { exact: deviceId } : undefined, ...VOICE },
       });
       return s.getAudioTracks()[0];
     } catch {
@@ -99,7 +106,7 @@ export function useLocalMedia() {
       let v: MediaStreamTrack | null = null;
       try {
         const s = await navigator.mediaDevices.getUserMedia({
-          audio: { deviceId: micId ? { ideal: micId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          audio: { deviceId: micId ? { ideal: micId } : undefined, ...VOICE },
           video: { deviceId: camId ? { ideal: camId } : undefined, width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } },
         });
         a = s.getAudioTracks()[0] ?? null;
@@ -116,7 +123,7 @@ export function useLocalMedia() {
       }
       if (!a && !v) setProblem("Your browser blocked the camera and microphone. Allow them in the address bar, then reload. You can still join and listen.");
       else if (!a) setProblem("No microphone found or allowed. Others won't hear you.");
-      setMic(a);
+      setMicRaw(a);
       setCamRaw(v);
       setCamOut(v);
       if (!v) setCamOn(false);
@@ -134,10 +141,68 @@ export function useLocalMedia() {
     return () => navigator.mediaDevices?.removeEventListener?.("devicechange", refreshDevices);
   }, [refreshDevices]);
 
+  // Noise cancellation: send the cleaned mic while its audio engine runs, else the plain one.
+  useEffect(() => {
+    cleaner.current?.stop();
+    cleaner.current = null;
+    if (!micRaw) {
+      setMic(null);
+      return;
+    }
+    if (noise === "off") {
+      setMic(micRaw);
+      return;
+    }
+    setMic(micRaw);
+    let alive = true;
+    let ac: AudioContext | null = null;
+    const pick = () => {
+      const c = cleaner.current;
+      if (alive && c) setMic(c.running ? c.track : micRaw);
+    };
+    // Safety net: if the microphone hears you but the cleaned sound stays silent (a device
+    // where this doesn't work), go back to the plain mic so nobody loses your voice.
+    let rawLevel = 0;
+    let outLevel = 0;
+    let silentFor = 0;
+    const stops: Array<() => void> = [];
+    void VoiceCleaner.create(micRaw, noise).then((c) => {
+      if (!c) return;
+      if (!alive) return c.stop();
+      cleaner.current = c;
+      ac = c.ac;
+      ac.addEventListener("statechange", pick);
+      pick();
+      stops.push(watchLevel(micRaw, (l) => (rawLevel = l)), watchLevel(c.track, (l) => (outLevel = l)));
+      const check = setInterval(() => {
+        if (!c.running || !micRaw.enabled) return void (silentFor = 0);
+        // Only when you are clearly talking (a closed gate between words is never this quiet).
+        silentFor = rawLevel > 0.25 && outLevel < 0.005 ? silentFor + 1 : 0;
+        if (silentFor >= 3) {
+          clearInterval(check);
+          setProblem("Noise cancellation doesn't work on this device, so your normal microphone is used.");
+          setNoiseState("off");
+        }
+      }, 1000);
+      stops.push(() => clearInterval(check));
+    });
+    return () => {
+      alive = false;
+      ac?.removeEventListener("statechange", pick);
+      stops.forEach((f) => f());
+    };
+  }, [micRaw, noise]);
+
+  const setNoise = useCallback((m: NoiseMode) => {
+    setNoiseState(m);
+    write("meet-noise", m);
+  }, []);
+
   // Mute = the track keeps running but sends silence.
   useEffect(() => {
+    if (micRaw) micRaw.enabled = micOn;
     if (mic) mic.enabled = micOn;
-  }, [mic, micOn]);
+  }, [mic, micRaw, micOn]);
 
   useEffect(() => {
     if (!mic) return;
@@ -192,10 +257,10 @@ export function useLocalMedia() {
       const t = await openMic(id);
       if (!t) return;
       t.enabled = micOn;
-      mic?.stop();
-      setMic(t);
+      micRaw?.stop();
+      setMicRaw(t);
     },
-    [mic, micOn, openMic],
+    [micRaw, micOn, openMic],
   );
 
   const chooseCam = useCallback(
@@ -241,14 +306,15 @@ export function useLocalMedia() {
 
   const stopAll = useCallback(() => {
     processor.current?.stop();
-    mic?.stop();
+    cleaner.current?.stop();
+    micRaw?.stop();
     camRaw?.stop();
-  }, [mic, camRaw]);
+  }, [micRaw, camRaw]);
 
   return {
     mic, camRaw, camOut, micOn, camOn, setMicOn, toggleCam, devices, micId, camId, speakerId,
     chooseMic, chooseCam, chooseSpeaker, background, setBackground, bgBusy, dataSaver, toggleDataSaver,
-    problem, setProblem, level, stopAll,
+    problem, setProblem, level, stopAll, noise, setNoise,
   };
 }
 
@@ -703,6 +769,29 @@ export function DeviceSettings({ media, compact }: { media: LocalMedia; compact?
             </select>
           </label>
         )}
+      </div>
+      <div>
+        <p className="mb-2 flex items-center gap-1.5 text-xs text-white/60">
+          <Icon name="mic" className="h-3.5 w-3.5" />Noise cancellation
+          <span className="text-white/40">· cuts background noise and keeps your voice clear</span>
+        </p>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Noise cancellation">
+          {(["off", "on", "strong"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={media.noise === m}
+              onClick={() => media.setNoise(m)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                media.noise === m ? "border-[#f2a93b] bg-[#f2a93b]/15 text-[#f2c27a]" : "border-white/15 text-white/70 hover:border-white/40",
+              )}
+            >
+              {NOISE_LABEL[m]}
+            </button>
+          ))}
+        </div>
       </div>
       <div>
         <p className="mb-2 flex items-center gap-2 text-xs text-white/60">

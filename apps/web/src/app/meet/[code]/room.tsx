@@ -609,7 +609,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         diag: {
           load: d.load, secs: Math.round((Date.now() - d.since) / 1000), ua: navigator.userAgent.slice(0, 160),
           send: p?.pc.connectionState ?? "none", recv: s?.pc.connectionState ?? "none", route, turn,
-          people: admittedRef.current, heard: `${heard}/${expect}`, sim: !!p?.simulcast, sizes: s?.ridSummary(), saver: mediaRef.current.dataSaver, hidden: document.visibilityState === "hidden",
+          people: admittedRef.current, heard: `${heard}/${expect}`, sim: !!p?.simulcast, sizes: s?.ridSummary(), saver: mediaRef.current.dataSaver, noise: mediaRef.current.noise, cleaned: mediaRef.current.mic?.label === "MediaStreamAudioDestinationNode", hidden: document.visibilityState === "hidden",
           subResets: d.subResets, pubRebuilds: d.pubRebuilds, pullOk: d.pullOk, pullFail: d.pullFail, pullRefused: d.pullRefused,
           heals: d.heals, republish: d.republish, autoSaver: d.autoSaver, rejoins: d.rejoins, errors: d.errors,
         },

@@ -619,7 +619,7 @@ export function signalScore(rtt: number | null, lossRate: number, connected: boo
  * Returns a stop function.
  */
 let sharedAc: AudioContext | null = null;
-function audioContext() {
+export function audioContext() {
   if (!sharedAc || sharedAc.state === "closed") {
     sharedAc = new AudioContext();
     const resume = () => void sharedAc?.resume().catch(() => undefined);
