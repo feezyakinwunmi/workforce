@@ -87,5 +87,8 @@ export async function GET(request: Request) {
       sheetRows++;
     }
   }
-  return NextResponse.json({ removed, deleted: deleted.length, formFiles, sheetRows });
+  // Meet AI notes older than 90 days, and sound left over from finished notes.
+  const { cleanupNotes } = await import("@/lib/meet/notes");
+  const notes = await cleanupNotes(admin).catch(() => ({ removed: 0 }));
+  return NextResponse.json({ removed, deleted: deleted.length, formFiles, sheetRows, notes: notes.removed });
 }

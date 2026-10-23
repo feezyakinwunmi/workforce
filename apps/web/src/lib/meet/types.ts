@@ -53,6 +53,7 @@ export type RoomRow = {
   ends_at: string | null;
   ended_at: string | null;
   cameras_off?: boolean;
+  ai_notes_since?: string | null;
 };
 
 export type RoomInfo = {
@@ -78,6 +79,10 @@ export type RoomInfo = {
   cameras_off?: boolean;
   /** Only for the host, before starting: % of this month's meeting time used. */
   usage_percent?: number | null;
+  /** AI notes are on in this meeting (everyone is told). */
+  ai_notes?: boolean;
+  /** My own AI notes hours (Pro Max only, else null). */
+  my_ai?: AiStatus | null;
 };
 
 export type JoinResult = {
@@ -124,8 +129,40 @@ export type MeetUsage = {
   resets_at: string;
 };
 
+/** AI notes hours (Pro Max), in seconds. */
+export type AiStatus = { included: number; used: number; left: number; percent: number; resets_at: string };
+
+/** What AI notes keep: the summary only (no sound, no transcript). */
+export type NoteSummary = {
+  title: string;
+  overview: string;
+  key_points: string[];
+  decisions: string[];
+  action_items: Array<{ task: string; owner: string; due: string }>;
+  questions: string[];
+  language: string | null;
+  people: string[];
+  minutes: number;
+};
+
+export type MeetNote = {
+  id: string;
+  room_id: string | null;
+  title: string;
+  status: "recording" | "queued" | "processing" | "transcribing" | "ready" | "failed" | "empty";
+  started_at: string;
+  stopped_at: string | null;
+  seconds: number;
+  summary: NoteSummary | null;
+  error: string | null;
+  created_at: string;
+};
+
 export type MeetPlan = {
   tier: "free" | "pro";
+  promax?: boolean;
+  promax_price_kobo?: number;
+  ai?: AiStatus;
   pro_price_kobo: number;
   business_price_kobo: number;
   topup_price_kobo?: number;
@@ -138,14 +175,21 @@ export type MeetPlan = {
   usage?: MeetUsage;
 };
 
-/** Hosts covered by one Meet Business payment (the database decides; this is for the pages). */
+/** Plan facts for the pages (the database decides). */
 export const MEET_BUSINESS_HOSTS = 10;
+export const MEET_AI_HOURS = 10;
+
+/** "12.5" hours, rounded down to a tenth. */
+export const hours = (seconds: number) => {
+  const h = Math.floor((seconds / 3600) * 10) / 10;
+  return h.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+};
 
 export const REACTIONS = ["👍", "❤️", "😂", "👏", "🎉", "😮", "🙏", "🔥"] as const;
 
 export const PARTICIPANT_COLUMNS =
   "id, room_id, user_id, display_name, is_guest, role, status, sfu_session, tracks, audio_on, video_on, screen_on, hand_raised_at, joined_at, recording_since";
-export const ROOM_COLUMNS = "id, code, title, host_id, waiting_room, allow_guests, locked, started_at, ends_at, ended_at, cameras_off";
+export const ROOM_COLUMNS = "id, code, title, host_id, waiting_room, allow_guests, locked, started_at, ends_at, ended_at, cameras_off, ai_notes_since";
 
 export const naira = (kobo: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);

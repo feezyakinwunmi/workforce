@@ -52,6 +52,17 @@ export default function PrivacyPage() {
         We never record keystroke content, passwords, messages, screen recordings, screenshots you did not agree to, the webcam, the microphone, the files on your computer or
         your location (other than the clock-in and clock-out moments on a phone described above), and nothing at all while you are clocked out. See <Link href="/what-we-track">what we track</Link>.
       </p>
+      <h3>Workbase Meet (video meetings)</h3>
+      <ul>
+        <li>Your name in the meeting, when you joined and left, and whether your microphone, camera or screen share was on. Sound and video pass through our video provider live and are not stored by us.</li>
+        <li>Chat in a meeting is deleted when the meeting ends; the meeting itself 7 days after it ends.</li>
+        <li>
+          <strong>AI notes</strong> (Meet Pro Max, only when the host or a co-host turns them on; everyone in the meeting sees that they are on):
+          the meeting&apos;s sound is sent to our speech-to-text provider to make a transcript, and the transcript to our AI provider to
+          write a summary (key points, decisions, action items). We keep only the summary, for the person who turned AI notes on,
+          for up to 90 days. The sound is deleted from our storage, and the transcript from the provider, as soon as the summary is written.
+        </li>
+      </ul>
       <h3>Technical data</h3>
       <ul>
         <li>Login sessions and security logs kept by our hosting providers, including IP addresses</li>
@@ -81,6 +92,9 @@ export default function PrivacyPage() {
         <li><strong>Vercel</strong>: hosts the dashboard website.</li>
         <li><strong>GitHub</strong>: hosts the desktop app installer downloads (no work data).</li>
         <li><strong>Our email provider</strong>: delivers service emails.</li>
+        <li><strong>Cloudflare</strong>: carries Workbase Meet sound and video live (not stored).</li>
+        <li><strong>AssemblyAI</strong> (United States): turns meeting sound into text, only for AI notes.</li>
+        <li><strong>Anthropic</strong> (United States): writes the AI notes summary from that text.</li>
       </ul>
       <p>
         Data may be processed outside Nigeria, including in the European Union and the United States. We use

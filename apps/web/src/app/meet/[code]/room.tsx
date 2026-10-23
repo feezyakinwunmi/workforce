@@ -7,6 +7,7 @@ import { blackVideoTrack, connectMedia, connectPublisher, readStats, receiverLev
 import { meetingLink } from "@/lib/meet/paths";
 import { downloadAttendance } from "../attendance";
 import { canRecord, MeetRecorder, type RecordInputs } from "@/lib/meet/recorder";
+import { canTakeNotes, NotesRecorder } from "@/lib/meet/notes-recorder";
 import { downloadRecording, spaceLeft, type SavedRecording } from "@/lib/meet/recordings-store";
 import { REACTIONS, type JoinResult, type MeetEvent, type Participant, type RoomInfo, type Shoutout } from "@/lib/meet/types";
 import { workerTicker } from "@/lib/meet/ticker";
@@ -34,7 +35,7 @@ const hhmmss = (ms: number) => {
   return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, "0")).join(":");
 };
 
-export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join: JoinResult; media: LocalMedia; base: string; onExit: (r: ExitReason) => void }) {
+export function Room({ info, join, media, base, onExit, aiAvailable = false }: { info: RoomInfo; join: JoinResult; media: LocalMedia; base: string; onExit: (r: ExitReason) => void; aiAvailable?: boolean }) {
   const roomId = join.room_id;
   const meId = join.participant_id;
   const [toasts, setToasts] = useState<Array<{ id: number; text: string; tone?: "warn" }>>([]);
@@ -929,6 +930,107 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
     };
   }, []);
 
+
+  // ----- AI notes (Meet Pro Max): this device sends the meeting's sound to be summarised ---------
+  const notesRec = useRef<NotesRecorder | null>(null);
+  const [notesOn, setNotesOn] = useState(false);
+  const [notesBusy, setNotesBusy] = useState(false);
+  const [aiLeft, setAiLeft] = useState<number | null>(info.my_ai?.left ?? null);
+  const [railNotes, setRailNotes] = useState(false);
+  const [notesSupported, setNotesSupported] = useState(false);
+  useEffect(() => setNotesSupported(canTakeNotes()), []);
+  const hasProMax = !!info.my_ai;
+  const notesAudio = useRef<() => MediaStreamTrack[]>(() => []);
+  notesAudio.current = () => [media.mic, ...Object.values(remote).map((t) => t.mic)].filter((t): t is MediaStreamTrack => !!t);
+
+  const startNotes = async () => {
+    if (notesRec.current || notesBusy) return;
+    setRailNotes(false);
+    setNotesBusy(true);
+    const n = new NotesRecorder({
+      room: roomId,
+      audio: () => notesAudio.current(),
+      onLeft: (s) => setAiLeft(s),
+      onServerStop: (why) => {
+        notesRec.current = null;
+        setNotesOn(false);
+        toast(why, "warn");
+      },
+    });
+    try {
+      await n.start();
+      notesRec.current = n;
+      setNotesOn(true);
+      toast("AI notes are on. Everyone can see it. You'll get the notes when you stop.");
+      void refresh();
+    } catch (e) {
+      void n.stop();
+      toast(e instanceof Error ? e.message : "Couldn't turn on AI notes.", "warn");
+    } finally {
+      setNotesBusy(false);
+    }
+  };
+  const stopNotes = useCallback(async () => {
+    const n = notesRec.current;
+    if (!n) return;
+    notesRec.current = null;
+    setNotesOn(false);
+    toast("AI notes stopped. Your notes will be ready in a few minutes; we'll email them to you too.");
+    await n.stop();
+    void refresh();
+  }, [toast, refresh]);
+  // Leaving the meeting stops them (the server does too).
+  useEffect(() => () => void notesRec.current?.stop(), []);
+  // Who is talking, about once a second, so the notes can name the voices.
+  const speakingRef = useRef(speaking);
+  speakingRef.current = speaking;
+  const peopleRef = useRef(people);
+  peopleRef.current = people;
+  useEffect(() => {
+    if (!notesOn) return;
+    return workerTicker(1000, () => {
+      const n = notesRec.current;
+      if (!n) return;
+      const list = peopleRef.current;
+      const id = [...speakingRef.current].find((x) => (x === meId ? mediaRef.current.micOn : list.find((p) => p.id === x)?.audio_on));
+      n.noteSpeaker(id ? (list.find((p) => p.id === id)?.display_name ?? "") : "");
+    });
+  }, [notesOn, meId]);
+  // Everyone: AI notes on/off.
+  const aiNotesOn = !!room?.ai_notes_since;
+  const sawAiNotes = useRef(aiNotesOn);
+  useEffect(() => {
+    if (aiNotesOn && !sawAiNotes.current && !notesRec.current) toast("AI notes are on. What's said in this meeting is being turned into written notes.");
+    if (!aiNotesOn && sawAiNotes.current && !notesRec.current) toast("AI notes are off.");
+    sawAiNotes.current = aiNotesOn;
+  }, [aiNotesOn, toast]);
+  const aiHoursLeft = aiLeft !== null ? `${Math.floor(aiLeft / 3600)} h ${Math.floor((aiLeft % 3600) / 60)} min of AI notes left this month` : "";
+  const notesUpsell = (
+    <div className="space-y-2 text-sm">
+      <p className="text-white/75">AI notes turn the meeting into a short written summary: key points, decisions and who does what.</p>
+      <p className="text-white/75">They come with <span className="font-semibold text-white">Meet Pro Max</span>.</p>
+      <a href={`${base}/pricing`} target="_blank" rel="noopener" className="block rounded-xl bg-[#6a4cf5] py-2 text-center font-medium hover:bg-[#5b3fe0]">See Pro Max</a>
+    </div>
+  );
+  const notesControl = notesOn ? (
+    <button className="w-full rounded-xl bg-[#f2a93b] py-2.5 text-sm font-semibold text-[#15123a] hover:bg-[#f5b85c]" onClick={() => void stopNotes()}>
+      Stop AI notes
+    </button>
+  ) : hasProMax ? (
+    <div className="space-y-2">
+      <button
+        className="w-full rounded-xl bg-[#6a4cf5] py-2.5 text-sm font-medium hover:bg-[#5b3fe0] disabled:opacity-50"
+        disabled={notesBusy || aiNotesOn || (aiLeft !== null && aiLeft < 60)}
+        onClick={() => void startNotes()}
+      >
+        {notesBusy ? "Turning on…" : aiNotesOn ? "AI notes are already on" : "Turn on AI notes"}
+      </button>
+      <p className="text-xs text-white/50">{aiLeft !== null && aiLeft < 60 ? "This month's AI notes time is used up." : aiHoursLeft}. Everyone will see that AI notes are on.</p>
+    </div>
+  ) : (
+    notesUpsell
+  );
+
   // Everyone: who is recording, plus a line in the chat when it starts or stops.
   const recorders = people.filter((p) => p.recording_since);
   const recKey = recorders.map((p) => p.id).sort().join(",");
@@ -987,6 +1089,17 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
                 <p className="mb-3 font-medium">Record this meeting</p>
                 {recordChoices}
                 <button className="mt-2 w-full py-1 text-sm text-white/60 hover:text-white" onClick={() => setRailRec(false)}>Cancel</button>
+              </div>
+            )}
+          </RailButton>
+        )}
+        {isMod && aiAvailable && notesSupported && (
+          <RailButton icon="sparkle" label={notesOn ? "Stop AI notes" : "AI notes"} accent={notesOn} active={notesOn || railNotes} disabled={notesBusy} onClick={() => (notesOn ? void stopNotes() : setRailNotes((v) => !v))}>
+            {railNotes && !notesOn && (
+              <div className="absolute top-0 left-full z-50 ml-3 w-72 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl ring-1 ring-white/10">
+                <p className="mb-3 font-medium">AI notes</p>
+                {notesControl}
+                <button className="mt-2 w-full py-1 text-sm text-white/60 hover:text-white" onClick={() => setRailNotes(false)}>Cancel</button>
               </div>
             )}
           </RailButton>
@@ -1084,6 +1197,19 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
                 </div>
               ) : (
                 ordered.filter((p) => p.id === stageId).map((p) => tileFor(p, true))
+              )}
+
+              {/* AI notes pill */}
+              {aiNotesOn && (
+                <button
+                  type="button"
+                  onClick={() => (notesOn ? void stopNotes() : undefined)}
+                  className={cn("absolute right-3 z-20 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium whitespace-nowrap backdrop-blur", recorders.length ? "top-11" : "top-3")}
+                  title={notesOn ? "You're taking AI notes. Click to stop." : "AI notes are on: what's said is being turned into written notes."}
+                >
+                  <Icon name="sparkle" className="h-3.5 w-3.5 text-[#f2a93b]" />
+                  AI notes
+                </button>
               )}
 
               {/* REC pill */}
@@ -1286,6 +1412,12 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
                       ) : (
                         recordChoices
                       )}
+                    </div>
+                  )}
+                  {isMod && aiAvailable && notesSupported && (
+                    <div>
+                      <p className="mb-2 text-xs text-white/60">AI notes</p>
+                      {notesControl}
                     </div>
                   )}
                   <DeviceSettings media={media} />

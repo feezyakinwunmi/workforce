@@ -42,5 +42,11 @@ export function meetingLink(code: string, origin?: string, base = "/meet") {
   return `${(origin ?? "").replace(/\/$/, "")}${base}/${code}`;
 }
 
+/** Full address of a Meet page (e.g. "/notes/<id>"), for emails. */
+export function meetPageUrl(path: string, origin: string) {
+  if (meetUrl()) return `${meetUrl()}${path}`;
+  return `${origin.replace(/\/$/, "")}/meet${path}`;
+}
+
 /** Paths that stay as they are on the Meet address (login, APIs, files). */
 export const MEET_PASSTHROUGH = /^\/(meet(\/|$)|api\/|auth\/|login|signup|forgot-password|reset-password|_next\/|manifest|sw\.js|icon|apple-icon|favicon|privacy|terms|what-we-track)/;

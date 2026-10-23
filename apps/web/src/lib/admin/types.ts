@@ -120,6 +120,7 @@ export const PRODUCT_LABEL: Record<string, string> = {
   workbase_pro: "Workbase Pro",
   meet_pro: "Meet Pro",
   meet_business: "Meet Business",
+  meet_promax: "Meet Pro Max",
   meet_topup: "Meet top-ups",
   book_pro: "Pro (Book + Forms)",
   book_fees: "Book 3% fees",
@@ -218,7 +219,7 @@ export type MoneyReport = {
   payments: Array<{ product: string; status: "success" | "failed" | "pending"; amount_kobo: number; at: string; reference: string | null; who: string | null; organization_id: string | null; failure_reason: string | null; detail: string | null }>;
 };
 
-export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_business", "meet_topup", "book_pro", "book_fees", "forms_fees"] as const;
+export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_promax", "meet_business", "meet_topup", "book_pro", "book_fees", "forms_fees"] as const;
 
 export type FeedbackItem = {
   id: string;
@@ -249,7 +250,9 @@ export type FeedbackReport = {
 
 /** admin_meet_usage: meeting time (person-seconds) per month, free vs paid pools. */
 export type MeetUsageReport = {
-  months: Array<{ month: string; free_seconds: number; paid_seconds: number }>;
+  months: Array<{ month: string; free_seconds: number; paid_seconds: number; ai_seconds?: number }>;
+  promax_hosts?: number;
+  notes?: { ready: number; failed: number; working: number };
   pools_this_month: number;
   pools_over_80: number;
   cameras_off_live: number;
@@ -262,6 +265,8 @@ export type MeetUsageReport = {
  * first 1,000 GB a month free, then $0.05 per GB.
  */
 export const MEET_COST = { gbPerPersonHour: 0.4, freeGb: 1000, usdPerGb: 0.05, nairaPerUsd: 1400 } as const;
+/** AI notes: speech to text (~$0.23 per hour with speaker names) + Claude Haiku (well under $0.01). */
+export const AI_NOTES_USD_PER_HOUR = 0.24;
 export function meetCostEstimate(personSeconds: number) {
   const gb = (personSeconds / 3600) * MEET_COST.gbPerPersonHour;
   const usd = Math.max(0, gb - MEET_COST.freeGb) * MEET_COST.usdPerGb;

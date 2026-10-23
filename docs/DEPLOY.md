@@ -288,6 +288,17 @@ Note: Google sign-ins are stored encrypted with a key made from `SUPABASE_SERVIC
 
 **D. Test.** Open the Forms address, sign in, pick "Event registration", add your bank account (Payouts), Publish, then pay ₦100 from your phone and refund it in Paystack. Paste the website code into a WordPress **Custom HTML** block to check the embed.
 
+## 16. Meet AI notes (Pro Max)
+
+AI notes turn a meeting into a written summary. The button only shows once both keys below are set.
+
+A. **AssemblyAI** (speech to text, about $0.23 per hour of meeting): sign up at https://www.assemblyai.com/dashboard/signup, add a card under Billing, copy the API key from the dashboard. In its settings, turn off any option that lets them use your data to improve their models, if offered.
+B. **Claude API** (writes the summary, under $0.01 per meeting hour with Claude Haiku 5.5): sign up at https://platform.claude.com, buy credits under Billing, then API keys → Create key.
+C. Vercel → Settings → Environment Variables (Production): `ASSEMBLYAI_API_KEY`, `ANTHROPIC_API_KEY`. Optional: `MEET_AI_MODEL` (default `claude-haiku-5-5`; `claude-sonnet-5-5` writes better notes at ~$0.04 per hour). Redeploy.
+D. Test: buy Pro Max for yourself (₦8,000, refund in Paystack) or give yourself a row in `meet_subscriptions` (plan `promax`) in the SQL Editor; start a meeting, turn on AI notes (the ✦ button), talk for 2 minutes, stop. The notes appear at Meet → Notes within a few minutes and arrive by email.
+
+Nothing else to set: the database asks the app to process notes every minute (pg_cron `meet-notes` → `/api/meet/notes/process`), and AssemblyAI calls `/api/meet/notes/webhook` when a transcript is ready.
+
 ## Good to know
 
 - **"Windows protected your PC"**: shown for unsigned apps. Workers click *More info → Run anyway*. Before paying customers, sign the app with a certificate (Azure Trusted Signing is the cheapest). electron-builder signs automatically once it's configured.

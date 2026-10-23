@@ -422,7 +422,7 @@ function Notice({ title, children, base, action, below }: { title: string; child
 // ---------------------------------------------------------------------------
 type Phase = { kind: "lobby" } | { kind: "waiting"; join: JoinResult } | { kind: "room"; join: JoinResult } | { kind: "out"; reason: "left" | "ended" | "removed" | "denied" | "limit" };
 
-export function MeetingApp({ code, base, signedInName }: { code: string; base: string; signedInName: string | null }) {
+export function MeetingApp({ code, base, signedInName, aiAvailable = false }: { code: string; base: string; signedInName: string | null; aiAvailable?: boolean }) {
   const [info, setInfo] = useState<RoomInfo | null | undefined>(undefined);
   const [phase, setPhase] = useState<Phase>({ kind: "lobby" });
   const [name, setName] = useState(signedInName ?? "");
@@ -530,6 +530,7 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
         join={phase.join}
         media={media}
         base={base}
+        aiAvailable={aiAvailable}
         onExit={(reason) => {
           setPhase({ kind: "out", reason });
           void loadInfo();
@@ -571,6 +572,7 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
         }
         below={
           <>
+          <NotesLink roomId={info.id} base={base} />
           <div className="mt-8"><SavedRecordings code={info.code} dark /></div>
           {askFeedback ? (
             <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -651,6 +653,12 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
                 <p role="status" className="flex items-start gap-2 rounded-xl bg-red-500/15 px-3 py-2.5 text-sm text-red-100">
                   <span className="mt-1.5 h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500" aria-hidden />
                   This meeting is being recorded. By joining, your video, sound and name may appear in the recording.
+                </p>
+              )}
+              {info.ai_notes && (
+                <p role="status" className="flex items-start gap-2 rounded-xl bg-[#6a4cf5]/20 px-3 py-2.5 text-sm text-white/85">
+                  <Icon name="sparkle" className="mt-0.5 h-4 w-4 shrink-0 text-[#f2a93b]" />
+                  AI notes are on in this meeting: what&apos;s said is turned into written notes for the host.
                 </p>
               )}
               {info.cameras_off ? (
@@ -853,6 +861,26 @@ export function DeviceSettings({ media, compact }: { media: LocalMedia; compact?
         </span>
         <input type="checkbox" className="h-5 w-5 accent-[#f2a93b]" checked={media.dataSaver} onChange={media.toggleDataSaver} />
       </label>
+    </div>
+  );
+}
+
+/** End screen: "Your AI notes are being written" when I took notes in this meeting (this tab). */
+function NotesLink({ roomId, base }: { roomId: string; base: string }) {
+  const [id, setId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setId(sessionStorage.getItem(`meet-notes:${roomId}`));
+    } catch {
+      setId(null);
+    }
+  }, [roomId]);
+  if (!id) return null;
+  return (
+    <div className="mt-8 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left text-sm">
+      <Icon name="sparkle" className="h-5 w-5 shrink-0 text-[#f2a93b]" />
+      <p className="flex-1 text-white/75">Your AI notes are being written. They&apos;re usually ready in a few minutes, and we&apos;ll email them to you.</p>
+      <Link href={`${base}/notes/${id}`} className="shrink-0 rounded-xl bg-[#6a4cf5] px-4 py-2 font-medium hover:bg-[#5b3fe0]">Open</Link>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { InfoTip, Notice } from "@/components/ui";
 import { meetingLink } from "@/lib/meet/paths";
 import { getMeetUser, requestBase, requestOrigin } from "@/lib/meet/server";
 import { naira, type MeetPlan, type MyMeeting } from "@/lib/meet/types";
+import { UsageMeter } from "../usage-meter";
 import { AttendanceButton } from "../attendance";
 import { newMeeting } from "./actions";
 import { CopyLink, JoinForm } from "./join-form";
@@ -57,7 +58,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
             ))}
           </div>
           <div className="mt-10 text-center">
-            <Link href={`${base}/pricing`} className="font-medium text-brand-700 hover:underline">Meet Pro: unlimited meetings up to 24 hours and 100 people, AI summaries soon. ₦4,000 a month →</Link>
+            <Link href={`${base}/pricing`} className="font-medium text-brand-700 hover:underline">Meet Pro: unlimited meetings up to 24 hours and 100 people, ₦4,000 a month. Pro Max adds AI notes →</Link>
           </div>
         </section>
       </>
@@ -99,7 +100,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
           <div>
             <p className="text-sm font-medium text-slate-500">Your plan</p>
             <p className="mt-1 font-display text-2xl font-bold text-slate-900">
-              {p?.tier === "pro" ? "Meet Pro" : "Free"}
+              {p?.promax ? "Meet Pro Max" : p?.tier === "pro" ? "Meet Pro" : "Free"}
               {p?.pool_kind === "company" && p.company_name && <span className="ml-2 align-middle text-sm font-normal text-slate-500">with {p.company_name}</span>}
             </p>
             <p className="mt-1 text-sm text-slate-500">
@@ -107,7 +108,18 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
               {p?.paid_until && ` Paid until ${new Date(p.paid_until).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}.`}
             </p>
           </div>
-          {p?.tier !== "pro" && <Link href={`${base}/pricing`} className="btn-primary btn-sm w-fit">Get Meet Pro, {naira(p?.pro_price_kobo ?? 400_000)}/month</Link>}
+          {p?.usage && (
+            <div className="space-y-3">
+              <UsageMeter compact label="Meeting time" used={p.usage.used} included={p.usage.included} unit="person-hours" />
+              {p.promax && p.ai && <UsageMeter compact label="AI notes" used={p.ai.used} included={p.ai.included} unit="hours" />}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Link href={`${base}/usage`} className="btn-secondary btn-sm">Usage</Link>
+            {p?.promax && <Link href={`${base}/notes`} className="btn-secondary btn-sm">AI notes</Link>}
+            {p?.tier !== "pro" && <Link href={`${base}/pricing`} className="btn-primary btn-sm">Get Meet Pro, {naira(p?.pro_price_kobo ?? 400_000)}/month</Link>}
+            {p?.tier === "pro" && !p.promax && <Link href={`${base}/pricing`} className="btn-primary btn-sm">Add AI notes (Pro Max)</Link>}
+          </div>
         </div>
       </section>
 

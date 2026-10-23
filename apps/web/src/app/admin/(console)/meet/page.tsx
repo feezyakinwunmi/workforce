@@ -3,7 +3,7 @@ import { StackedColumns } from "@/components/charts";
 import { InfoTip, Notice, PageHeader, Panel, StatStrip } from "@/components/ui";
 import { naira } from "@/lib/billing";
 import { requireAdmin } from "@/lib/admin/server";
-import { ago, day, meetCostEstimate, MEET_COST, when, type MeetReport, type MeetUsageReport } from "@/lib/admin/types";
+import { AI_NOTES_USD_PER_HOUR, ago, day, meetCostEstimate, MEET_COST, when, type MeetReport, type MeetUsageReport } from "@/lib/admin/types";
 import { cn } from "@/lib/utils";
 import { dayColumns, daysParam, n, pct, plural, RangeSwitch, Table, td, whole } from "../_parts";
 
@@ -70,7 +70,13 @@ export default async function MeetTab({ searchParams }: { searchParams: Promise<
               hint: `≈ ${n(Math.round(cost.gb))} of ${n(MEET_COST.freeGb)} free GB (estimate)`,
             },
             { label: "Near fair-use limit", value: n(usage.pools_over_80), icon: "users", hint: `over 80% · of ${plural(usage.pools_this_month, "host or company", "hosts and companies")} this month` },
-            { label: "Top-ups sold", value: n(usage.topups.count), icon: "card", tone: "amber", hint: `${naira(usage.topups.kobo)} · ${n(usage.topups.hours_left)} h unused${usage.cameras_off_live ? ` · ${n(usage.cameras_off_live)} live meetings with cameras off` : ""}` },
+            {
+              label: "AI notes, this month",
+              value: `${n(Math.round((thisMonth?.ai_seconds ?? 0) / 3600))} h`,
+              icon: "sparkle",
+              tone: "amber",
+              hint: `≈ ${naira(Math.round(((thisMonth?.ai_seconds ?? 0) / 3600) * AI_NOTES_USD_PER_HOUR * MEET_COST.nairaPerUsd * 100))} cost · ${n(usage.promax_hosts ?? 0)} Pro Max hosts${usage.notes ? ` · ${n(usage.notes.ready)} written, ${n(usage.notes.failed)} failed (30 days)` : ""}`,
+            },
           ]}
         />
       )}

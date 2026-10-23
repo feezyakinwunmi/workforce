@@ -96,7 +96,7 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
           href={`${base}/meet`}
           icon="video"
           title="Meet"
-          money={(m.meet_pro ?? 0) + (m.meet_business ?? 0) + (m.meet_topup ?? 0)}
+          money={(m.meet_pro ?? 0) + (m.meet_promax ?? 0) + (m.meet_business ?? 0) + (m.meet_topup ?? 0)}
           rows={[
             ["Live now", n(t.meet_live)],
             ["Meetings, 7 days", n(t.meet_meetings_7d)],
