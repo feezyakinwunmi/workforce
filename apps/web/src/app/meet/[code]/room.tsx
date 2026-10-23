@@ -101,6 +101,16 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
 
   const { people, admitted, waiting, room, chat, reactions, me, update, send, moderate, refresh, links, meOnline, online } = useRoom(roomId, meId, onCommand, onShoutout);
   const myRole = me?.role ?? join.role;
+  // Cameras off for the whole meeting (the host's meeting time for the month is used up). Sound and
+  // screen sharing carry on; paying turns cameras back on live (meet_rooms.cameras_off via Realtime).
+  const camerasOff = !!(room?.cameras_off ?? join.cameras_off ?? info.cameras_off);
+  const [camNoteHidden, setCamNoteHidden] = useState(false);
+  const wasCamOff = useRef(camerasOff);
+  useEffect(() => {
+    if (camerasOff && media.camOn) void media.toggleCam();
+    if (wasCamOff.current && !camerasOff) toast("Cameras are back on.");
+    wasCamOff.current = camerasOff;
+  }, [camerasOff, media, toast]);
   const isMod = myRole === "host" || myRole === "cohost";
   const endsAt = me?.ends_at ?? room?.ends_at ?? join.ends_at;
 
@@ -351,7 +361,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
       if (p.id === meId || !p.sfu_session) continue;
       for (const t of p.tracks ?? []) {
         const source = sourceOf(t.name);
-        if (source === "camera" && media.dataSaver) continue;
+        if (source === "camera" && (media.dataSaver || camerasOff)) continue;
         if (source === "screen" && !p.screen_on) continue;
         if (!["mic", "camera", "screen"].includes(source)) continue;
         // Cameras: sharp for the big screen, small for thumbnails, none for people out of view
@@ -416,7 +426,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
         },
       );
     }
-  }, [connected, admitted, meId, media.dataSaver, retry]);
+  }, [connected, admitted, meId, media.dataSaver, camerasOff, retry]);
   useEffect(() => () => void (retryTimer.current && clearTimeout(retryTimer.current)), []);
 
   // Ask Cloudflare every 10 s whether it still has my tracks; publish again any it lost.
@@ -1097,6 +1107,22 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
                 </div>
               )}
 
+              {camerasOff && !selfDown && !camNoteHidden && (
+                <div role="status" className="absolute inset-x-0 top-14 z-20 mx-auto flex w-fit max-w-[calc(100%-1rem)] items-center gap-3 rounded-xl bg-[#1f1b4d] px-4 py-2 text-sm text-white/85 shadow-lg">
+                  <Icon name="videoOff" className="h-4 w-4 shrink-0 text-[#f2a93b]" />
+                  <span>
+                    {myRole === "host" ? "This month's meeting time is used up, so cameras are off. Sound and screen sharing still work." : "Cameras are off in this meeting. Sound and screen sharing still work."}
+                    {myRole === "host" && (
+                      <>
+                        {" "}
+                        <a href={`${base}/usage`} target="_blank" rel="noopener" className="font-semibold text-[#f2a93b] underline underline-offset-2">Top up</a>
+                      </>
+                    )}
+                  </span>
+                  <button className="shrink-0 text-white/50 hover:text-white" onClick={() => setCamNoteHidden(true)} aria-label="Hide">✕</button>
+                </div>
+              )}
+
               {savedRec && (
                 <div className="absolute top-14 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl bg-[#1f1b4d] px-4 py-3 text-sm shadow-xl">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
@@ -1142,7 +1168,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
               <div className="absolute inset-x-0 bottom-3 z-30 flex justify-center px-2 sm:bottom-5">
                 <div className="flex items-center gap-1.5 rounded-full bg-[#0c0a27]/35 p-1.5 backdrop-blur-md sm:gap-2.5">
                   <Control icon={media.micOn ? "mic" : "micOff"} label={media.micOn ? "Mute" : "Unmute"} off={!media.micOn} disabled={!media.mic} onClick={() => media.setMicOn(!media.micOn)} />
-                  <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : "Start video"} off={!media.camOn} onClick={() => void media.toggleCam()} />
+                  <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : camerasOff ? "Cameras are off in this meeting" : "Start video"} off={!media.camOn} onClick={() => (camerasOff && !media.camOn ? toast(myRole === "host" ? "Cameras are off: this month's meeting time is used up. Top up on the Usage page." : "Cameras are off in this meeting.") : void media.toggleCam())} />
                   <div className="relative">
                     <button
                       onClick={() => (myRole === "host" ? setConfirmLeave((v) => !v) : void leave())}

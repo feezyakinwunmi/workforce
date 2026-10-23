@@ -10,7 +10,8 @@ export default async function MeetPaymentCallback({ searchParams }: { searchPara
   if (!reference?.startsWith("meet_")) redirect(`${base}/pricing?error=${encodeURIComponent("We couldn't find that payment.")}`);
   const tx = await verifyTransaction(reference).catch(() => null);
   if (!tx || tx.status !== "success") redirect(`${base}/pricing?error=${encodeURIComponent("The payment didn't go through. You weren't charged, or Paystack will refund you.")}`);
+  const page = reference.startsWith("meet_top_") ? "usage" : "pricing";
   const res = await recordSuccess(tx);
-  if (!res.ok) redirect(`${base}/pricing?error=${encodeURIComponent("Payment received but not recorded yet. It will update in a few minutes.")}`);
-  redirect(`${base}/pricing?paid=1`);
+  if (!res.ok) redirect(`${base}/${page}?error=${encodeURIComponent("Payment received but not recorded yet. It will update in a few minutes.")}`);
+  redirect(`${base}/${page}?paid=1`);
 }

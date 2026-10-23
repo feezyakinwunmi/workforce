@@ -120,6 +120,7 @@ export const PRODUCT_LABEL: Record<string, string> = {
   workbase_pro: "Workbase Pro",
   meet_pro: "Meet Pro",
   meet_business: "Meet Business",
+  meet_topup: "Meet top-ups",
   book_pro: "Pro (Book + Forms)",
   book_fees: "Book 3% fees",
   forms_fees: "Forms 3% fees",
@@ -217,7 +218,7 @@ export type MoneyReport = {
   payments: Array<{ product: string; status: "success" | "failed" | "pending"; amount_kobo: number; at: string; reference: string | null; who: string | null; organization_id: string | null; failure_reason: string | null; detail: string | null }>;
 };
 
-export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_business", "book_pro", "book_fees", "forms_fees"] as const;
+export const PRODUCTS = ["workbase_standard", "workbase_pro", "meet_pro", "meet_business", "meet_topup", "book_pro", "book_fees", "forms_fees"] as const;
 
 export type FeedbackItem = {
   id: string;
@@ -245,3 +246,24 @@ export type FeedbackReport = {
   }>;
   items: FeedbackItem[];
 };
+
+/** admin_meet_usage: meeting time (person-seconds) per month, free vs paid pools. */
+export type MeetUsageReport = {
+  months: Array<{ month: string; free_seconds: number; paid_seconds: number }>;
+  pools_this_month: number;
+  pools_over_80: number;
+  cameras_off_live: number;
+  topups: { count: number; kobo: number; hours_left: number };
+};
+
+/**
+ * Rough Cloudflare cost of meeting time, for the owner only (never shown to customers).
+ * ~0.4 GB of video per person-hour with cameras on (measured guess; check Cloudflare's dashboard),
+ * first 1,000 GB a month free, then $0.05 per GB.
+ */
+export const MEET_COST = { gbPerPersonHour: 0.4, freeGb: 1000, usdPerGb: 0.05, nairaPerUsd: 1400 } as const;
+export function meetCostEstimate(personSeconds: number) {
+  const gb = (personSeconds / 3600) * MEET_COST.gbPerPersonHour;
+  const usd = Math.max(0, gb - MEET_COST.freeGb) * MEET_COST.usdPerGb;
+  return { gb, usd, kobo: Math.round(usd * MEET_COST.nairaPerUsd * 100) };
+}

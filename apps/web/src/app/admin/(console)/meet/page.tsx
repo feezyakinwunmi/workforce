@@ -3,7 +3,7 @@ import { StackedColumns } from "@/components/charts";
 import { InfoTip, Notice, PageHeader, Panel, StatStrip } from "@/components/ui";
 import { naira } from "@/lib/billing";
 import { requireAdmin } from "@/lib/admin/server";
-import { ago, day, when, type MeetReport } from "@/lib/admin/types";
+import { ago, day, meetCostEstimate, MEET_COST, when, type MeetReport, type MeetUsageReport } from "@/lib/admin/types";
 import { cn } from "@/lib/utils";
 import { dayColumns, daysParam, n, pct, plural, RangeSwitch, Table, td, whole } from "../_parts";
 
@@ -17,7 +17,14 @@ const PlanBadge = ({ tier }: { tier: "free" | "pro" }) => (
 export default async function MeetTab({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const { db, base } = await requireAdmin();
   const days = daysParam((await searchParams).days);
-  const { data, error } = await db.rpc("admin_meet", { p_days: days });
+  const [{ data, error }, { data: usageData }] = await Promise.all([
+    db.rpc("admin_meet", { p_days: days }),
+    db.rpc("admin_meet_usage", { p_months: 6 }),
+  ]);
+  const usage = usageData as MeetUsageReport | null;
+  const thisMonth = usage?.months.at(-1);
+  const monthSeconds = (thisMonth?.free_seconds ?? 0) + (thisMonth?.paid_seconds ?? 0);
+  const cost = meetCostEstimate(monthSeconds);
   if (error || !data) return <Notice tone="error">Couldn&apos;t load Meet: {error?.message ?? "no data"}. Has migration 0039 been run?</Notice>;
   const m = data as MeetReport;
   const t = m.totals;
@@ -50,6 +57,23 @@ export default async function MeetTab({ searchParams }: { searchParams: Promise<
           { label: "Hosts this week", value: n(m.hosts_7d), icon: "user", hint: `+${plural(m.workbase_included, "paid Workbase company", "paid Workbase companies")} with Pro included` },
         ]}
       />
+
+      {usage && (
+        <StatStrip
+          stats={[
+            { label: "Person-hours, this month", value: n(Math.round(monthSeconds / 3600)), icon: "clock", hint: `${n(Math.round((thisMonth?.free_seconds ?? 0) / 3600))} on Free plans` },
+            {
+              label: "Video cost, this month",
+              value: cost.usd > 0 ? naira(cost.kobo) : "₦0",
+              icon: "wallet",
+              tone: cost.usd > 0 ? "amber" : "green",
+              hint: `≈ ${n(Math.round(cost.gb))} of ${n(MEET_COST.freeGb)} free GB (estimate)`,
+            },
+            { label: "Hosts over 80%", value: n(usage.pools_over_80), icon: "users", hint: `of ${plural(usage.pools_this_month, "host or company", "hosts and companies")} this month` },
+            { label: "Top-ups sold", value: n(usage.topups.count), icon: "card", tone: "amber", hint: `${naira(usage.topups.kobo)} · ${n(usage.topups.hours_left)} h unused${usage.cameras_off_live ? ` · ${n(usage.cameras_off_live)} live meetings with cameras off` : ""}` },
+          ]}
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Meetings per day" bodyClassName="p-5">

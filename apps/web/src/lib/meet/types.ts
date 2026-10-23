@@ -52,6 +52,7 @@ export type RoomRow = {
   started_at: string | null;
   ends_at: string | null;
   ended_at: string | null;
+  cameras_off?: boolean;
 };
 
 export type RoomInfo = {
@@ -73,6 +74,10 @@ export type RoomInfo = {
   my_name: string | null;
   in_meeting: number;
   recording?: boolean;
+  /** Cameras are off in this meeting (the host's meeting time for the month is used up). */
+  cameras_off?: boolean;
+  /** Only for the host, before starting: % of this month's meeting time used. */
+  usage_percent?: number | null;
 };
 
 export type JoinResult = {
@@ -82,6 +87,7 @@ export type JoinResult = {
   role: Participant["role"];
   name: string;
   ends_at: string | null;
+  cameras_off?: boolean;
   server_time: string;
 };
 
@@ -108,20 +114,44 @@ export type MyMeeting = {
   invites: number;
 };
 
+/** Meeting time is counted in person-hours: people in the meeting × hours (seconds here). */
+export type MeetUsage = {
+  included: number;
+  used: number;
+  topup_left: number;
+  left: number;
+  percent: number;
+  resets_at: string;
+};
+
 export type MeetPlan = {
   tier: "free" | "pro";
   pro_price_kobo: number;
   business_price_kobo: number;
+  topup_price_kobo?: number;
   paid_until: string | null;
   org_id: string | null;
   is_org_admin: boolean;
+  pool_kind?: "personal" | "company";
+  company_name?: string | null;
+  can_top_up?: boolean;
+  usage?: MeetUsage;
+};
+
+/** Plan sizes (the database decides; these are for the pages). */
+export const MEET_ALLOWANCE = { free: 15, pro: 60, business: 400, business_hosts: 10, workbase_per_person: 5, workbase_min: 20, topup_hours: 15 } as const;
+
+/** "12.5" person-hours, rounded down to a tenth. */
+export const hours = (seconds: number) => {
+  const h = Math.floor((seconds / 3600) * 10) / 10;
+  return Number.isInteger(h) ? String(h) : h.toFixed(1);
 };
 
 export const REACTIONS = ["👍", "❤️", "😂", "👏", "🎉", "😮", "🙏", "🔥"] as const;
 
 export const PARTICIPANT_COLUMNS =
   "id, room_id, user_id, display_name, is_guest, role, status, sfu_session, tracks, audio_on, video_on, screen_on, hand_raised_at, joined_at, recording_since";
-export const ROOM_COLUMNS = "id, code, title, host_id, waiting_room, allow_guests, locked, started_at, ends_at, ended_at";
+export const ROOM_COLUMNS = "id, code, title, host_id, waiting_room, allow_guests, locked, started_at, ends_at, ended_at, cameras_off";
 
 export const naira = (kobo: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);

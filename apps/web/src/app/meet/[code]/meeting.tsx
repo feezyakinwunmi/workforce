@@ -432,6 +432,14 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
   const [feedbackDone, setFeedbackDone] = useState(false);
   useEffect(() => setFeedbackDone(!!read(`meet-feedback:${code}`)), [code]);
 
+  // Cameras off in this meeting (the host's meeting time is used up): switch mine off once it's open.
+  // Only before joining: inside, the room follows the live meeting (cameras come back after a top-up).
+  const { camOn, camRaw, toggleCam } = media;
+  const inLobby = phase.kind === "lobby" || phase.kind === "waiting";
+  useEffect(() => {
+    if (inLobby && info?.cameras_off && camOn && camRaw) void toggleCam();
+  }, [inLobby, info?.cameras_off, camOn, camRaw, toggleCam]);
+
   const loadInfo = useCallback(async () => {
     const { data } = await createClient().rpc("meet_room_info", { p_code: code });
     setInfo((data as RoomInfo | null) ?? null);
@@ -539,7 +547,7 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
       ended: ["This meeting has ended", "Thanks for joining."],
       removed: ["The host removed you", "You can't rejoin this meeting."],
       denied: ["The host didn't let you in", null],
-      limit: ["The 1-hour free meeting is over", info.is_host ? "Meet Pro keeps meetings going for up to 24 hours, from ₦1,000 a month." : "The host can upgrade to Meet Pro for longer meetings."],
+      limit: ["The 1-hour free meeting is over", info.is_host ? "Meet Pro keeps meetings going for up to 24 hours, for ₦4,000 a month." : "The host can upgrade to Meet Pro for longer meetings."],
     }[reason];
     return (
       <Notice
@@ -592,7 +600,7 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
   return (
     <MeetShell base={base}>
       <div className="grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[1.4fr_1fr]">
-        <Preview media={media} />
+        <Preview media={media} noCamera={!!info.cameras_off} />
         <div className="space-y-5">
           {waiting ? (
             <>
@@ -645,6 +653,23 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
                   This meeting is being recorded. By joining, your video, sound and name may appear in the recording.
                 </p>
               )}
+              {info.cameras_off ? (
+                <p role="status" className="rounded-xl bg-amber-500/15 px-3 py-2.5 text-sm text-amber-100">
+                  {info.is_host ? (
+                    <>
+                      Your meeting time for this month is used up, so this meeting starts with cameras off. Sound and screen sharing work as normal.{" "}
+                      <a href={`${base}/usage`} className="font-semibold underline underline-offset-2">Top up</a>
+                    </>
+                  ) : (
+                    "Cameras are off in this meeting. Sound and screen sharing work as normal."
+                  )}
+                </p>
+              ) : info.is_host && (info.usage_percent ?? 0) >= 80 ? (
+                <p role="status" className="rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/70">
+                  You&apos;ve used {Math.min(info.usage_percent ?? 0, 100)}% of this month&apos;s meeting time.{" "}
+                  <a href={`${base}/usage`} className="font-semibold text-[#f2a93b] underline underline-offset-2">See usage</a>
+                </p>
+              ) : null}
               <InAppBrowserNotice />
               {error && <p role="alert" className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-200">{error}</p>}
               {info.locked && !info.is_host && <p className="text-sm text-white/60">The host locked this meeting. Only people already let in can join.</p>}
@@ -672,7 +697,7 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
   );
 }
 
-function Preview({ media }: { media: LocalMedia }) {
+function Preview({ media, noCamera }: { media: LocalMedia; noCamera?: boolean }) {
   return (
     <div className="space-y-3">
       <div className="relative aspect-video overflow-hidden rounded-2xl bg-[#1b1842]">
@@ -685,7 +710,7 @@ function Preview({ media }: { media: LocalMedia }) {
         )}
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-3 bg-gradient-to-t from-black/60 to-transparent p-4">
           <RoundButton on={media.micOn} onClick={() => media.setMicOn(!media.micOn)} disabled={!media.mic} label={media.micOn ? "Mute" : "Unmute"} icon={media.micOn ? "mic" : "micOff"} />
-          <RoundButton on={media.camOn} onClick={() => void media.toggleCam()} label={media.camOn ? "Turn camera off" : "Turn camera on"} icon={media.camOn ? "video" : "videoOff"} />
+          <RoundButton on={media.camOn} onClick={() => void media.toggleCam()} disabled={noCamera && !media.camOn} label={noCamera && !media.camOn ? "Cameras are off in this meeting" : media.camOn ? "Turn camera off" : "Turn camera on"} icon={media.camOn ? "video" : "videoOff"} />
         </div>
         {media.micOn && media.mic && (
           <div className="absolute top-3 left-3 flex items-end gap-0.5 rounded-full bg-black/40 px-2 py-1.5" aria-label="Microphone level">

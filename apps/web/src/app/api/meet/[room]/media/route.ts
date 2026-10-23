@@ -19,7 +19,8 @@ const UUID = /^[0-9a-f-]{36}$/i;
 const NAME = /^(mic|camera|screen|screen-audio)(\.[0-9]{1,4})?$/;
 const RID = /^[ab]$/; // camera sizes: a = sharp, b = small
 
-type Check = { ok: boolean; participant_id?: string; sessions?: string[] };
+type Check = { ok: boolean; participant_id?: string; sessions?: string[]; cameras_off?: boolean };
+const CAMERA = /^camera(\.|$)/;
 
 function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -85,12 +86,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         // everyone else's sound while the receiving side was rebuilt.
         const allowed = new Set(check.sessions ?? []);
         const ok = remotes
-          .filter((r) => allowed.has(String(r?.sessionId)) && NAME.test(String(r?.trackName)) && r.sessionId !== session)
+          // Cameras off in this meeting (the host's meeting time is used up): no camera video is sent.
+          .filter((r) => allowed.has(String(r?.sessionId)) && NAME.test(String(r?.trackName)) && r.sessionId !== session
+                         && !(check.cameras_off && CAMERA.test(String(r?.trackName))))
           .map((r) => ({ sessionId: String(r.sessionId), trackName: String(r.trackName), ...(RID.test(String((r as { rid?: string }).rid)) ? { rid: String((r as { rid?: string }).rid) } : {}) }));
         const okKeys = new Set(ok.map((r) => `${r.sessionId}/${r.trackName}`));
         const refused = remotes
           .filter((r) => !okKeys.has(`${r?.sessionId}/${r?.trackName}`))
-          .map((r) => ({ sessionId: String(r?.sessionId ?? ""), trackName: String(r?.trackName ?? ""), errorCode: "not_in_meeting", errorDescription: "That person isn't in this meeting right now." }));
+          .map((r) => check.cameras_off && CAMERA.test(String(r?.trackName))
+            ? { sessionId: String(r?.sessionId ?? ""), trackName: String(r?.trackName ?? ""), errorCode: "cameras_off", errorDescription: "Cameras are off in this meeting." }
+            : { sessionId: String(r?.sessionId ?? ""), trackName: String(r?.trackName ?? ""), errorCode: "not_in_meeting", errorDescription: "That person isn't in this meeting right now." });
         if (!ok.length) return NextResponse.json({ tracks: refused });
         const res = await sfu.pull(session, ok);
         return NextResponse.json({ ...res, tracks: [...(res.tracks ?? []), ...refused] });
