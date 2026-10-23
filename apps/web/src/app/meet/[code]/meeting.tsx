@@ -548,7 +548,7 @@ export function MeetingApp({ code, base, signedInName, aiAvailable = false }: { 
       ended: ["This meeting has ended", "Thanks for joining."],
       removed: ["The host removed you", "You can't rejoin this meeting."],
       denied: ["The host didn't let you in", null],
-      limit: ["The 1-hour free meeting is over", info.is_host ? "Meet Pro keeps meetings going for up to 24 hours, for ₦4,000 a month." : "The host can upgrade to Meet Pro for longer meetings."],
+      limit: ["The 1-hour free meeting is over", info.is_host ? "Meet Pro keeps meetings going for up to 24 hours, for ₦3,000 a month." : "The host can upgrade to Meet Pro for longer meetings."],
     }[reason];
     return (
       <Notice

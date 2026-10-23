@@ -13,9 +13,9 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const [{ supabase, user }, base] = await Promise.all([getMeetUser(), requestBase()]);
   const { data } = user ? await supabase.rpc("meet_my_plan") : { data: null };
   const plan = data as MeetPlan | null;
-  const pro = plan?.pro_price_kobo ?? 400_000;
+  const pro = plan?.pro_price_kobo ?? 300_000;
   const business = plan?.business_price_kobo ?? 3_000_000;
-  const promax = plan?.promax_price_kobo ?? 800_000;
+  const promax = plan?.promax_price_kobo ?? 600_000;
 
   const plans = [
     { id: "free", name: "Free", price: "₦0", per: "forever", items: ["Meetings up to 1 hour", "Up to 25 people", "Screen share, chat, reactions", "Record to your device", "Noise cancellation, backgrounds, data saver", "Waiting room and host controls"] },

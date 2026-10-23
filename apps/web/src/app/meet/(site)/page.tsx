@@ -58,7 +58,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
             ))}
           </div>
           <div className="mt-10 text-center">
-            <Link href={`${base}/pricing`} className="font-medium text-brand-700 hover:underline">Meet Pro: unlimited meetings up to 24 hours and 100 people, ₦4,000 a month. Pro Max adds AI notes →</Link>
+            <Link href={`${base}/pricing`} className="font-medium text-brand-700 hover:underline">Meet Pro: unlimited meetings up to 24 hours and 100 people, ₦3,000 a month. Pro Max adds AI notes →</Link>
           </div>
         </section>
       </>
@@ -117,7 +117,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
           <div className="flex flex-wrap gap-2">
             <Link href={`${base}/usage`} className="btn-secondary btn-sm">Usage</Link>
             {p?.promax && <Link href={`${base}/notes`} className="btn-secondary btn-sm">AI notes</Link>}
-            {p?.tier !== "pro" && <Link href={`${base}/pricing`} className="btn-primary btn-sm">Get Meet Pro, {naira(p?.pro_price_kobo ?? 400_000)}/month</Link>}
+            {p?.tier !== "pro" && <Link href={`${base}/pricing`} className="btn-primary btn-sm">Get Meet Pro, {naira(p?.pro_price_kobo ?? 300_000)}/month</Link>}
             {p?.tier === "pro" && !p.promax && <Link href={`${base}/pricing`} className="btn-primary btn-sm">Add AI notes (Pro Max)</Link>}
           </div>
         </div>

@@ -887,7 +887,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
       recorder.current = r;
       setSavedRec(null);
       setRec({ since: Date.now(), audioOnly });
-      const perMinute = audioOnly ? 400_000 : 6_500_000;
+      const perMinute = audioOnly ? 300_000 : 6_500_000;
       if (left !== null && left < perMinute * 90) toast(`Recording. This device has room for about ${Math.max(1, Math.floor(left / perMinute))} minutes.`, "warn");
       else toast("Recording on this device. Everyone can see that you're recording.");
       void refresh();
