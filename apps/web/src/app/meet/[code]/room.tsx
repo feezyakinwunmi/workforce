@@ -1111,11 +1111,11 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
                 <div role="status" className="absolute inset-x-0 top-14 z-20 mx-auto flex w-fit max-w-[calc(100%-1rem)] items-center gap-3 rounded-xl bg-[#1f1b4d] px-4 py-2 text-sm text-white/85 shadow-lg">
                   <Icon name="videoOff" className="h-4 w-4 shrink-0 text-[#f2a93b]" />
                   <span>
-                    {myRole === "host" ? "This month's meeting time is used up, so cameras are off. Sound and screen sharing still work." : "Cameras are off in this meeting. Sound and screen sharing still work."}
-                    {myRole === "host" && (
+                    Cameras are off in this meeting. Sound and screen sharing still work.
+                    {myRole === "host" && info.host_tier === "free" && (
                       <>
                         {" "}
-                        <a href={`${base}/usage`} target="_blank" rel="noopener" className="font-semibold text-[#f2a93b] underline underline-offset-2">Top up</a>
+                        <a href={`${base}/pricing`} target="_blank" rel="noopener" className="font-semibold text-[#f2a93b] underline underline-offset-2">Get Meet Pro</a>
                       </>
                     )}
                   </span>
@@ -1168,7 +1168,7 @@ export function Room({ info, join, media, base, onExit }: { info: RoomInfo; join
               <div className="absolute inset-x-0 bottom-3 z-30 flex justify-center px-2 sm:bottom-5">
                 <div className="flex items-center gap-1.5 rounded-full bg-[#0c0a27]/35 p-1.5 backdrop-blur-md sm:gap-2.5">
                   <Control icon={media.micOn ? "mic" : "micOff"} label={media.micOn ? "Mute" : "Unmute"} off={!media.micOn} disabled={!media.mic} onClick={() => media.setMicOn(!media.micOn)} />
-                  <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : camerasOff ? "Cameras are off in this meeting" : "Start video"} off={!media.camOn} onClick={() => (camerasOff && !media.camOn ? toast(myRole === "host" ? "Cameras are off: this month's meeting time is used up. Top up on the Usage page." : "Cameras are off in this meeting.") : void media.toggleCam())} />
+                  <Control icon={media.camOn ? "video" : "videoOff"} label={media.camOn ? "Stop video" : camerasOff ? "Cameras are off in this meeting" : "Start video"} off={!media.camOn} onClick={() => (camerasOff && !media.camOn ? toast("Cameras are off in this meeting.") : void media.toggleCam())} />
                   <div className="relative">
                     <button
                       onClick={() => (myRole === "host" ? setConfirmLeave((v) => !v) : void leave())}

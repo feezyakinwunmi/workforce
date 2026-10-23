@@ -95,28 +95,3 @@ export async function payMeet(formData: FormData) {
   redirect(url);
 }
 
-/** Buy more meeting time (15 person-hours per pack) through Paystack. */
-export async function topUpMeet(formData: FormData) {
-  const { supabase, user } = await getMeetUser();
-  const base = await requestBase();
-  if (!user) redirect(`/login?next=${encodeURIComponent(`${base}/usage`)}`);
-  const back = (msg: string) => redirect(`${base}/usage?error=${encodeURIComponent(msg)}`);
-  if (!paystackConfigured()) back("Payments aren't set up yet.");
-  const packs = Number(formData.get("packs") ?? 1);
-  const { data, error } = await supabase.rpc("meet_start_topup", { p_packs: packs });
-  if (error || !data) back(error?.message ?? "Couldn't start the payment.");
-  const p = data as { reference: string; amount_kobo: number; email: string };
-  let url = "";
-  try {
-    url = await initializeTransaction({
-      email: p.email || user!.email,
-      amountKobo: p.amount_kobo,
-      reference: p.reference,
-      callbackUrl: `${await requestOrigin()}${base}/billing/callback`,
-      metadata: { product: "meet", plan: "topup", packs },
-    });
-  } catch (e) {
-    back(e instanceof Error ? e.message : "Paystack didn't answer.");
-  }
-  redirect(url);
-}

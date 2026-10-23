@@ -7,7 +7,6 @@ import { InfoTip, Notice } from "@/components/ui";
 import { meetingLink } from "@/lib/meet/paths";
 import { getMeetUser, requestBase, requestOrigin } from "@/lib/meet/server";
 import { naira, type MeetPlan, type MyMeeting } from "@/lib/meet/types";
-import { UsageMeter } from "../usage-meter";
 import { AttendanceButton } from "../attendance";
 import { newMeeting } from "./actions";
 import { CopyLink, JoinForm } from "./join-form";
@@ -58,7 +57,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
             ))}
           </div>
           <div className="mt-10 text-center">
-            <Link href={`${base}/pricing`} className="font-medium text-brand-700 hover:underline">Meet Pro: meetings up to 24 hours and 100 people, ₦4,000 a month →</Link>
+            <Link href={`${base}/pricing`} className="font-medium text-brand-700 hover:underline">Meet Pro: unlimited meetings up to 24 hours and 100 people, AI summaries soon. ₦4,000 a month →</Link>
           </div>
         </section>
       </>
@@ -104,16 +103,11 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
               {p?.pool_kind === "company" && p.company_name && <span className="ml-2 align-middle text-sm font-normal text-slate-500">with {p.company_name}</span>}
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              {p?.tier === "pro" ? "Meetings up to 24 hours and 100 people." : "Meetings up to 1 hour and 25 people."}
+              {p?.tier === "pro" ? "Unlimited meetings, each up to 24 hours and 100 people." : "Meetings up to 1 hour and 25 people."}
               {p?.paid_until && ` Paid until ${new Date(p.paid_until).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}.`}
             </p>
           </div>
-          {p?.usage && <UsageMeter usage={p.usage} compact />}
-          <div className="flex flex-wrap gap-2">
-            <Link href={`${base}/usage`} className="btn-secondary btn-sm">Usage</Link>
-            {p?.tier !== "pro" && <Link href={`${base}/pricing`} className="btn-primary btn-sm">Get Meet Pro, {naira(p?.pro_price_kobo ?? 400_000)}/month</Link>}
-            {p?.tier === "pro" && p.usage && p.usage.percent >= 80 && p.can_top_up && <Link href={`${base}/usage`} className="btn-primary btn-sm">Top up</Link>}
-          </div>
+          {p?.tier !== "pro" && <Link href={`${base}/pricing`} className="btn-primary btn-sm w-fit">Get Meet Pro, {naira(p?.pro_price_kobo ?? 400_000)}/month</Link>}
         </div>
       </section>
 

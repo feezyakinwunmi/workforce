@@ -21,7 +21,6 @@ export default async function MeetSiteLayout({ children }: { children: React.Rea
           </Link>
           <nav className="flex items-center gap-1 text-sm sm:gap-2">
             {user && <Link href={`${base}/schedule`} className="rounded-lg px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">Schedule</Link>}
-            {user && <Link href={`${base}/usage`} className="rounded-lg px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">Usage</Link>}
             <Link href={`${base}/pricing`} className="rounded-lg px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">Pricing</Link>
             {user && (
               <FeedbackButton product="meet" className="rounded-lg px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">

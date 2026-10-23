@@ -655,19 +655,16 @@ export function MeetingApp({ code, base, signedInName }: { code: string; base: s
               )}
               {info.cameras_off ? (
                 <p role="status" className="rounded-xl bg-amber-500/15 px-3 py-2.5 text-sm text-amber-100">
-                  {info.is_host ? (
+                  {!info.is_host ? (
+                    "Cameras are off in this meeting. Sound and screen sharing work as normal."
+                  ) : info.host_tier === "free" ? (
                     <>
-                      Your meeting time for this month is used up, so this meeting starts with cameras off. Sound and screen sharing work as normal.{" "}
-                      <a href={`${base}/usage`} className="font-semibold underline underline-offset-2">Top up</a>
+                      You&apos;ve reached this month&apos;s free meeting time, so this meeting starts with cameras off. Sound and screen sharing work as normal.{" "}
+                      <a href={`${base}/pricing`} className="font-semibold underline underline-offset-2">Get Meet Pro</a>
                     </>
                   ) : (
-                    "Cameras are off in this meeting. Sound and screen sharing work as normal."
+                    "Your account has reached this month's fair-use limit, so this meeting starts with cameras off. Sound and screen sharing work as normal. Contact support if you need more."
                   )}
-                </p>
-              ) : info.is_host && (info.usage_percent ?? 0) >= 80 ? (
-                <p role="status" className="rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/70">
-                  You&apos;ve used {Math.min(info.usage_percent ?? 0, 100)}% of this month&apos;s meeting time.{" "}
-                  <a href={`${base}/usage`} className="font-semibold text-[#f2a93b] underline underline-offset-2">See usage</a>
                 </p>
               ) : null}
               <InAppBrowserNotice />

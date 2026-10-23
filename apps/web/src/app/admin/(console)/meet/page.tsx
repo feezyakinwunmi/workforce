@@ -69,7 +69,7 @@ export default async function MeetTab({ searchParams }: { searchParams: Promise<
               tone: cost.usd > 0 ? "amber" : "green",
               hint: `≈ ${n(Math.round(cost.gb))} of ${n(MEET_COST.freeGb)} free GB (estimate)`,
             },
-            { label: "Hosts over 80%", value: n(usage.pools_over_80), icon: "users", hint: `of ${plural(usage.pools_this_month, "host or company", "hosts and companies")} this month` },
+            { label: "Near fair-use limit", value: n(usage.pools_over_80), icon: "users", hint: `over 80% · of ${plural(usage.pools_this_month, "host or company", "hosts and companies")} this month` },
             { label: "Top-ups sold", value: n(usage.topups.count), icon: "card", tone: "amber", hint: `${naira(usage.topups.kobo)} · ${n(usage.topups.hours_left)} h unused${usage.cameras_off_live ? ` · ${n(usage.cameras_off_live)} live meetings with cameras off` : ""}` },
           ]}
         />

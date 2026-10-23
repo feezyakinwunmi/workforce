@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SubmitButton } from "@/components/form";
-import { InfoTip, Notice } from "@/components/ui";
+import { Notice } from "@/components/ui";
 import { getMeetUser, requestBase } from "@/lib/meet/server";
-import { MEET_ALLOWANCE as A, naira, type MeetPlan } from "@/lib/meet/types";
+import { MEET_BUSINESS_HOSTS, naira, type MeetPlan } from "@/lib/meet/types";
 import { payMeet } from "../actions";
 
 export const metadata: Metadata = { title: "Pricing" };
@@ -15,12 +15,11 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const plan = data as MeetPlan | null;
   const pro = plan?.pro_price_kobo ?? 400_000;
   const business = plan?.business_price_kobo ?? 3_000_000;
-  const topup = plan?.topup_price_kobo ?? 100_000;
 
   const plans = [
-    { id: "free", name: "Free", price: "₦0", per: "forever", items: [`${A.free} person-hours a month`, "Meetings up to 1 hour", "Up to 25 people", "Screen share, chat, reactions", "Record to your device", "Noise cancellation, backgrounds, data saver", "Waiting room and host controls"] },
-    { id: "pro", name: "Meet Pro", price: naira(pro), per: "per host / month", items: ["Everything in Free", `${A.pro} person-hours a month`, "Meetings up to 24 hours", "Up to 100 people", "AI meeting summaries (coming soon)"], hot: true },
-    { id: "business", name: "Meet Business", price: naira(business), per: "per company / month", items: [`Meet Pro for up to ${A.business_hosts} hosts`, `${A.business} person-hours a month, shared`, "One payment for the whole team", `Workbase Standard and Pro include Meet Pro with ${A.workbase_per_person} person-hours per paid person`] },
+    { id: "free", name: "Free", price: "₦0", per: "forever", items: ["Meetings up to 1 hour", "Up to 25 people", "Screen share, chat, reactions", "Record to your device", "Noise cancellation, backgrounds, data saver", "Waiting room and host controls"] },
+    { id: "pro", name: "Meet Pro", price: naira(pro), per: "per host / month", items: ["Everything in Free", "Unlimited meetings", "Each meeting up to 24 hours", "Up to 100 people", "AI meeting summaries (coming soon)"], hot: true },
+    { id: "business", name: "Meet Business", price: naira(business), per: "per company / month", items: [`Meet Pro for up to ${MEET_BUSINESS_HOSTS} hosts`, "One payment for the whole team", "Included free with Workbase Standard and Pro"] },
   ];
 
   return (
@@ -28,10 +27,6 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       <div className="text-center">
         <h1 className="font-display text-4xl font-bold tracking-tight text-slate-900">Simple prices, in naira</h1>
         <p className="mt-3 text-slate-500">Guests and attendees never pay. Pay for 10 months, get 12.</p>
-        <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-500">
-          A person-hour = one person in a meeting for one hour. Need more? {naira(topup)} adds {A.topup_hours}.
-          <InfoTip>Your monthly allowance resets on the 1st. When it runs out, meetings carry on: new ones start with cameras off (sound and screen sharing still work) until you top up or the month resets. Top-ups are kept for 12 months.</InfoTip>
-        </p>
       </div>
       {sp.error && <Notice tone="error" className="mx-auto mt-6 max-w-xl">{sp.error}</Notice>}
       {sp.paid && <Notice tone="success" className="mx-auto mt-6 max-w-xl">Payment received. You&apos;re on Meet Pro.</Notice>}

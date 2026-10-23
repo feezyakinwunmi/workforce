@@ -138,14 +138,8 @@ export type MeetPlan = {
   usage?: MeetUsage;
 };
 
-/** Plan sizes (the database decides; these are for the pages). */
-export const MEET_ALLOWANCE = { free: 15, pro: 60, business: 400, business_hosts: 10, workbase_per_person: 5, workbase_min: 20, topup_hours: 15 } as const;
-
-/** "12.5" person-hours, rounded down to a tenth. */
-export const hours = (seconds: number) => {
-  const h = Math.floor((seconds / 3600) * 10) / 10;
-  return Number.isInteger(h) ? String(h) : h.toFixed(1);
-};
+/** Hosts covered by one Meet Business payment (the database decides; this is for the pages). */
+export const MEET_BUSINESS_HOSTS = 10;
 
 export const REACTIONS = ["👍", "❤️", "😂", "👏", "🎉", "😮", "🙏", "🔥"] as const;
 
