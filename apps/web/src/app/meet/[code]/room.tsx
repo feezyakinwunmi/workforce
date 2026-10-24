@@ -1093,17 +1093,9 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
             )}
           </RailButton>
         )}
-        {isMod && aiAvailable && notesSupported && (
-          <RailButton icon="sparkle" label={notesOn ? "Stop AI notes" : "AI notes"} accent={notesOn} active={notesOn || railNotes} disabled={notesBusy} onClick={() => (notesOn ? void stopNotes() : setRailNotes((v) => !v))}>
-            {railNotes && !notesOn && (
-              <div className="absolute top-0 left-full z-50 ml-3 w-72 rounded-2xl bg-[#1f1b4d] p-4 shadow-2xl ring-1 ring-white/10">
-                <p className="mb-3 font-medium">AI notes</p>
-                {notesControl}
-                <button className="mt-2 w-full py-1 text-sm text-white/60 hover:text-white" onClick={() => setRailNotes(false)}>Cancel</button>
-              </div>
-            )}
-          </RailButton>
-        )}
+        {/* AI notes: built, switched off for now (Femi, 24 Oct 2026). To turn on, restore the
+            popover with {notesControl} (see git history) and check aiAvailable && notesSupported. */}
+        <RailButton icon="sparkle" label="AI notes · coming soon" disabled onClick={() => undefined} />
         {canShare && <RailButton icon="screenShare" label={sharing ? "Stop sharing" : "Share screen"} active={!!sharing} onClick={() => (sharing ? stopShare() : void startShare())} />}
         <RailButton icon="hand" label={hand ? "Lower hand" : "Raise hand"} active={hand} onClick={() => setHand((h) => !h)} />
         <RailButton icon="grid" label={layout === "grid" ? "Switch to speaker view" : "Switch to grid view"} active={layout === "grid"} onClick={() => setLayout((l) => (l === "grid" ? "speaker" : "grid"))} />
@@ -1414,12 +1406,10 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
                       )}
                     </div>
                   )}
-                  {isMod && aiAvailable && notesSupported && (
-                    <div>
-                      <p className="mb-2 text-xs text-white/60">AI notes</p>
-                      {notesControl}
-                    </div>
-                  )}
+                  <div>
+                    <p className="mb-2 text-xs text-white/60">AI notes</p>
+                    <button disabled className="w-full cursor-not-allowed rounded-xl bg-white/10 py-2.5 text-sm text-white/50">Coming soon</button>
+                  </div>
                   <DeviceSettings media={media} />
                   <div>
                     <p className="mb-2 text-xs text-white/60">Layout</p>
