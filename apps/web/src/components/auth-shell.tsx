@@ -22,7 +22,7 @@ export function AuthShell({ children, wide = false, aside = true }: { children: 
         </p>
       </div>
       {aside && (
-        <aside className="relative hidden overflow-hidden bg-[#15123a] p-12 text-white lg:flex lg:flex-col lg:justify-between dark:bg-raised" aria-hidden>
+        <aside className="relative hidden overflow-hidden bg-[#111113] p-12 text-white lg:flex lg:flex-col lg:justify-between dark:bg-raised" aria-hidden>
           <LogoMark className="absolute -right-24 -bottom-20 h-[34rem] w-[34rem] opacity-[0.07] [&_path]:fill-white [&_rect]:fill-white" />
           <div className="relative max-w-md">
             <p className="font-display text-4xl leading-tight font-bold tracking-tight">Your team&apos;s working day, in one view.</p>

@@ -37,7 +37,7 @@ Rules you always follow:
 - Each platform gets its own caption: Instagram (hook first line, emojis ok, 3-5 hashtags handled separately), Facebook (conversational, ends with a question), LinkedIn (professional insight, no hashtag spam), X (under 260 characters, punchy), TikTok (very short caption for a video), WhatsApp Status (one or two lines + call to action).
 - Only write captions for the platforms listed in the brand profile.
 - Flyer text must be very short: headline max 6 words, subline max 12 words, cta max 4 words.
-- Pick a flyer style: "bold" (big headline), "clean" (simple, premium), "promo" (sale/offer), "quote" (tip or saying).
+- Pick a flyer style: "bold" (big headline), "clean" (simple, premium), "minimal" (black and white, elegant), "promo" (sale/offer), "quote" (tip or saying).
 - Best posting times in Nigeria (WAT): weekdays 7-9am, 12-2pm, 7-9pm; Saturday 10am-1pm. Pick a time that fits the platform.
 `.trim();
 
@@ -76,7 +76,7 @@ function tidy(raw: RawPost, b: Brand, fallbackTopic: string): WrittenPost {
     const c = raw.captions?.[p];
     if (typeof c === "string" && c.trim()) captions[p] = c.trim().slice(0, 2200);
   }
-  const styles: FlyerStyle[] = ["bold", "clean", "promo", "quote"];
+  const styles: FlyerStyle[] = ["bold", "clean", "minimal", "promo", "quote"]; // designs that need no picture
   const f = raw.flyer ?? {};
   return {
     topic: String(raw.topic || fallbackTopic).trim().slice(0, 300) || fallbackTopic.slice(0, 300),
@@ -115,7 +115,7 @@ Reply ONLY with a JSON object:
     "topic": "what the post is about, max 10 words",
     "captions": { "<platform>": "caption", ... },
     "hashtags": ["#tag", ...],
-    "flyer": { "headline": "...", "subline": "...", "cta": "...", "style": "bold|clean|promo|quote" },
+    "flyer": { "headline": "...", "subline": "...", "cta": "...", "style": "bold|clean|minimal|promo|quote" },
     "best_time": "YYYY-MM-DDTHH:MM (Lagos time, in the future)"
   }
 }

@@ -162,7 +162,7 @@ function MeetingIllustration() {
           <div key={i} className={`relative flex aspect-video items-center justify-center rounded-xl bg-[#26225a] ${k === 0 ? "ring-2 ring-emerald-400" : ""}`}>
             <span className="flex h-12 w-12 items-center justify-center rounded-full font-display text-lg font-bold" style={{ background: c }}>{i}</span>
             <span className="absolute bottom-1.5 left-2 text-[11px] text-white/80">{n}</span>
-            {k === 2 && <span className="absolute top-1.5 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a]"><Icon name="hand" className="h-3.5 w-3.5" /></span>}
+            {k === 2 && <span className="absolute top-1.5 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#f2a93b] text-[#111113]"><Icon name="hand" className="h-3.5 w-3.5" /></span>}
           </div>
         ))}
       </div>

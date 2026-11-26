@@ -92,8 +92,8 @@ export default async function PadiHome({ searchParams }: { searchParams: Promise
 
         <aside className="space-y-4">
           {/* Week progress */}
-          <div className="relative overflow-hidden rounded-3xl bg-[#15123a] p-5 text-white">
-            <span className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-[#6a4cf5] opacity-40 blur-3xl" aria-hidden="true" />
+          <div className="relative overflow-hidden rounded-3xl bg-[#111113] p-5 text-white">
+            <span className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-[#111113] opacity-40 blur-3xl" aria-hidden="true" />
             <div className="relative flex items-center gap-4">
               <span className="relative h-16 w-16 shrink-0">
                 <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
@@ -108,7 +108,7 @@ export default async function PadiHome({ searchParams }: { searchParams: Promise
                 <span className="text-sm text-white/60">{ready} of {target} posts ready</span>
               </div>
             </div>
-            <div className="relative [&_.btn-primary]:bg-white [&_.btn-primary]:text-[#15123a] [&_.btn-primary:hover]:bg-white/90">
+            <div className="relative [&_.btn-primary]:bg-white [&_.btn-primary]:text-[#111113] [&_.btn-primary:hover]:bg-white/90">
               <PlanWeekButton count={target} />
             </div>
           </div>
@@ -128,7 +128,7 @@ export default async function PadiHome({ searchParams }: { searchParams: Promise
                 {upcoming.map((p) => (
                   <li key={p.id}>
                     <Link href={`${base}/posts/${p.id}`} className="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-slate-50">
-                      <span className="flex w-11 shrink-0 flex-col items-center rounded-lg bg-[#f3f0ff] py-1 text-[#6a4cf5]">
+                      <span className="flex w-11 shrink-0 flex-col items-center rounded-lg bg-[#f4f4f5] py-1 text-[#6a4cf5]">
                         <b className="text-[0.62rem] uppercase">{p.planned_for ? lagos(p.planned_for, { weekday: "short" }) : "—"}</b>
                         <b className="text-[0.95rem] leading-none tabular-nums">{p.planned_for ? lagos(p.planned_for, { day: "numeric" }) : ""}</b>
                       </span>

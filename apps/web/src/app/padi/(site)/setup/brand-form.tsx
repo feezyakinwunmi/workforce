@@ -71,9 +71,9 @@ const PALETTES: Array<[string, string, string]> = [
   ["Rose", "#d6336c", "#ffd8a8"],
   ["Emerald", "#0f9d6b", "#f7d154"],
   ["Ocean", "#1c7ed6", "#ffe066"],
-  ["Night", "#15123a", "#f2a93b"],
-  ["Coral", "#f76707", "#15123a"],
-  ["Gold", "#b8860b", "#15123a"],
+  ["Night", "#111113", "#f2a93b"],
+  ["Coral", "#f76707", "#111113"],
+  ["Gold", "#b8860b", "#111113"],
   ["Black", "#111111", "#e9c46a"],
 ];
 
@@ -99,7 +99,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     <button type="button" onClick={onClick} aria-pressed={on}
       className={cn(
         "rounded-full border px-3.5 py-1.5 text-[0.85rem] transition duration-200",
-        on ? "border-[#6a4cf5] bg-[#6a4cf5] text-white shadow-[0_6px_16px_-8px_rgba(106,76,245,0.9)]" : "border-slate-200 bg-surface text-slate-700 hover:border-[#a996ff] hover:text-[#5b3ee6]",
+        on ? "border-[#111113] bg-[#111113] text-white shadow-[0_6px_16px_-8px_rgba(0,0,0,0.9)]" : "border-slate-200 bg-surface text-slate-700 hover:border-[#a1a1aa] hover:text-[#2a2a2e]",
       )}>
       {on && <Icon name="check" className="mr-1 -ml-0.5 inline h-3.5 w-3.5" />}
       {children}
@@ -112,10 +112,10 @@ function OptionCard({ on, onClick, icon, label, hint }: { on: boolean; onClick: 
     <button type="button" onClick={onClick} aria-pressed={on}
       className={cn(
         "group flex items-center gap-3 rounded-2xl border p-3 text-left transition duration-200",
-        on ? "border-[#6a4cf5] bg-[#f3f0ff] ring-1 ring-[#6a4cf5]" : "border-slate-200 bg-surface hover:-translate-y-0.5 hover:border-[#a996ff]",
+        on ? "border-[#111113] bg-[#f4f4f5] ring-1 ring-[#111113]" : "border-slate-200 bg-surface hover:-translate-y-0.5 hover:border-[#a1a1aa]",
       )}>
       <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition duration-300 group-hover:-rotate-6",
-        on ? "bg-[#6a4cf5] text-white" : "bg-[#f3f0ff] text-[#6a4cf5]")}>
+        on ? "bg-[#111113] text-white" : "bg-[#f4f4f5] text-[#6a4cf5]")}>
         <Icon name={icon} className="h-[1.05rem] w-[1.05rem]" />
       </span>
       <span className="min-w-0">
@@ -216,7 +216,7 @@ export function BrandForm({ brand }: { brand: Brand | null }) {
           <li key={s}>
             <button type="button" onClick={() => (i <= step || canNext) && setStep(i)} className="w-full text-left">
               <span className="block h-1.5 overflow-hidden rounded-full bg-slate-200">
-                <span className={cn("block h-full rounded-full bg-[#6a4cf5] transition-all duration-500", i <= step ? "w-full" : "w-0")} />
+                <span className={cn("block h-full rounded-full bg-[#111113] transition-all duration-500", i <= step ? "w-full" : "w-0")} />
               </span>
               <span className={cn("mt-2 block text-[0.8rem]", i === step ? "font-semibold text-slate-900" : "text-slate-500")}>{i + 1}. {s}</span>
             </button>
@@ -241,9 +241,9 @@ export function BrandForm({ brand }: { brand: Brand | null }) {
               )}
             </Section>
             <Section title="What do you sell?" hint="Type a product or service and press Enter. Add prices if you like.">
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2 focus-within:border-[#a996ff]">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2 focus-within:border-[#a1a1aa]">
                 {products.map((p) => (
-                  <span key={p} className="flex items-center gap-1 rounded-full bg-[#f3f0ff] py-1 pr-1.5 pl-3 text-[0.85rem] text-[#4b32c8]">
+                  <span key={p} className="flex items-center gap-1 rounded-full bg-[#f4f4f5] py-1 pr-1.5 pl-3 text-[0.85rem] text-[#111113]">
                     {p}
                     <button type="button" onClick={() => setProducts(products.filter((x) => x !== p))} aria-label={`Remove ${p}`} className="rounded-full p-0.5 hover:bg-white">
                       <Icon name="x" className="h-3 w-3" />
@@ -301,7 +301,7 @@ export function BrandForm({ brand }: { brand: Brand | null }) {
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                 {PALETTES.map(([n, p, a]) => (
                   <button key={n} type="button" onClick={() => { setPrimary(p); setAccent(a); }} aria-pressed={primary === p && accent === a}
-                    className={cn("group rounded-xl border p-1.5 transition hover:-translate-y-0.5", primary === p && accent === a ? "border-[#6a4cf5] ring-1 ring-[#6a4cf5]" : "border-slate-200")}>
+                    className={cn("group rounded-xl border p-1.5 transition hover:-translate-y-0.5", primary === p && accent === a ? "border-[#111113] ring-1 ring-[#111113]" : "border-slate-200")}>
                     <span className="flex h-9 overflow-hidden rounded-lg"><i className="flex-[2]" style={{ background: p }} /><i className="flex-1" style={{ background: a }} /></span>
                     <span className="mt-1 block text-[0.7rem] text-slate-600">{n}</span>
                   </button>
@@ -318,7 +318,7 @@ export function BrandForm({ brand }: { brand: Brand | null }) {
                 <span className="ml-auto flex aspect-[4/5] w-24 flex-col justify-between rounded-xl p-2.5 text-white shadow-md" style={{ background: primary }}>
                   <b className="text-[0.45rem] tracking-[0.14em]">{(name || "YOUR BRAND").toUpperCase().slice(0, 16)}</b>
                   <span className="text-[0.72rem] leading-tight font-semibold">Your next post</span>
-                  <span className="w-fit rounded-full px-1.5 py-0.5 text-[0.45rem] font-bold" style={{ background: accent, color: "#15123a" }}>Shop now</span>
+                  <span className="w-fit rounded-full px-1.5 py-0.5 text-[0.45rem] font-bold" style={{ background: accent, color: "#111113" }}>Shop now</span>
                 </span>
               </div>
             </Section>

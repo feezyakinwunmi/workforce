@@ -12,13 +12,20 @@ export const metadata: Metadata = { title: "Post" };
 export default async function PadiPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
-  const [{ supabase }, base] = await Promise.all([requirePadiUser(), padiRequestBase()]);
+  const [{ supabase, user }, base] = await Promise.all([requirePadiUser(), padiRequestBase()]);
   const [brand, { data }] = await Promise.all([
     myBrand(supabase),
     supabase.from("padi_posts").select("id, topic, captions, hashtags, flyer, planned_for, status, created_at").eq("id", id).maybeSingle(),
   ]);
   const post = data as PadiPost | null;
   if (!post || !brand) notFound();
+
+  // A 1-hour link to the person's own picture, if the flyer uses one (private bucket, own folder only).
+  let imageUrl: string | null = null;
+  if (post.flyer.image) {
+    const { data: signed } = await supabase.storage.from("padi-media").createSignedUrl(post.flyer.image, 3600);
+    imageUrl = signed?.signedUrl ?? null;
+  }
 
   const statusButton = (status: PadiPost["status"], label: string, cls: string) => (
     <form action={setPostStatus}>
@@ -47,7 +54,7 @@ export default async function PadiPostPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      <PostEditor post={post} brand={brand} />
+      <PostEditor post={post} brand={brand} imageUrl={imageUrl} userId={user.id} />
     </div>
   );
 }

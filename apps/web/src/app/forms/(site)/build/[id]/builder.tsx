@@ -40,7 +40,7 @@ const TYPE_ICON: Record<FieldType, IconName> = {
   page: "arrowRight",
 };
 
-const COLORS = ["#6a4cf5", "#15123a", "#0f766e", "#0369a1", "#be123c", "#c2410c", "#a16207", "#4d7c0f"];
+const COLORS = ["#6a4cf5", "#111113", "#0f766e", "#0369a1", "#be123c", "#c2410c", "#a16207", "#4d7c0f"];
 
 type Save = "saved" | "saving" | "unsaved" | "error";
 const DRAG_TYPE = "application/x-workbase-field";

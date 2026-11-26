@@ -67,7 +67,7 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
 function Code({ text }: { text: string }) {
   return (
     <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-      <pre className="overflow-x-auto bg-[#15123a] p-4 text-xs leading-relaxed text-white"><code>{text}</code></pre>
+      <pre className="overflow-x-auto bg-[#111113] p-4 text-xs leading-relaxed text-white"><code>{text}</code></pre>
       <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-3 py-2">
         <CopyButton text={text} label="Copy code" />
       </div>

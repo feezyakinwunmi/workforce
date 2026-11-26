@@ -110,7 +110,7 @@ export function Celebration({ shout, person, video, from, muted, onMute, onDone 
 @keyframes cel-shine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
 @keyframes cel-out{to{opacity:0;transform:scale(.92)}}
 @media (prefers-reduced-motion: reduce){.cel-anim{animation:none!important}}`}</style>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(106,76,245,.45),rgba(12,10,39,.55)_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(0,0,0,.45),rgba(12,10,39,.55)_60%)]" />
       <Confetti />
       <div
         className="cel-anim relative flex max-w-md flex-col items-center text-center"
@@ -127,7 +127,7 @@ export function Celebration({ shout, person, video, from, muted, onMute, onDone 
               </span>
             )}
           </div>
-          <span className="absolute -right-1 -bottom-1 flex h-14 w-14 items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a] ring-4 ring-[#0c0a27]">
+          <span className="absolute -right-1 -bottom-1 flex h-14 w-14 items-center justify-center rounded-full bg-[#f2a93b] text-[#111113] ring-4 ring-[#0c0a27]">
             <Icon name={style.icon} className="h-7 w-7" />
           </span>
         </div>
@@ -184,7 +184,7 @@ export function ShoutoutDialog({ people, meId, initial, onSend, onClose }: {
       <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[#1a1745] p-5 shadow-2xl ring-1 ring-white/10 sm:rounded-3xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="shout-title">
         <div className="mb-4 flex items-center justify-between">
           <h2 id="shout-title" className="flex items-center gap-2.5 font-display text-xl font-bold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a]"><Icon name="party" className="h-5 w-5" /></span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f2a93b] text-[#111113]"><Icon name="party" className="h-5 w-5" /></span>
             Celebrate someone
           </h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-white/70 hover:bg-white/10" aria-label="Close"><Icon name="x" className="h-5 w-5" /></button>
@@ -198,7 +198,7 @@ export function ShoutoutDialog({ people, meId, initial, onSend, onClose }: {
               type="button"
               onClick={() => { setTarget(p.id); setTyped(""); }}
               aria-pressed={target === p.id}
-              className={cn("flex items-center gap-2 rounded-full py-1 pr-3 pl-1 text-sm transition", target === p.id ? "bg-[#6a4cf5] ring-2 ring-[#f2a93b]" : "bg-white/[0.07] hover:bg-white/[0.12]")}
+              className={cn("flex items-center gap-2 rounded-full py-1 pr-3 pl-1 text-sm transition", target === p.id ? "bg-[#111113] ring-2 ring-[#f2a93b]" : "bg-white/[0.07] hover:bg-white/[0.12]")}
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: avatarColour(p.user_id) }}>{initialsOf(p.display_name)}</span>
               {p.id === meId ? `${p.display_name} (you)` : p.display_name}
@@ -217,7 +217,7 @@ export function ShoutoutDialog({ people, meId, initial, onSend, onClose }: {
         <div className="mb-4 grid grid-cols-2 gap-2">
           {STYLES.map((s) => (
             <button key={s.id} type="button" onClick={() => setStyle(s.id)} aria-pressed={style === s.id}
-              className={cn("flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition", style === s.id ? "bg-[#6a4cf5] ring-2 ring-[#f2a93b]" : "bg-white/[0.07] hover:bg-white/[0.12]")}>
+              className={cn("flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition", style === s.id ? "bg-[#111113] ring-2 ring-[#f2a93b]" : "bg-white/[0.07] hover:bg-white/[0.12]")}>
               <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", style === s.id ? "bg-white/20" : "bg-white/[0.08] text-[#f2c27a]")}>
                 <Icon name={s.icon} className="h-[18px] w-[18px]" />
               </span>
@@ -234,7 +234,7 @@ export function ShoutoutDialog({ people, meId, initial, onSend, onClose }: {
           onChange={(e) => setMessage(e.target.value)}
         />
         {error && <p className="mb-3 rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-200" role="alert">{error}</p>}
-        <button onClick={() => void send()} disabled={busy || !name} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f2a93b] py-3 font-semibold text-[#15123a] transition hover:bg-[#ffb94f] disabled:opacity-50">
+        <button onClick={() => void send()} disabled={busy || !name} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f2a93b] py-3 font-semibold text-[#111113] transition hover:bg-[#ffb94f] disabled:opacity-50">
           <Icon name="party" className="h-5 w-5" />
           {busy ? "Sending…" : name ? `Celebrate ${name}` : "Celebrate"}
         </button>

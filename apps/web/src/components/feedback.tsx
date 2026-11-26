@@ -110,7 +110,7 @@ export function FeedbackForm({
               autoFocus={autoFocus && s === 1}
               onMouseEnter={() => setHover(s)}
               onClick={() => setRating(rating === s ? null : s)}
-              className="rounded p-0.5 transition hover:scale-110 focus-visible:outline-2 focus-visible:outline-[#6a4cf5]"
+              className="rounded p-0.5 transition hover:scale-110 focus-visible:outline-2 focus-visible:outline-[#111113]"
             >
               <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
                 <path
@@ -138,7 +138,7 @@ export function FeedbackForm({
               className={cn(
                 "rounded-full border px-3 py-1 text-sm transition",
                 on
-                  ? "border-[#6a4cf5] bg-[#6a4cf5] text-white"
+                  ? "border-[#111113] bg-[#111113] text-white"
                   : dark
                     ? "border-white/20 text-white/80 hover:border-white/40"
                     : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900",
@@ -157,7 +157,7 @@ export function FeedbackForm({
         placeholder={product === "meet" ? "Anything we should fix or add? (optional)" : "Tell us what to fix, improve or add (optional)"}
         aria-label="Your feedback"
         className={cn(
-          "w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#6a4cf5]/50",
+          "w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#111113]/50",
           dark ? "border-white/15 bg-white/5 text-white placeholder:text-white/40" : "border-slate-200 bg-surface text-slate-900 placeholder:text-slate-400",
         )}
       />
@@ -169,7 +169,7 @@ export function FeedbackForm({
           type="button"
           onClick={send}
           disabled={empty || busy}
-          className="rounded-xl bg-[#6a4cf5] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5b3fe0] disabled:opacity-40"
+          className="rounded-xl bg-[#111113] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5b3fe0] disabled:opacity-40"
         >
           {busy ? "Sending…" : "Send feedback"}
         </button>

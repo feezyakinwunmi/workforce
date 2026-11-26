@@ -163,7 +163,7 @@ function FormIllustration() {
           <span className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white">Continue to payment</span>
         </div>
       </div>
-      <div className="absolute -right-3 -bottom-5 rotate-2 rounded-xl bg-[#15123a] px-4 py-3 font-mono text-xs text-white shadow-lg sm:-right-8">
+      <div className="absolute -right-3 -bottom-5 rotate-2 rounded-xl bg-[#111113] px-4 py-3 font-mono text-xs text-white shadow-lg sm:-right-8">
         &lt;div data-workbase-form=…&gt;
       </div>
     </div>

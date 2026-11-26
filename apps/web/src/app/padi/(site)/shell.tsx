@@ -10,7 +10,7 @@
  *   Phone/tablet   a slim top bar with the logo and a menu button that slides the same
  *                  sidebar in as a drawer (closes on navigation, Escape or tapping outside).
  *
- * Colours are fixed (ink #15123a, violet #6a4cf5, marigold #f2a93b) so the sidebar looks the
+ * Colours are fixed (ink #111113, violet #6a4cf5, marigold #f2a93b) so the sidebar looks the
  * same in light and dark mode. Icons move a little on hover; the active item gets a violet
  * glow bar on the left.
  */
@@ -50,12 +50,12 @@ function Sidebar({ base, brand, email, onNavigate }: { base: string; brand: { na
   const active = (href: string) => (href === home ? path === home || path === `${home}/` : path.startsWith(href));
 
   return (
-    <div className="flex h-full flex-col bg-[#15123a] text-white">
+    <div className="flex h-full flex-col bg-[#111113] text-white">
       {/* Logo */}
       <Link href={home} onClick={onNavigate} className="flex items-center gap-2.5 px-5 pt-5 pb-4">
         <LogoMark tile product="padi" className="h-9 w-9" />
         <span className="text-[1.05rem] font-semibold tracking-tight">
-          Bizz <span className="text-[#a996ff]">Padi</span>
+          Bizz <span className="text-[#a1a1aa]">Padi</span>
         </span>
       </Link>
 
@@ -96,9 +96,9 @@ function Sidebar({ base, brand, email, onNavigate }: { base: string; brand: { na
                         "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[0.88rem] font-medium transition",
                         active(it.href) ? "bg-white/[0.1] text-white" : "text-white/70 hover:bg-white/[0.06] hover:text-white",
                       )}>
-                      {active(it.href) && <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-[#7c5cff] shadow-[0_0_12px_#7c5cff]" />}
+                      {active(it.href) && <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-[#8f7bff] shadow-[0_0_12px_#8f7bff]" />}
                       <Icon name={it.icon}
-                        className={cn("h-[1.1rem] w-[1.1rem] transition duration-300 group-hover:-rotate-6 group-hover:scale-110", active(it.href) ? "text-[#a996ff]" : "text-white/50 group-hover:text-white")} />
+                        className={cn("h-[1.1rem] w-[1.1rem] transition duration-300 group-hover:-rotate-6 group-hover:scale-110", active(it.href) ? "text-[#a1a1aa]" : "text-white/50 group-hover:text-white")} />
                       <span className="flex-1">{it.label}</span>
                     </Link>
                   </li>
@@ -148,17 +148,17 @@ export function PadiShell({
   }, []);
 
   return (
-    <div className="min-h-dvh bg-[#f7f6fb] dark:bg-canvas">
+    <div className="min-h-dvh bg-[#f7f7f8] dark:bg-canvas">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">
         <Sidebar base={base} brand={brand} email={email} />
       </aside>
 
       {/* Phone top bar */}
-      <header className="sticky top-0 z-30 flex items-center justify-between bg-[#15123a] px-4 py-3 text-white lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center justify-between bg-[#111113] px-4 py-3 text-white lg:hidden">
         <Link href={base || "/"} className="flex items-center gap-2">
           <LogoMark tile product="padi" className="h-8 w-8" />
-          <span className="font-semibold">Bizz <span className="text-[#a996ff]">Padi</span></span>
+          <span className="font-semibold">Bizz <span className="text-[#a1a1aa]">Padi</span></span>
         </Link>
         <button onClick={() => setOpen(true)} className="rounded-lg p-2 hover:bg-white/10" aria-label="Open menu" aria-expanded={open}>
           <Icon name="menu" className="h-5 w-5" />

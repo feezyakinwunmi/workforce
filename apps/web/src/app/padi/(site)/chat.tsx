@@ -41,13 +41,13 @@ function PostCard({ post, base, colors, brandName }: { post: ChatPost; base: str
   const first = post.captions.instagram || post.captions.facebook || Object.values(post.captions)[0] || "";
   return (
     <Link href={`${base}/posts/${post.id}`}
-      className="group mt-2 flex max-w-md gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-surface p-3 transition duration-300 hover:-translate-y-0.5 hover:border-[#a996ff] hover:shadow-[0_18px_40px_-24px_rgba(106,76,245,0.55)]">
+      className="group mt-2 flex max-w-md gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-surface p-3 transition duration-300 hover:-translate-y-0.5 hover:border-[#a1a1aa] hover:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.55)]">
       {/* Mini flyer */}
       <span className="flex aspect-[4/5] w-24 shrink-0 flex-col justify-between rounded-xl p-2 text-white transition duration-500 group-hover:scale-[1.03]" style={{ background: colors.primary }}>
         <b className="text-[0.45rem] tracking-[0.14em] opacity-90">{brandName.toUpperCase().slice(0, 18)}</b>
         <span className="text-[0.72rem] leading-tight font-semibold">{post.flyer.headline || post.topic}</span>
         {post.flyer.cta && (
-          <span className="w-fit rounded-full px-1.5 py-0.5 text-[0.45rem] font-bold" style={{ background: colors.accent, color: "#15123a" }}>{post.flyer.cta}</span>
+          <span className="w-fit rounded-full px-1.5 py-0.5 text-[0.45rem] font-bold" style={{ background: colors.accent, color: "#111113" }}>{post.flyer.cta}</span>
         )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
@@ -71,7 +71,7 @@ function PostCard({ post, base, colors, brandName }: { post: ChatPost; base: str
 function Send({ pending }: { pending: boolean }) {
   return (
     <button type="submit" disabled={pending} aria-label="Send"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#6a4cf5] text-white shadow-[0_8px_20px_-8px_rgba(106,76,245,0.8)] transition hover:-translate-y-px hover:bg-[#5b3ee6] disabled:opacity-50">
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#111113] text-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.8)] transition hover:-translate-y-px hover:bg-[#2a2a2e] disabled:opacity-50">
       <Icon name="send" className="h-[1.1rem] w-[1.1rem]" />
     </button>
   );
@@ -81,14 +81,14 @@ function Pending({ text }: { text: string }) {
   if (!text) return null;
   return (
     <>
-      <li className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-[#6a4cf5] px-4 py-2.5 text-[0.92rem] text-white opacity-70">{text}</li>
+      <li className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-[#111113] px-4 py-2.5 text-[0.92rem] text-white opacity-70">{text}</li>
       <li className="flex items-end gap-2.5">
         <PadiAvatar />
         <span className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-slate-200">
           <span className="flex gap-1">
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#6a4cf5] [animation-delay:-0.2s]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#6a4cf5] [animation-delay:-0.1s]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#6a4cf5]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#111113] [animation-delay:-0.2s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#111113] [animation-delay:-0.1s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#111113]" />
           </span>
           Padi is writing your post
         </span>
@@ -152,12 +152,12 @@ export function Chat({
   };
 
   return (
-    <form onSubmit={send} className="relative flex h-[calc(100dvh-10.5rem)] min-h-[30rem] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-[#fbfbfe] dark:bg-raised">
+    <form onSubmit={send} className="relative flex h-[calc(100dvh-10.5rem)] min-h-[30rem] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-[#fafafa] dark:bg-raised">
       <ul className="flex-1 space-y-4 overflow-y-auto px-4 pt-5 pb-36 sm:px-6" aria-live="polite">
         {list.length === 0 && !sent && (
           <li className="mx-auto max-w-2xl pt-4">
-            <div className="relative overflow-hidden rounded-3xl bg-[#15123a] p-6 text-white sm:p-8">
-              <span className="pointer-events-none absolute -top-16 -right-10 h-56 w-56 rounded-full bg-[#6a4cf5] opacity-50 blur-3xl" aria-hidden="true" />
+            <div className="relative overflow-hidden rounded-3xl bg-[#111113] p-6 text-white sm:p-8">
+              <span className="pointer-events-none absolute -top-16 -right-10 h-56 w-56 rounded-full bg-[#111113] opacity-50 blur-3xl" aria-hidden="true" />
               <span className="pointer-events-none absolute -bottom-20 left-10 h-40 w-40 rounded-full bg-[#f2a93b] opacity-20 blur-3xl" aria-hidden="true" />
               <div className="relative flex items-center gap-3">
                 <LogoMark tile product="padi" className="h-11 w-11" />
@@ -170,8 +170,8 @@ export function Chat({
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {IDEAS.map((i) => (
                 <button key={i.title} type="button" onClick={() => { setText(i.prompt); box.current?.focus(); }}
-                  className="group flex items-start gap-3 rounded-2xl border border-slate-200 bg-surface p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-[#a996ff] hover:shadow-[0_18px_40px_-26px_rgba(106,76,245,0.6)]">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f3f0ff] text-[#6a4cf5] transition duration-300 group-hover:-rotate-6 group-hover:bg-[#6a4cf5] group-hover:text-white">
+                  className="group flex items-start gap-3 rounded-2xl border border-slate-200 bg-surface p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-[#a1a1aa] hover:shadow-[0_18px_40px_-26px_rgba(0,0,0,0.6)]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f4f4f5] text-[#6a4cf5] transition duration-300 group-hover:-rotate-6 group-hover:bg-[#111113] group-hover:text-white">
                     <Icon name={i.icon} className="h-[1.1rem] w-[1.1rem]" />
                   </span>
                   <span>
@@ -186,7 +186,7 @@ export function Chat({
 
         {list.map((m) =>
           m.role === "user" ? (
-            <li key={m.id} className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-[#6a4cf5] px-4 py-2.5 text-[0.92rem] whitespace-pre-wrap text-white shadow-[0_10px_24px_-16px_rgba(106,76,245,0.9)]">
+            <li key={m.id} className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-[#111113] px-4 py-2.5 text-[0.92rem] whitespace-pre-wrap text-white shadow-[0_10px_24px_-16px_rgba(0,0,0,0.9)]">
               {m.content}
             </li>
           ) : (
@@ -204,11 +204,11 @@ export function Chat({
       </ul>
 
       {/* Floating composer */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#fbfbfe] via-[#fbfbfe]/95 to-transparent px-3 pt-10 pb-3 sm:px-5 sm:pb-5 dark:from-raised dark:via-raised/95">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#fafafa] via-[#fafafa]/95 to-transparent px-3 pt-10 pb-3 sm:px-5 sm:pb-5 dark:from-raised dark:via-raised/95">
         <div className="pointer-events-auto mx-auto max-w-3xl">
           {error && <p role="alert" className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           {!ready && <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">Padi is being switched on. Set up your brand meanwhile.</p>}
-          <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-surface p-2 shadow-[0_20px_50px_-30px_rgba(21,18,58,0.5)] transition focus-within:border-[#a996ff] focus-within:shadow-[0_0_0_4px_rgba(106,76,245,0.12),0_20px_50px_-30px_rgba(21,18,58,0.5)]">
+          <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-surface p-2 shadow-[0_20px_50px_-30px_rgba(21,18,58,0.5)] transition focus-within:border-[#a1a1aa] focus-within:shadow-[0_0_0_4px_rgba(0,0,0,0.12),0_20px_50px_-30px_rgba(21,18,58,0.5)]">
             <textarea
               ref={box}
               name="message"

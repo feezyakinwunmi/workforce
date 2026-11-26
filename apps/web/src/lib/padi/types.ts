@@ -31,11 +31,28 @@ export type PadiPost = {
 };
 
 /** Text that goes on the flyer image (drawn in the browser, see app/padi/flyer.tsx). */
-export type Flyer = { headline?: string; subline?: string; cta?: string; style?: FlyerStyle };
+/**
+ * Flyer content. `image` = path of the person's own picture in the private "padi-media" bucket
+ * (<user id>/<file>), drawn by the photo/split/frame designs, or shown as-is with "own".
+ */
+export type Flyer = { headline?: string; subline?: string; cta?: string; style?: FlyerStyle; image?: string };
 
 export type Platform = "instagram" | "facebook" | "linkedin" | "x" | "tiktok" | "whatsapp";
 export type Tone = "friendly" | "professional" | "playful" | "naija" | "luxury" | "warm";
-export type FlyerStyle = "bold" | "clean" | "promo" | "quote";
+export type FlyerStyle = "bold" | "clean" | "promo" | "quote" | "minimal" | "photo" | "split" | "frame" | "own";
+
+/** The designs, in the order the picker shows them. `photo: true` = uses the person's picture. */
+export const FLYER_STYLES: Array<{ key: FlyerStyle; label: string; photo?: boolean }> = [
+  { key: "bold", label: "Bold" },
+  { key: "clean", label: "Clean" },
+  { key: "minimal", label: "Minimal" },
+  { key: "promo", label: "Sale" },
+  { key: "quote", label: "Tip" },
+  { key: "photo", label: "Photo", photo: true },
+  { key: "split", label: "Split", photo: true },
+  { key: "frame", label: "Frame", photo: true },
+  { key: "own", label: "My design", photo: true },
+];
 
 export const PLATFORMS: Array<{ key: Platform; label: string }> = [
   { key: "instagram", label: "Instagram" },

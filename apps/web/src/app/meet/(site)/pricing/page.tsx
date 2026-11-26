@@ -38,7 +38,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((p) => (
           <div key={p.id} className={p.hot ? "card relative p-6 ring-2 ring-brand-500" : "card p-6"}>
-            {p.hot && <span className="absolute -top-3 left-6 rounded-full bg-[#f2a93b] px-3 py-0.5 text-xs font-bold text-[#15123a]">Most popular</span>}
+            {p.hot && <span className="absolute -top-3 left-6 rounded-full bg-[#f2a93b] px-3 py-0.5 text-xs font-bold text-[#111113]">Most popular</span>}
             <h2 className="font-semibold text-slate-900">{p.name}</h2>
             <p className="mt-3"><span className="font-display text-4xl font-bold text-slate-900">{p.price}</span> <span className="text-sm text-slate-500">{p.per}</span></p>
             <ul className="mt-5 space-y-2 text-sm text-slate-600">

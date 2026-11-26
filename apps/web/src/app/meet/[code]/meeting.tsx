@@ -342,7 +342,7 @@ function InAppBrowserNotice() {
       <p className="font-semibold text-[#f2c27a]">Open this meeting in {kind === "ios" ? "Safari" : "Chrome"}</p>
       <p>You opened the link inside another app. Calls there often lose sound. {kind === "ios" ? "Tap the menu (••• or the share icon) and choose Open in Safari." : "Tap below to open it in Chrome."}</p>
       <div className="flex flex-wrap gap-2">
-        {kind === "android" && <a href={chrome} className="rounded-lg bg-[#f2a93b] px-3 py-1.5 font-semibold text-[#15123a]">Open in Chrome</a>}
+        {kind === "android" && <a href={chrome} className="rounded-lg bg-[#f2a93b] px-3 py-1.5 font-semibold text-[#111113]">Open in Chrome</a>}
         <button
           type="button"
           className="rounded-lg bg-white/10 px-3 py-1.5 font-medium text-white hover:bg-white/15"
@@ -560,11 +560,11 @@ export function MeetingApp({ code, base, signedInName, aiAvailable = false }: { 
               <AttendanceButton code={info.code} dark />
             )}
             {reason === "left" && !info.ended ? (
-              <button className="rounded-xl bg-[#6a4cf5] px-5 py-2.5 font-medium hover:bg-[#5b3fe0]" onClick={() => setPhase({ kind: "lobby" })}>
+              <button className="rounded-xl bg-[#111113] px-5 py-2.5 font-medium hover:bg-[#5b3fe0]" onClick={() => setPhase({ kind: "lobby" })}>
                 Rejoin
               </button>
             ) : reason === "limit" && info.is_host ? (
-              <Link href={`${base}/pricing`} className="rounded-xl bg-[#f2a93b] px-5 py-2.5 font-semibold text-[#15123a] hover:bg-[#f5b85c]">
+              <Link href={`${base}/pricing`} className="rounded-xl bg-[#f2a93b] px-5 py-2.5 font-semibold text-[#111113] hover:bg-[#f5b85c]">
                 See Meet Pro
               </Link>
             ) : null}
@@ -656,7 +656,7 @@ export function MeetingApp({ code, base, signedInName, aiAvailable = false }: { 
                 </p>
               )}
               {info.ai_notes && (
-                <p role="status" className="flex items-start gap-2 rounded-xl bg-[#6a4cf5]/20 px-3 py-2.5 text-sm text-white/85">
+                <p role="status" className="flex items-start gap-2 rounded-xl bg-[#111113]/20 px-3 py-2.5 text-sm text-white/85">
                   <Icon name="sparkle" className="mt-0.5 h-4 w-4 shrink-0 text-[#f2a93b]" />
                   AI notes are on in this meeting: what&apos;s said is turned into written notes for the host.
                 </p>
@@ -680,7 +680,7 @@ export function MeetingApp({ code, base, signedInName, aiAvailable = false }: { 
               {info.locked && !info.is_host && <p className="text-sm text-white/60">The host locked this meeting. Only people already let in can join.</p>}
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  className="rounded-xl bg-[#6a4cf5] px-6 py-3 font-semibold hover:bg-[#5b3fe0] disabled:opacity-60"
+                  className="rounded-xl bg-[#111113] px-6 py-3 font-semibold hover:bg-[#5b3fe0] disabled:opacity-60"
                   disabled={joining}
                   onClick={() => void join()}
                 >
@@ -761,7 +761,7 @@ const BACKGROUNDS: Array<{ label: string; mode: BackgroundMode; swatch: string }
   { label: "Light blur", mode: { kind: "blur", strength: "light" }, swatch: "radial-gradient(circle,#8f7bff88,#2a2660)" },
   { label: "Strong blur", mode: { kind: "blur", strength: "strong" }, swatch: "radial-gradient(circle,#8f7bffcc,#4b2fd6)" },
   { label: "Office", mode: { kind: "image", id: "office" }, swatch: "linear-gradient(#e9e4dc 60%,#8b6f55 60%)" },
-  { label: "Workbase", mode: { kind: "image", id: "violet" }, swatch: "radial-gradient(circle at 30% 20%,#8f7bff,#4b2fd6 55%,#15123a)" },
+  { label: "Workbase", mode: { kind: "image", id: "violet" }, swatch: "radial-gradient(circle at 30% 20%,#8f7bff,#4b2fd6 55%,#111113)" },
   { label: "Sunset", mode: { kind: "image", id: "lagos" }, swatch: "linear-gradient(#ff9a62,#f2a93b 55%,#1d3557 56%)" },
   { label: "Plain", mode: { kind: "image", id: "plain" }, swatch: "#e7e5ef" },
 ];
@@ -880,7 +880,7 @@ function NotesLink({ roomId, base }: { roomId: string; base: string }) {
     <div className="mt-8 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left text-sm">
       <Icon name="sparkle" className="h-5 w-5 shrink-0 text-[#f2a93b]" />
       <p className="flex-1 text-white/75">Your AI notes are being written. They&apos;re usually ready in a few minutes, and we&apos;ll email them to you.</p>
-      <Link href={`${base}/notes/${id}`} className="shrink-0 rounded-xl bg-[#6a4cf5] px-4 py-2 font-medium hover:bg-[#5b3fe0]">Open</Link>
+      <Link href={`${base}/notes/${id}`} className="shrink-0 rounded-xl bg-[#111113] px-4 py-2 font-medium hover:bg-[#5b3fe0]">Open</Link>
     </div>
   );
 }

@@ -198,7 +198,7 @@ export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet" | "wo
           opts.forEach((o, i) => {
             const picked = Boolean(state & (1 << i));
             o.style.boxShadow = picked ? "0 0 0 2px #6a4cf5" : "";
-            o.style.background = picked ? "#f3f0ff" : "";
+            o.style.background = picked ? "#f4f4f5" : "";
             if (picked) sum += price[i];
           });
           if (total) total.textContent = `₦${sum.toLocaleString("en-NG")}`;

@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { planWeek, writePost, type WrittenPost } from "@/lib/padi/brain";
 import { padiAiReady } from "@/lib/padi/ai";
-import { myBrand, padiRequestBase, PLATFORMS, requirePadiUser, TONES, type Platform, type Tone } from "@/lib/padi/server";
+import { FLYER_STYLES, myBrand, padiRequestBase, PLATFORMS, requirePadiUser, TONES, type Platform, type Tone } from "@/lib/padi/server";
 import type { FormState } from "@/lib/types";
 
 /** A hex colour like #6a4cf5, or the fallback. */
@@ -164,7 +164,8 @@ export async function setPostStatus(formData: FormData) {
 }
 
 export async function savePostEdits(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requirePadiUser();
+  const { supabase, user } = await requirePadiUser();
+  const imagePath = String(formData.get("image") ?? "");
   const id = String(formData.get("id") ?? "");
   const captions: Partial<Record<Platform, string>> = {};
   for (const p of PLATFORMS) {
@@ -177,7 +178,9 @@ export async function savePostEdits(_prev: FormState, formData: FormData): Promi
     headline: String(formData.get("headline") ?? "").slice(0, 60),
     subline: String(formData.get("subline") ?? "").slice(0, 110),
     cta: String(formData.get("cta") ?? "").slice(0, 30),
-    style: ["bold", "clean", "promo", "quote"].includes(String(formData.get("style"))) ? String(formData.get("style")) : "bold",
+    style: FLYER_STYLES.some((f) => f.key === formData.get("style")) ? String(formData.get("style")) : "bold",
+    // The person's own picture: only a path inside their own folder is accepted.
+    ...(imagePath && imagePath.startsWith(`${user.id}/`) && /^[\w-]+\/[\w.-]+\.(jpe?g|png|webp)$/i.test(imagePath) ? { image: imagePath } : {}),
   };
   const { data, error } = await supabase.from("padi_posts").update({ captions, planned_for, flyer }).eq("id", id).select("id");
   if (error || !data?.length) return { error: "Couldn't save. Try again." };

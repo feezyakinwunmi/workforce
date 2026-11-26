@@ -5,7 +5,7 @@ import { FormMessage, SubmitButton, TimezoneSelect } from "@/components/form";
 import type { HostPage } from "@/lib/book/types";
 import { checkAccount, savePage, savePayout } from "../actions";
 
-const COLORS = ["#6a4cf5", "#12968a", "#e5383b", "#cc7a12", "#0f766e", "#2563eb", "#be185d", "#15123a"];
+const COLORS = ["#6a4cf5", "#12968a", "#e5383b", "#cc7a12", "#0f766e", "#2563eb", "#be185d", "#111113"];
 
 export function PageForm({ page, pro, base }: { page: HostPage; pro: boolean; base: string }) {
   const [state, action] = useActionState(savePage, undefined);

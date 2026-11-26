@@ -1009,17 +1009,17 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
     <div className="space-y-2 text-sm">
       <p className="text-white/75">AI notes turn the meeting into a short written summary: key points, decisions and who does what.</p>
       <p className="text-white/75">They come with <span className="font-semibold text-white">Meet Pro Max</span>.</p>
-      <a href={`${base}/pricing`} target="_blank" rel="noopener" className="block rounded-xl bg-[#6a4cf5] py-2 text-center font-medium hover:bg-[#5b3fe0]">See Pro Max</a>
+      <a href={`${base}/pricing`} target="_blank" rel="noopener" className="block rounded-xl bg-[#111113] py-2 text-center font-medium hover:bg-[#5b3fe0]">See Pro Max</a>
     </div>
   );
   const notesControl = notesOn ? (
-    <button className="w-full rounded-xl bg-[#f2a93b] py-2.5 text-sm font-semibold text-[#15123a] hover:bg-[#f5b85c]" onClick={() => void stopNotes()}>
+    <button className="w-full rounded-xl bg-[#f2a93b] py-2.5 text-sm font-semibold text-[#111113] hover:bg-[#f5b85c]" onClick={() => void stopNotes()}>
       Stop AI notes
     </button>
   ) : hasProMax ? (
     <div className="space-y-2">
       <button
-        className="w-full rounded-xl bg-[#6a4cf5] py-2.5 text-sm font-medium hover:bg-[#5b3fe0] disabled:opacity-50"
+        className="w-full rounded-xl bg-[#111113] py-2.5 text-sm font-medium hover:bg-[#5b3fe0] disabled:opacity-50"
         disabled={notesBusy || aiNotesOn || (aiLeft !== null && aiLeft < 60)}
         onClick={() => void startNotes()}
       >
@@ -1072,7 +1072,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
       <style>{`@keyframes meet-float{0%{transform:translateY(0) scale(.6);opacity:0}10%{opacity:1;transform:translateY(-20px) scale(1.1)}100%{transform:translateY(-55vh) scale(1);opacity:0}}
 .meet-strip{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}`}</style>
       {/* Soft violet and marigold glow behind everything */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_-12%,rgba(106,76,245,.38),transparent_65%),radial-gradient(700px_420px_at_105%_110%,rgba(242,169,59,.16),transparent_60%)]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_-12%,rgba(0,0,0,.38),transparent_65%),radial-gradient(700px_420px_at_105%_110%,rgba(242,169,59,.16),transparent_60%)]" />
 
       {/* Left rail (tablets and computers) */}
       <nav aria-label="Meeting" className="relative z-20 hidden w-[72px] shrink-0 flex-col items-center gap-1.5 border-r border-white/[0.06] bg-[#120f35]/70 py-4 backdrop-blur md:flex">
@@ -1138,7 +1138,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
               <Icon name="zap" className="h-3.5 w-3.5 text-[#f2a93b]" />
               {net.mb < 10 ? net.mb.toFixed(1) : Math.round(net.mb)} MB
             </span>
-            {media.dataSaver && <span className="hidden rounded-full bg-[#6a4cf5]/25 px-2.5 py-1 text-[#cfc5ff] lg:inline">Data saver</span>}
+            {media.dataSaver && <span className="hidden rounded-full bg-[#111113]/25 px-2.5 py-1 text-[#cfc5ff] lg:inline">Data saver</span>}
             <SignalBars score={connected && !selfDown ? net.score : 0} />
             {self && (
               <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white/15" style={{ background: avatarColour(self.user_id) }} title={`${self.display_name} (you)`}>
@@ -1218,8 +1218,8 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
               )}
 
               {selfDown && (
-                <div role="status" className="absolute inset-x-0 top-14 z-20 mx-auto flex w-fit max-w-[calc(100%-1rem)] items-center gap-2 rounded-xl bg-[#f2a93b] px-4 py-2 text-sm font-medium text-[#15123a] shadow-lg">
-                  <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#15123a] border-t-transparent" aria-hidden />
+                <div role="status" className="absolute inset-x-0 top-14 z-20 mx-auto flex w-fit max-w-[calc(100%-1rem)] items-center gap-2 rounded-xl bg-[#f2a93b] px-4 py-2 text-sm font-medium text-[#111113] shadow-lg">
+                  <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#111113] border-t-transparent" aria-hidden />
                   {!online ? "You're offline. We'll reconnect as soon as your internet is back." : "Your connection dropped. Reconnecting…"}
                   {connectError && <button className="ml-1 shrink-0 underline" onClick={() => setAttempt((a) => a + 1)}>Try now</button>}
                 </div>
@@ -1246,7 +1246,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
                   <span className="min-w-0">Recording saved on this device</span>
                   <button
-                    className="shrink-0 rounded-xl bg-[#6a4cf5] px-3 py-1.5 font-medium hover:bg-[#5b3fe0]"
+                    className="shrink-0 rounded-xl bg-[#111113] px-3 py-1.5 font-medium hover:bg-[#5b3fe0]"
                     onClick={() => {
                       const r = savedRec;
                       void downloadRecording(r).then(() => setSavedRec(null)).catch((e) => toast(e instanceof Error ? e.message : "Couldn't save it.", "warn"));
@@ -1271,12 +1271,12 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
               {/* Toasts */}
               <div className="absolute top-3 left-1/2 z-30 flex w-[min(92%,420px)] -translate-x-1/2 flex-col gap-2">
                 {toasts.map((t) => (
-                  <div key={t.id} role="status" className={cn("rounded-xl px-4 py-2.5 text-sm shadow-lg backdrop-blur", t.tone === "warn" ? "bg-[#f2a93b] text-[#15123a]" : "bg-[#1f1b4d]/95")}>
+                  <div key={t.id} role="status" className={cn("rounded-xl px-4 py-2.5 text-sm shadow-lg backdrop-blur", t.tone === "warn" ? "bg-[#f2a93b] text-[#111113]" : "bg-[#1f1b4d]/95")}>
                     {t.text}
                   </div>
                 ))}
                 {isMod && waiting.length > 0 && shownPanel !== "people" && (
-                  <button onClick={() => setPanel("people")} className="rounded-xl bg-[#6a4cf5] px-4 py-2.5 text-left text-sm font-medium shadow-lg">
+                  <button onClick={() => setPanel("people")} className="rounded-xl bg-[#111113] px-4 py-2.5 text-left text-sm font-medium shadow-lg">
                     {waiting.length === 1 ? `${waiting[0].display_name} is waiting to join` : `${waiting.length} people are waiting to join`} · Review
                   </button>
                 )}
@@ -1326,7 +1326,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
                           <button key={r} className="rounded-xl p-1.5 text-2xl hover:bg-white/10" onClick={() => void send("reaction", r)} aria-label={`React ${r}`}>{r}</button>
                         ))}
                         <button
-                          className={cn("ml-1 flex items-center gap-1 rounded-xl px-3 py-2 text-sm sm:hidden", hand ? "bg-[#f2a93b] text-[#15123a]" : "bg-white/10")}
+                          className={cn("ml-1 flex items-center gap-1 rounded-xl px-3 py-2 text-sm sm:hidden", hand ? "bg-[#f2a93b] text-[#111113]" : "bg-white/10")}
                           onClick={() => {
                             setHand((h) => !h);
                             setShowReactions(false);
@@ -1368,7 +1368,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
                         role="tab"
                         aria-selected={shownPanel === k}
                         onClick={() => setPanel(k)}
-                        className={cn("relative rounded-full px-3 py-1 font-medium transition", shownPanel === k ? "bg-[#6a4cf5] text-white" : "text-white/60 hover:text-white")}
+                        className={cn("relative rounded-full px-3 py-1 font-medium transition", shownPanel === k ? "bg-[#111113] text-white" : "text-white/60 hover:text-white")}
                       >
                         {k === "people" ? `Participants (${people.length})` : "Chat"}
                         {k === "chat" && unreadChat > 0 && <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-[#f2a93b]" />}
@@ -1378,7 +1378,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
                 )}
                 <div className="flex items-center gap-1">
                   {shownPanel === "people" && (
-                    <button onClick={() => void copyLink()} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6a4cf5] hover:bg-[#5b3fe0]" title={copied ? "Link copied" : "Copy the invite link"} aria-label="Copy the invite link">
+                    <button onClick={() => void copyLink()} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#111113] hover:bg-[#5b3fe0]" title={copied ? "Link copied" : "Copy the invite link"} aria-label="Copy the invite link">
                       <Icon name={copied ? "check" : "link"} className="h-4 w-4" />
                     </button>
                   )}
@@ -1415,7 +1415,7 @@ export function Room({ info, join, media, base, onExit, aiAvailable = false }: {
                     <p className="mb-2 text-xs text-white/60">Layout</p>
                     <div className="flex gap-2">
                       {(["speaker", "grid"] as const).map((l) => (
-                        <button key={l} onClick={() => setLayout(l)} className={cn("flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm", layout === l ? "bg-[#6a4cf5]" : "bg-white/10 hover:bg-white/15")}>
+                        <button key={l} onClick={() => setLayout(l)} className={cn("flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm", layout === l ? "bg-[#111113]" : "bg-white/10 hover:bg-white/15")}>
                           <Icon name={l === "grid" ? "grid" : "speaker"} className="h-4 w-4" />
                           {l === "grid" ? "Grid" : "Speaker"}
                         </button>
@@ -1570,7 +1570,7 @@ function Control({ icon, label, onClick, off, active, disabled, badge, className
       aria-pressed={active || off ? true : undefined}
       className={cn(
         "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-1 transition disabled:opacity-40 sm:h-12 sm:w-12",
-        off ? "bg-[#ef3b3b]/90 ring-white/10 hover:bg-[#ff4d4d]" : active ? "bg-[#6a4cf5] ring-white/15 hover:bg-[#5b3fe0]" : "bg-[#0c0a27]/60 ring-white/15 hover:bg-[#0c0a27]/80",
+        off ? "bg-[#ef3b3b]/90 ring-white/10 hover:bg-[#ff4d4d]" : active ? "bg-[#111113] ring-white/15 hover:bg-[#5b3fe0]" : "bg-[#0c0a27]/60 ring-white/15 hover:bg-[#0c0a27]/80",
         className,
       )}
     >
@@ -1580,7 +1580,7 @@ function Control({ icon, label, onClick, off, active, disabled, badge, className
   );
 }
 function Badge({ n }: { n: number }) {
-  return <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f2a93b] px-1 text-[11px] font-bold text-[#15123a]">{n > 9 ? "9+" : n}</span>;
+  return <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f2a93b] px-1 text-[11px] font-bold text-[#111113]">{n > 9 ? "9+" : n}</span>;
 }
 /** Icon button in the left rail. */
 function RailButton({ icon, label, onClick, active, badge, accent, danger, disabled, children }: { icon: IconName; label: string; onClick: () => void; active?: boolean; badge?: number; accent?: boolean; danger?: boolean; disabled?: boolean; children?: React.ReactNode }) {
@@ -1597,7 +1597,7 @@ function RailButton({ icon, label, onClick, active, badge, accent, danger, disab
           danger
             ? "bg-[#ef3b3b] text-white"
             : active
-              ? accent ? "bg-[#f2a93b] text-[#15123a]" : "bg-[#6a4cf5] text-white shadow-[0_8px_24px_-8px_rgba(106,76,245,.9)]"
+              ? accent ? "bg-[#f2a93b] text-[#111113]" : "bg-[#111113] text-white shadow-[0_8px_24px_-8px_rgba(0,0,0,.9)]"
               : accent ? "text-[#f2c27a] hover:bg-[#f2a93b]/15" : "text-white/55 hover:bg-white/[0.07] hover:text-white",
         )}
       >
@@ -1621,7 +1621,7 @@ function HeaderButton({ icon, label, onClick, active, badge }: { icon: IconName;
       title={label}
       aria-label={label}
       aria-pressed={active ? true : undefined}
-      className={cn("relative flex h-10 w-10 items-center justify-center rounded-full transition", active ? "bg-[#6a4cf5] text-white" : "bg-white/[0.08] text-white/80 hover:bg-white/[0.14] hover:text-white")}
+      className={cn("relative flex h-10 w-10 items-center justify-center rounded-full transition", active ? "bg-[#111113] text-white" : "bg-white/[0.08] text-white/80 hover:bg-white/[0.14] hover:text-white")}
     >
       <Icon name={icon} className="h-[18px] w-[18px]" />
       {!!badge && badge > 0 && <Badge n={badge} />}
@@ -1635,8 +1635,8 @@ function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note, status 
   return (
     <div className={cn("group relative h-full w-full overflow-hidden bg-[#1d1a4a] ring-2 transition", big ? "rounded-none" : "rounded-2xl", speaking ? "ring-emerald-400" : big ? "ring-transparent" : "ring-white/[0.06]")}>
       {status && (
-        <div className={cn("absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 py-1.5 text-xs font-medium", reconnecting ? "bg-[#f2a93b] text-[#15123a]" : "bg-black/60 text-[#f2c27a]")}>
-          {reconnecting ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#15123a] border-t-transparent" aria-hidden /> : <SignalBars score={1} />}
+        <div className={cn("absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 py-1.5 text-xs font-medium", reconnecting ? "bg-[#f2a93b] text-[#111113]" : "bg-black/60 text-[#f2c27a]")}>
+          {reconnecting ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#111113] border-t-transparent" aria-hidden /> : <SignalBars score={1} />}
           {status}
         </div>
       )}
@@ -1680,7 +1680,7 @@ function Tile({ p, me, track, speaking, micOn, pinned, onPin, big, note, status 
         </>
       )}
       {p.hand_raised_at && (
-        <span className={cn("absolute z-10 flex items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a]", big ? "top-3 right-24 h-8 w-8" : "top-1.5 left-1.5 h-6 w-6")} title="Hand raised">
+        <span className={cn("absolute z-10 flex items-center justify-center rounded-full bg-[#f2a93b] text-[#111113]", big ? "top-3 right-24 h-8 w-8" : "top-1.5 left-1.5 h-6 w-6")} title="Hand raised">
           <Icon name="hand" className={big ? "h-[18px] w-[18px]" : "h-3.5 w-3.5"} />
         </span>
       )}
@@ -1778,7 +1778,7 @@ function ChatPanel({ chat, notes, meId, nameOf, onSend }: { chat: MeetEvent[]; n
           return (
             <div key={m.id} className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
               {!joins && <p className="mb-0.5 text-xs text-white/50">{mine ? "You" : nameOf(m.sender_id)} · {clock(m.created_at)}</p>}
-              <p className={cn("max-w-[90%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap", mine ? "bg-[#6a4cf5]" : "bg-white/10")}>{m.body}</p>
+              <p className={cn("max-w-[90%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap", mine ? "bg-[#111113]" : "bg-white/10")}>{m.body}</p>
             </div>
           );
         })}
@@ -1794,7 +1794,7 @@ function ChatPanel({ chat, notes, meId, nameOf, onSend }: { chat: MeetEvent[]; n
           aria-label="Message"
           className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35 focus:border-[#8f7bff] focus:outline-none"
         />
-        <button onClick={() => void submit()} className="rounded-xl bg-[#6a4cf5] px-3 hover:bg-[#5b3fe0]" aria-label="Send"><Icon name="send" className="h-4 w-4" /></button>
+        <button onClick={() => void submit()} className="rounded-xl bg-[#111113] px-3 hover:bg-[#5b3fe0]" aria-label="Send"><Icon name="send" className="h-4 w-4" /></button>
       </div>
     </>
   );
@@ -1816,7 +1816,7 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
                 <span className="min-w-0 truncate text-sm">{w.display_name}{w.is_guest && <span className="ml-1 text-xs text-white/50">(guest)</span>}</span>
                 <span className="flex shrink-0 gap-1.5">
                   <button className="rounded-lg bg-white/10 px-2.5 py-1 text-xs hover:bg-white/15" onClick={() => void moderate("deny", w.id)}>Deny</button>
-                  <button className="rounded-lg bg-[#6a4cf5] px-2.5 py-1 text-xs font-medium hover:bg-[#5b3fe0]" onClick={() => void moderate("admit", w.id)}>Admit</button>
+                  <button className="rounded-lg bg-[#111113] px-2.5 py-1 text-xs font-medium hover:bg-[#5b3fe0]" onClick={() => void moderate("admit", w.id)}>Admit</button>
                 </span>
               </li>
             ))}
@@ -1864,7 +1864,7 @@ function PeoplePanel({ people, waiting, meId, isMod, isHost, locked, waitingRoom
       {isMod && (
         <section className="space-y-2 border-t border-white/10 pt-4">
           <h3 className="text-xs font-semibold tracking-wide text-white/50 uppercase">Host controls</h3>
-          <button className="w-full rounded-xl bg-[#f2a93b] px-3 py-2 text-left text-sm font-semibold text-[#15123a] hover:bg-[#ffb94f]" onClick={() => onCelebrate(null)}><span className="flex items-center gap-2"><Icon name="party" className="h-4 w-4" />Celebrate someone</span></button>
+          <button className="w-full rounded-xl bg-[#f2a93b] px-3 py-2 text-left text-sm font-semibold text-[#111113] hover:bg-[#ffb94f]" onClick={() => onCelebrate(null)}><span className="flex items-center gap-2"><Icon name="party" className="h-4 w-4" />Celebrate someone</span></button>
           <button className="w-full rounded-xl bg-white/10 px-3 py-2 text-left text-sm hover:bg-white/15" onClick={() => void moderate("mute_all")}>Mute everyone</button>
           <Toggle label="Waiting room" hint="New people wait until you let them in" on={waitingRoom} onChange={(v) => void moderate(v ? "waiting_room_on" : "waiting_room_off")} />
           <Toggle label="Lock meeting" hint="Nobody new can join" on={locked} onChange={(v) => void moderate(v ? "lock" : "unlock")} />
