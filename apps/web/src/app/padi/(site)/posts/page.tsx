@@ -4,6 +4,9 @@ import { EmptyState, Notice } from "@/components/ui";
 import { myBrand, padiRequestBase, requirePadiUser, type PadiPost } from "@/lib/padi/server";
 import { PlanWeekButton } from "../plan-week";
 
+/** AI calls (chat, plan my week) can take 10–40 seconds. */
+export const maxDuration = 60;
+
 export const metadata: Metadata = { title: "Calendar" };
 
 const dayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date(iso));

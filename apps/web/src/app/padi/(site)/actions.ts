@@ -63,6 +63,12 @@ export async function saveBrand(_prev: FormState, formData: FormData): Promise<F
 // ---------------------------------------------------------------------------
 export type ChatState = { error?: string; at?: number } | undefined;
 
+/** What the chat gets back after one message: both new messages, so it can show them without reloading the page. */
+export type ChatReply =
+  | { ok: true; user: { id: string; content: string }; reply: { id: string; content: string; post: ChatPostOut | null } }
+  | { ok: false; error: string };
+export type ChatPostOut = { id: string; topic: string; flyer: WrittenPost["flyer"]; captions: WrittenPost["captions"] };
+
 /** Save a post Padi wrote, return its id. */
 async function savePost(supabase: Awaited<ReturnType<typeof requirePadiUser>>["supabase"], brandId: string, p: WrittenPost) {
   const { data, error } = await supabase
@@ -74,36 +80,51 @@ async function savePost(supabase: Awaited<ReturnType<typeof requirePadiUser>>["s
   return (data as { id: string }).id;
 }
 
-export async function sendMessage(_prev: ChatState, formData: FormData): Promise<ChatState> {
+/**
+ * One chat message. Called directly from the chat (not as a form action) and returns the two
+ * new messages. It deliberately does NOT refresh the page: re-rendering the whole page after a
+ * slow AI call is what made the page crash on 26 Nov 2026. The calendar and "coming up" list
+ * pick up new posts the next time they're opened.
+ */
+export async function sendChat(message: string): Promise<ChatReply> {
   const { supabase } = await requirePadiUser();
-  const message = String(formData.get("message") ?? "").trim().slice(0, 2000);
-  if (!message) return { error: "Type what you want to post about." };
-  if (!padiAiReady()) return { error: "Padi's brain isn't switched on yet. Femi needs to add an AI key." };
+  const text = String(message ?? "").trim().slice(0, 2000);
+  if (!text) return { ok: false, error: "Type what you want to post about." };
+  if (!padiAiReady()) return { ok: false, error: "Padi's brain isn't switched on yet." };
 
   const brand = await myBrand(supabase);
-  if (!brand) redirect(`${await padiRequestBase()}/setup`);
+  if (!brand) return { ok: false, error: "Set up your brand first (My brand in the menu)." };
 
-  // Save the person's message first, so it's kept even if the AI is slow.
-  const { error: inErr } = await supabase.from("padi_messages").insert({ role: "user", content: message });
-  if (inErr) return { error: "Slow down a little: too many messages this hour." };
-
-  // The last 10 messages give Padi the thread (oldest first).
-  const { data: recent } = await supabase
-    .from("padi_messages")
-    .select("role, content")
-    .order("created_at", { ascending: false })
-    .range(1, 10); // skip the message we just saved; it's passed separately
+  // Save the person's message and read the last few messages at the same time.
+  const [{ data: mine, error: inErr }, { data: recent }] = await Promise.all([
+    supabase.from("padi_messages").insert({ role: "user", content: text }).select("id").single(),
+    supabase.from("padi_messages").select("role, content").order("created_at", { ascending: false }).limit(6),
+  ]);
+  if (inErr || !mine) return { ok: false, error: "Slow down a little: too many messages this hour." };
   const history = ((recent ?? []) as Array<{ role: "user" | "assistant"; content: string }>).reverse();
+  // The read may or may not already include the message we just saved; drop it so it isn't sent twice.
+  if (history.at(-1)?.role === "user" && history.at(-1)?.content === text) history.pop();
 
   try {
-    const out = await writePost(brand, message, history);
+    const out = await writePost(brand, text, history);
     const postId = out.post ? await savePost(supabase, brand.id, out.post) : null;
-    await supabase.from("padi_messages").insert({ role: "assistant", content: out.reply, post_id: postId });
+    const { data: reply } = await supabase
+      .from("padi_messages")
+      .insert({ role: "assistant", content: out.reply, post_id: postId })
+      .select("id")
+      .single();
+    return {
+      ok: true,
+      user: { id: (mine as { id: string }).id, content: text },
+      reply: {
+        id: (reply as { id: string } | null)?.id ?? crypto.randomUUID(),
+        content: out.reply,
+        post: out.post && postId ? { id: postId, topic: out.post.topic, flyer: out.post.flyer, captions: out.post.captions } : null,
+      },
+    };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Something went wrong. Try again." };
+    return { ok: false, error: e instanceof Error ? e.message : "Something went wrong. Try again." };
   }
-  revalidatePath("/padi", "layout");
-  return { at: Date.now() };
 }
 
 // ---------------------------------------------------------------------------
