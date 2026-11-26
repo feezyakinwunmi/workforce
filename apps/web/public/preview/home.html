@@ -117,6 +117,7 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
+  [data-s][hidden] { display: none !important; }
   :focus-visible { outline: 2px solid #6a4cf5; outline-offset: 2px; border-radius: 6px; }
 </style>
 
@@ -267,7 +268,7 @@
             </div>
           </div>
           <!-- Meet -->
-          <div class="screen absolute inset-0 hidden flex-col p-5 text-white sm:p-6" data-s="1">
+          <div class="screen absolute inset-0 flex flex-col p-5 text-white sm:p-6" data-s="1" hidden>
             <div class="flex items-center justify-between text-[0.8rem] text-white/60"><b class="text-white">Weekly planning</b><span class="flex items-center gap-1.5 rounded-md bg-red-500/15 px-2 py-0.5 font-medium text-red-300"><i class="blink h-1.5 w-1.5 rounded-full bg-red-400"></i>Rec 12:08</span></div>
             <div class="mt-3 grid flex-1 grid-cols-2 gap-2.5 sm:grid-cols-3">
               <div class="relative col-span-2 row-span-2 overflow-hidden rounded-xl"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1612299273045-362a39972259?w=640&h=420&fit=crop&auto=format" alt="Femi speaking in the meeting"><span class="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-0.5 text-[0.72rem] backdrop-blur">Femi</span><span class="ring absolute inset-0 rounded-xl"></span><span class="rise absolute bottom-10 right-6 text-lg" aria-hidden="true"><svg class="i h-6 w-6 text-marigold-400" style="fill:#f2a93b"><use href="#i-check"/></svg></span></div>
@@ -282,7 +283,7 @@
             </div>
           </div>
           <!-- Book -->
-          <div class="screen absolute inset-0 hidden gap-5 p-5 text-left text-white sm:grid sm:grid-cols-[13rem_1fr_10rem] sm:p-6" data-s="2">
+          <div class="screen absolute inset-0 grid gap-5 p-5 text-left text-white sm:grid-cols-[13rem_1fr_10rem] sm:p-6" data-s="2" hidden>
             <div class="hidden sm:block">
               <img class="h-16 w-16 rounded-2xl object-cover" src="https://images.unsplash.com/photo-1512864084360-7c0c4d0a0845?w=160&h=160&fit=crop&auto=format" alt="Barber at work">
               <b class="mt-3 block">Kola's Cuts</b>
@@ -306,7 +307,7 @@
             </div>
           </div>
           <!-- Forms -->
-          <div class="screen absolute inset-0 hidden gap-5 p-5 text-left text-white sm:grid sm:grid-cols-[1fr_16rem] sm:p-6" data-s="3">
+          <div class="screen absolute inset-0 grid gap-5 p-5 text-left text-white sm:grid-cols-[1fr_16rem] sm:p-6" data-s="3" hidden>
             <div class="rounded-xl bg-white p-5 text-ink">
               <b>Tech &amp; Tides 2027 tickets</b>
               <div class="mt-2 h-1 overflow-hidden rounded-full bg-[#ecebf3]"><span class="block h-full w-2/3 rounded-full bg-violet-600"></span></div>
@@ -357,13 +358,109 @@
       <h2 class="text-3xl font-semibold sm:text-[2.5rem] sm:leading-[1.15]">Everything your team does in a day</h2>
       <p class="mt-4 text-[1.05rem] text-[#5d5a78]">From the first clock-in to the last payslip, without five different apps.</p>
     </div>
-    <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" id="fgrid">
-      <div class="fcard rounded-2xl border border-[#ecebf3] bg-white p-6"><span class="ico flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-clock"/></svg></span><h3 class="mt-5 text-[1.05rem] font-semibold">Clock in from anywhere</h3><p class="mt-1.5 text-[0.92rem] leading-relaxed text-[#5d5a78]">Desktop app or phone. Hours and real activity, saved even when the internet drops.</p></div>
-      <div class="fcard rounded-2xl border border-[#ecebf3] bg-white p-6"><span class="ico flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-tasks"/></svg></span><h3 class="mt-5 text-[1.05rem] font-semibold">Tasks and daily reports</h3><p class="mt-1.5 text-[0.92rem] leading-relaxed text-[#5d5a78]">Assign work with due dates. Time logs to each task and people say what got done.</p></div>
-      <div class="fcard rounded-2xl border border-[#ecebf3] bg-white p-6"><span class="ico flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-video"/></svg></span><h3 class="mt-5 text-[1.05rem] font-semibold">Meet anyone by link</h3><p class="mt-1.5 text-[0.92rem] leading-relaxed text-[#5d5a78]">Calls with clients and guests. Recording is free and stays on your device.</p></div>
-      <div class="fcard rounded-2xl border border-[#ecebf3] bg-white p-6"><span class="ico flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-calendar"/></svg></span><h3 class="mt-5 text-[1.05rem] font-semibold">Bookings with deposits</h3><p class="mt-1.5 text-[0.92rem] leading-relaxed text-[#5d5a78]">Customers pick a time and pay upfront. Reminders cut the no-shows.</p></div>
-      <div class="fcard rounded-2xl border border-[#ecebf3] bg-white p-6"><span class="ico flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-receipt"/></svg></span><h3 class="mt-5 text-[1.05rem] font-semibold">Forms that collect money</h3><p class="mt-1.5 text-[0.92rem] leading-relaxed text-[#5d5a78]">Sign-ups, orders and tickets. Answers land in your inbox and Google Sheets.</p></div>
-      <div class="fcard rounded-2xl border border-[#ecebf3] bg-white p-6"><span class="ico flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-wallet"/></svg></span><h3 class="mt-5 text-[1.05rem] font-semibold">Payroll and payslips</h3><p class="mt-1.5 text-[0.92rem] leading-relaxed text-[#5d5a78]">PAYE, pension and NHF worked out from hours and leave. PDF payslips by email.</p></div>
+    <div class="mt-12 grid gap-4 lg:grid-cols-3" id="fgrid">
+
+      <!-- Clock in: live timer on a laptop and a phone -->
+      <article class="fcard flex flex-col rounded-3xl border border-[#ecebf3] bg-white lg:col-span-2">
+        <div class="relative h-44 overflow-hidden rounded-t-3xl bg-gradient-to-br from-violet-50 to-[#fdf6ea]">
+          <div class="absolute left-6 top-6 w-56 rounded-2xl bg-white p-4 shadow-[0_14px_34px_-18px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3]">
+            <span class="flex items-center gap-1.5 text-[0.75rem] font-semibold text-emerald-700"><i class="blink h-1.5 w-1.5 rounded-full bg-emerald-500"></i>Clocked in on desktop</span>
+            <b class="mt-1 block text-[1.6rem] font-semibold tabular-nums" id="tick">03:12:44</b>
+            <span class="text-[0.75rem] text-[#6f6b8a]">Working on: Invoice page redesign</span>
+          </div>
+          <div class="float absolute right-8 top-5 w-36 rounded-[1.4rem] border-4 border-ink bg-white p-3 shadow-xl" style="animation-delay:-2s">
+            <span class="block text-[0.68rem] text-[#6f6b8a]">Phone clock-in</span>
+            <b class="mt-0.5 block text-[0.95rem]">Site visit, Ikeja</b>
+            <span class="mt-2 block rounded-lg bg-violet-600 py-1.5 text-center text-[0.72rem] font-semibold text-white">Clock out</span>
+          </div>
+          <div class="absolute bottom-4 left-6 right-56 hidden h-8 items-end gap-[3px] sm:flex">
+            <span class="grow flex-1 rounded-sm bg-violet-500" style="height:60%"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:85%;animation-delay:.05s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:45%;animation-delay:.1s"></span><span class="grow flex-1 rounded-sm bg-marigold-500" style="height:25%;animation-delay:.15s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:90%;animation-delay:.2s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:70%;animation-delay:.25s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:80%;animation-delay:.3s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:65%;animation-delay:.35s"></span><span class="grow flex-1 rounded-sm bg-marigold-500" style="height:30%;animation-delay:.4s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:95%;animation-delay:.45s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:75%;animation-delay:.5s"></span><span class="grow flex-1 rounded-sm bg-violet-500" style="height:88%;animation-delay:.55s"></span>
+          </div>
+        </div>
+        <div class="flex items-start gap-4 p-6"><span class="ico flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-clock"/></svg></span><div><h3 class="text-[1.05rem] font-semibold">Clock in from a laptop or a phone</h3><p class="mt-1 text-[0.92rem] leading-relaxed text-[#5d5a78]">Hours and real activity while people are clocked in. Saved on the device when the internet drops.</p></div></div>
+      </article>
+
+      <!-- Tasks: items tick off one by one -->
+      <article class="fcard flex flex-col rounded-3xl border border-[#ecebf3] bg-white">
+        <div class="h-44 overflow-hidden rounded-t-3xl bg-[#f7f6fb] p-5">
+          <ul class="space-y-2 text-[0.82rem]" id="todo">
+            <li class="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2 ring-1 ring-[#ecebf3]"><span class="chk flex h-4 w-4 items-center justify-center rounded-[5px] border-2 border-[#cfc9ea]"></span>Send November invoices</li>
+            <li class="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2 ring-1 ring-[#ecebf3]"><span class="chk flex h-4 w-4 items-center justify-center rounded-[5px] border-2 border-[#cfc9ea]"></span>Fix checkout bug</li>
+            <li class="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2 ring-1 ring-[#ecebf3]"><span class="chk flex h-4 w-4 items-center justify-center rounded-[5px] border-2 border-[#cfc9ea]"></span>Call with Zenith team</li>
+          </ul>
+        </div>
+        <div class="flex items-start gap-4 p-6"><span class="ico flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-tasks"/></svg></span><div><h3 class="text-[1.05rem] font-semibold">Tasks and daily reports</h3><p class="mt-1 text-[0.92rem] leading-relaxed text-[#5d5a78]">Time logs to each task. People say what got done at clock-out.</p></div></div>
+      </article>
+
+      <!-- Meet: the speaker ring moves around the call -->
+      <article class="fcard flex flex-col rounded-3xl border border-[#ecebf3] bg-white">
+        <div class="grid h-44 grid-cols-2 gap-1.5 overflow-hidden rounded-t-3xl bg-[#100d2b] p-3" id="callgrid">
+          <div class="relative overflow-hidden rounded-xl"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1612299273045-362a39972259?w=240&h=150&fit=crop&auto=format" alt=""><span class="spk absolute inset-0 rounded-xl ring-2 ring-marigold-400 ring-inset transition-opacity duration-300"></span></div>
+          <div class="relative overflow-hidden rounded-xl"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1604933762021-54a5858c9832?w=240&h=150&fit=crop&auto=format" alt=""><span class="spk absolute inset-0 rounded-xl opacity-0 ring-2 ring-marigold-400 ring-inset transition-opacity duration-300"></span></div>
+          <div class="relative overflow-hidden rounded-xl"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1594077810908-9ffd89d704ac?w=240&h=150&fit=crop&auto=format" alt=""><span class="spk absolute inset-0 rounded-xl opacity-0 ring-2 ring-marigold-400 ring-inset transition-opacity duration-300"></span></div>
+          <div class="relative overflow-hidden rounded-xl"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1573878414075-be35f08479e5?w=240&h=150&fit=crop&auto=format" alt=""><span class="spk absolute inset-0 rounded-xl opacity-0 ring-2 ring-marigold-400 ring-inset transition-opacity duration-300"></span></div>
+        </div>
+        <div class="flex items-start gap-4 p-6"><span class="ico flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-video"/></svg></span><div><h3 class="text-[1.05rem] font-semibold">Meet anyone by link</h3><p class="mt-1 text-[0.92rem] leading-relaxed text-[#5d5a78]">Guests join with their name. Free recording, kept on your device.</p></div></div>
+      </article>
+
+      <!-- Payroll: a payslip whose numbers add up -->
+      <article class="fcard flex flex-col rounded-3xl border border-[#ecebf3] bg-white lg:col-span-2">
+        <div class="relative h-44 overflow-hidden rounded-t-3xl bg-gradient-to-br from-[#fdf6ea] to-violet-50">
+          <div class="absolute left-6 top-5 w-72 rounded-2xl bg-white p-4 text-[0.8rem] shadow-[0_14px_34px_-18px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3]">
+            <div class="flex items-center justify-between"><b>Payslip · November</b><span class="text-[#6f6b8a]">Chiamaka Eze</span></div>
+            <div class="mt-3 space-y-1.5 tabular-nums">
+              <div class="flex justify-between"><span class="text-[#6f6b8a]">Gross pay</span><span>₦<span data-count="450000">450,000</span></span></div>
+              <div class="flex justify-between"><span class="text-[#6f6b8a]">PAYE</span><span class="text-red-600">−₦<span data-count="51200">51,200</span></span></div>
+              <div class="flex justify-between"><span class="text-[#6f6b8a]">Pension 8%</span><span class="text-red-600">−₦<span data-count="27000">27,000</span></span></div>
+              <div class="flex justify-between border-t border-[#ecebf3] pt-1.5 font-semibold"><span>Net pay</span><span class="text-emerald-700">₦<span data-count="371800">371,800</span></span></div>
+            </div>
+          </div>
+          <div class="float absolute right-8 top-10 hidden w-48 rounded-2xl bg-ink p-4 text-white shadow-xl sm:block">
+            <span class="text-[0.72rem] text-white/60">Emailed to 12 people</span>
+            <b class="mt-1 block">Payslips sent</b>
+            <span class="mt-2 flex -space-x-2"><img class="h-6 w-6 rounded-full border-2 border-ink object-cover" src="https://images.unsplash.com/photo-1604933762021-54a5858c9832?w=60&h=60&fit=crop&auto=format" alt=""><img class="h-6 w-6 rounded-full border-2 border-ink object-cover" src="https://images.unsplash.com/photo-1594077810908-9ffd89d704ac?w=60&h=60&fit=crop&auto=format" alt=""><img class="h-6 w-6 rounded-full border-2 border-ink object-cover" src="https://images.unsplash.com/photo-1573878414075-be35f08479e5?w=60&h=60&fit=crop&auto=format" alt=""></span>
+          </div>
+        </div>
+        <div class="flex items-start gap-4 p-6"><span class="ico flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-wallet"/></svg></span><div><h3 class="text-[1.05rem] font-semibold">Nigerian payroll and payslips</h3><p class="mt-1 text-[0.92rem] leading-relaxed text-[#5d5a78]">PAYE, pension and NHF worked out from hours and leave. A PDF payslip lands in each inbox.</p></div></div>
+      </article>
+
+      <!-- Bookings: the picked slot moves -->
+      <article class="fcard flex flex-col rounded-3xl border border-[#ecebf3] bg-white">
+        <div class="h-44 overflow-hidden rounded-t-3xl bg-[#f7f6fb] p-5">
+          <span class="text-[0.78rem] font-semibold">Thu 11 Dec · Haircut</span>
+          <div class="mt-3 grid grid-cols-3 gap-2 text-[0.8rem]" id="slots">
+            <span class="slot rounded-lg bg-white py-2 text-center ring-1 ring-[#ecebf3] transition">09:00</span><span class="slot rounded-lg bg-white py-2 text-center ring-1 ring-[#ecebf3] transition">10:30</span><span class="slot rounded-lg bg-white py-2 text-center ring-1 ring-[#ecebf3] transition">12:00</span>
+            <span class="slot rounded-lg bg-white py-2 text-center ring-1 ring-[#ecebf3] transition">13:30</span><span class="slot rounded-lg bg-white py-2 text-center ring-1 ring-[#ecebf3] transition">15:00</span><span class="slot rounded-lg bg-white py-2 text-center ring-1 ring-[#ecebf3] transition">16:30</span>
+          </div>
+          <span class="mt-3 block rounded-lg bg-marigold-400 py-2 text-center text-[0.8rem] font-semibold">Pay ₦4,000 deposit</span>
+        </div>
+        <div class="flex items-start gap-4 p-6"><span class="ico flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-calendar"/></svg></span><div><h3 class="text-[1.05rem] font-semibold">Bookings with deposits</h3><p class="mt-1 text-[0.92rem] leading-relaxed text-[#5d5a78]">Customers pay upfront. Reminders cut the no-shows.</p></div></div>
+      </article>
+
+      <!-- Forms: the total changes as options are picked -->
+      <article class="fcard flex flex-col rounded-3xl border border-[#ecebf3] bg-white">
+        <div class="h-44 overflow-hidden rounded-t-3xl bg-[#f7f6fb] p-5 text-[0.8rem]">
+          <div class="space-y-2" id="opts">
+            <span class="opt flex items-center justify-between rounded-lg bg-white px-3 py-2 ring-1 ring-[#ecebf3] transition">T-shirt <b>₦5,000</b></span>
+            <span class="opt flex items-center justify-between rounded-lg bg-white px-3 py-2 ring-1 ring-[#ecebf3] transition">Lunch <b>₦3,500</b></span>
+          </div>
+          <span class="mt-3 flex items-center justify-between rounded-lg bg-ink px-3 py-2 font-semibold text-white">Total <span id="total">₦0</span></span>
+        </div>
+        <div class="flex items-start gap-4 p-6"><span class="ico flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-receipt"/></svg></span><div><h3 class="text-[1.05rem] font-semibold">Forms that collect money</h3><p class="mt-1 text-[0.92rem] leading-relaxed text-[#5d5a78]">Prices on any option. Answers go to your inbox and Google Sheets.</p></div></div>
+      </article>
+
+      <!-- Leave: days off fill in on a strip -->
+      <article class="fcard flex flex-col rounded-3xl border border-[#ecebf3] bg-white">
+        <div class="h-44 overflow-hidden rounded-t-3xl bg-[#f7f6fb] p-5 text-[0.8rem]">
+          <div class="flex items-center justify-between"><b>Annual leave</b><span class="text-[#6f6b8a]">14 of 20 days left</span></div>
+          <div class="mt-3 grid grid-cols-7 gap-1.5 text-center text-[0.72rem]">
+            <span class="rounded-md bg-white py-1.5 ring-1 ring-[#ecebf3]">22</span><span class="rounded-md bg-white py-1.5 ring-1 ring-[#ecebf3]">23</span><span class="rounded-md bg-violet-600 py-1.5 font-semibold text-white">24</span><span class="rounded-md bg-marigold-400 py-1.5 font-semibold">25</span><span class="rounded-md bg-marigold-400 py-1.5 font-semibold">26</span><span class="rounded-md bg-violet-600 py-1.5 font-semibold text-white">27</span><span class="rounded-md bg-white py-1.5 text-[#b5b1cc] ring-1 ring-[#ecebf3]">28</span>
+          </div>
+          <span class="mt-3 flex items-center gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-[#ecebf3]"><svg class="i h-4 w-4 text-emerald-600"><use href="#i-check"/></svg>Approved by Tunde</span>
+        </div>
+        <div class="flex items-start gap-4 p-6"><span class="ico flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><svg class="i"><use href="#i-calendar"/></svg></span><div><h3 class="text-[1.05rem] font-semibold">Leave and holidays</h3><p class="mt-1 text-[0.92rem] leading-relaxed text-[#5d5a78]">Requests, approvals and balances, with Nigerian holidays built in.</p></div></div>
+      </article>
+
     </div>
   </div>
 </section>
@@ -380,19 +477,19 @@
     </div>
     <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
       <a href="#" class="pcard group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-[#ecebf3]">
-        <div class="relative aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1594077810908-9ffd89d704ac?w=560&h=420&fit=crop&auto=format" alt="A man working on a laptop at his desk"><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-workbase"/></svg></div>
+        <div class="relative"><div class="aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1594077810908-9ffd89d704ac?w=560&h=420&fit=crop&auto=format" alt="A man working on a laptop at his desk"></div><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-workbase"/></svg></div>
         <div class="flex flex-1 flex-col p-5 pt-8"><b class="text-[1.05rem]">Workbase</b><p class="mt-1 text-[0.9rem] text-[#5d5a78]">Hours, activity, tasks, leave and payroll for remote teams.</p><span class="mt-auto flex items-center justify-between pt-5 text-[0.85rem] font-semibold"><span class="text-violet-700">From ₦2,500 / person</span><span class="go flex h-8 w-8 items-center justify-center rounded-full bg-canvas"><svg class="i h-4 w-4"><use href="#i-arrow"/></svg></span></span></div>
       </a>
       <a href="#" class="pcard group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-[#ecebf3]">
-        <div class="relative aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1612299273045-362a39972259?w=560&h=420&fit=crop&auto=format" alt="A man smiling on a video call"><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-meet"/></svg></div>
+        <div class="relative"><div class="aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1612299273045-362a39972259?w=560&h=420&fit=crop&auto=format" alt="A man smiling on a video call"></div><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-meet"/></svg></div>
         <div class="flex flex-1 flex-col p-5 pt-8"><b class="text-[1.05rem]">Meet</b><p class="mt-1 text-[0.9rem] text-[#5d5a78]">Video calls that hold up on Nigerian internet. Guests join by link.</p><span class="mt-auto flex items-center justify-between pt-5 text-[0.85rem] font-semibold"><span class="text-violet-700">Free, Pro ₦3,000</span><span class="go flex h-8 w-8 items-center justify-center rounded-full bg-canvas"><svg class="i h-4 w-4"><use href="#i-arrow"/></svg></span></span></div>
       </a>
       <a href="#" class="pcard group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-[#ecebf3]">
-        <div class="relative aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1512864084360-7c0c4d0a0845?w=560&h=420&fit=crop&auto=format" alt="A barber trimming a customer's hair"><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-book"/></svg></div>
+        <div class="relative"><div class="aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1512864084360-7c0c4d0a0845?w=560&h=420&fit=crop&auto=format" alt="A barber trimming a customer's hair"></div><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-book"/></svg></div>
         <div class="flex flex-1 flex-col p-5 pt-8"><b class="text-[1.05rem]">Book</b><p class="mt-1 text-[0.9rem] text-[#5d5a78]">A booking page that takes deposits and sends reminders.</p><span class="mt-auto flex items-center justify-between pt-5 text-[0.85rem] font-semibold"><span class="text-violet-700">Free, 3% per payment</span><span class="go flex h-8 w-8 items-center justify-center rounded-full bg-canvas"><svg class="i h-4 w-4"><use href="#i-arrow"/></svg></span></span></div>
       </a>
       <a href="#" class="pcard group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-[#ecebf3]">
-        <div class="relative aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1584012961506-b6fc4c9f3105?w=560&h=420&fit=crop&auto=format" alt="A group of young people at an event"><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-forms"/></svg></div>
+        <div class="relative"><div class="aspect-[4/3] overflow-hidden"><img class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1584012961506-b6fc4c9f3105?w=560&h=420&fit=crop&auto=format" alt="A group of young people at an event"></div><svg class="mark absolute -bottom-5 left-5 h-11 w-11 drop-shadow-lg"><use href="#m-forms"/></svg></div>
         <div class="flex flex-1 flex-col p-5 pt-8"><b class="text-[1.05rem]">Forms</b><p class="mt-1 text-[0.9rem] text-[#5d5a78]">Sign-ups, orders and tickets that collect payment too.</p><span class="mt-auto flex items-center justify-between pt-5 text-[0.85rem] font-semibold"><span class="text-violet-700">Free, 3% per payment</span><span class="go flex h-8 w-8 items-center justify-center rounded-full bg-canvas"><svg class="i h-4 w-4"><use href="#i-arrow"/></svg></span></span></div>
       </a>
     </div>
@@ -510,8 +607,7 @@
     tabs.forEach((t, i) => t.setAttribute("aria-selected", i === n ? "true" : "false"));
     screens.forEach((s, i) => {
       const on = i === n;
-      s.classList.toggle("hidden", !on);
-      s.style.display = on && i === 1 ? "flex" : "";
+      s.hidden = !on;
       if (on) { s.classList.remove("screen"); void s.offsetWidth; s.classList.add("screen"); }
     });
     toasts.forEach((t) => t.dataset.on = t.dataset.t == n ? "1" : "0");
@@ -538,13 +634,39 @@
   hero.addEventListener("pointermove", (e) => { const r = hero.getBoundingClientRect(); hero.querySelector(".spot").style.setProperty("--mx", `${e.clientX - r.left}px`); hero.querySelector(".spot").style.setProperty("--my", `${e.clientY - r.top}px`); });
   document.querySelectorAll(".fcard").forEach((c) => c.addEventListener("pointermove", (e) => { const r = c.getBoundingClientRect(); c.style.setProperty("--x", `${e.clientX - r.left}px`); c.style.setProperty("--y", `${e.clientY - r.top}px`); }));
 
+
+  /* Bento: ticking timer, tasks ticking off, speaker moving, slots and form total */
+  (function () {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let secs = 3 * 3600 + 12 * 60 + 44;
+    const tick = document.getElementById("tick");
+    setInterval(() => { secs++; const h = String(Math.floor(secs / 3600)).padStart(2, "0"), m = String(Math.floor(secs / 60) % 60).padStart(2, "0"), x = String(secs % 60).padStart(2, "0"); tick.textContent = `${h}:${m}:${x}`; }, 1000);
+
+    const checks = [...document.querySelectorAll("#todo .chk")]; let c = 0;
+    setInterval(() => {
+      if (c === checks.length) { checks.forEach((k) => { k.innerHTML = ""; k.style.background = ""; k.style.borderColor = ""; k.parentElement.style.color = ""; k.parentElement.style.textDecoration = ""; }); c = 0; return; }
+      const k = checks[c++]; k.style.background = "#6a4cf5"; k.style.borderColor = "#6a4cf5";
+      k.innerHTML = '<svg class="i h-3 w-3" style="color:#fff;stroke-width:3"><use href="#i-check"/></svg>';
+      k.parentElement.style.color = "#9a97b3"; k.parentElement.style.textDecoration = "line-through";
+    }, 1100);
+
+    const spk = [...document.querySelectorAll("#callgrid .spk")]; let sp = 0;
+    setInterval(() => { sp = (sp + 1) % spk.length; spk.forEach((e, i) => e.style.opacity = i === sp ? "1" : "0"); }, 1500);
+
+    const slots = [...document.querySelectorAll("#slots .slot")]; let sl = 0;
+    setInterval(() => { sl = (sl + 1) % slots.length; slots.forEach((e, i) => { const on = i === sl; e.style.background = on ? "#6a4cf5" : ""; e.style.color = on ? "#fff" : ""; e.style.fontWeight = on ? "600" : ""; }); }, 1300);
+
+    const opts = [...document.querySelectorAll("#opts .opt")], total = document.getElementById("total"); const price = [5000, 3500]; let state = 0;
+    setInterval(() => { state = (state + 1) % 4; let sum = 0; opts.forEach((o, i) => { const on = state & (1 << i); o.style.boxShadow = on ? "0 0 0 2px #6a4cf5" : ""; o.style.background = on ? "#f3f0ff" : ""; if (on) sum += price[i]; }); total.textContent = "₦" + sum.toLocaleString("en-NG"); }, 1400);
+  })();
+
   /* Count-up numbers when they come into view (they show the final value if this never runs) */
   const counters = document.querySelectorAll("[data-count]");
-  counters.forEach((el) => el.textContent = el.dataset.count);
+  counters.forEach((el) => el.textContent = (+el.dataset.count).toLocaleString("en-NG"));
   const io = new IntersectionObserver((es) => es.forEach((e) => {
     if (!e.isIntersecting) return; io.unobserve(e.target);
     const end = +e.target.dataset.count; if (!end) return; const t0 = performance.now();
-    const tick = (t) => { const p = Math.min(1, (t - t0) / 1000); e.target.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); };
+    const tick = (t) => { const p = Math.min(1, (t - t0) / 1000); e.target.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))).toLocaleString("en-NG"); if (p < 1) requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
   }), { threshold: 0.6 });
   counters.forEach((el) => io.observe(el));
