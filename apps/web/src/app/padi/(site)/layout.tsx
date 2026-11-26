@@ -36,7 +36,7 @@ export default async function PadiSiteLayout({ children }: { children: React.Rea
           <nav className="flex items-center gap-1 text-sm sm:gap-2">
             <span className="hidden sm:block"><ThemeToggle /></span>
             <Link href={`/login?next=${encodeURIComponent(home)}`} className="rounded-lg px-3 py-1.5 text-[#5c5c66] hover:bg-[#f7f7f8] hover:text-[#111113]">Sign in</Link>
-            <Link href={`/signup?next=${encodeURIComponent(`${base}/setup`)}`} className="btn-primary btn-sm">Start free</Link>
+            <Link href={`/signup?next=${encodeURIComponent(`${base}/setup`)}`} className="inline-flex items-center rounded-md bg-[#111113] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#2a2a2e]">Start free</Link>
           </nav>
         </div>
       </header>
