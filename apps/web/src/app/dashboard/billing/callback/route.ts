@@ -14,6 +14,11 @@ export async function GET(request: NextRequest) {
     } else if (tx.status === "success") {
       const result = await recordSuccess(tx);
       back.searchParams.set("payment", result.ok ? "success" : "problem");
+      // For the ad "Purchase" event on the billing page: amount in naira + reference (counted once).
+      if (result.ok) {
+        back.searchParams.set("paid", String(Math.round(tx.amount / 100)));
+        back.searchParams.set("ref", tx.reference);
+      }
     } else {
       back.searchParams.set("payment", tx.status === "abandoned" ? "cancelled" : "failed");
     }

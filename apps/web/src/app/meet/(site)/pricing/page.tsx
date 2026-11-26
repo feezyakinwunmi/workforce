@@ -1,3 +1,4 @@
+import { AdEvent } from "@/components/ad-tags";
 import { Icon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -9,7 +10,7 @@ import { payMeet } from "../actions";
 
 export const metadata: Metadata = { title: "Pricing" };
 
-export default async function PricingPage({ searchParams }: { searchParams: Promise<{ error?: string; paid?: string }> }) {
+export default async function PricingPage({ searchParams }: { searchParams: Promise<{ error?: string; paid?: string; ref?: string }> }) {
   const sp = await searchParams;
   const [{ supabase, user }, base] = await Promise.all([getMeetUser(), requestBase()]);
   const { data } = user ? await supabase.rpc("meet_my_plan") : { data: null };
@@ -32,6 +33,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <p className="mt-3 text-slate-500">Guests and attendees never pay. Pay for 10 months, get 12.</p>
       </div>
       {sp.error && <Notice tone="error" className="mx-auto mt-6 max-w-xl">{sp.error}</Notice>}
+      {sp.paid && sp.ref ? <AdEvent name="Purchase" value={Number(sp.paid) > 1 ? Number(sp.paid) : undefined} once={sp.ref} /> : null}
       {sp.paid && <Notice tone="success" className="mx-auto mt-6 max-w-xl">Payment received. Your plan is active.</Notice>}
       <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((p) => (

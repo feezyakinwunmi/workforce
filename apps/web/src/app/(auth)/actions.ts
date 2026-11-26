@@ -1,5 +1,6 @@
 "use server";
 
+import { queueAdEvent } from "@/lib/ad-events";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { emailProblem } from "@/lib/email-check";
@@ -103,7 +104,11 @@ export async function verifyCode(_prev: AuthState, formData: FormData): Promise<
   const types: EmailOtpType[] = purpose === "signup" ? ["email", "signup"] : ["email"];
   for (const type of types) {
     const { error } = await supabase.auth.verifyOtp({ email, token: code, type });
-    if (!error) redirect(next);
+    if (!error) {
+      // A brand-new account: tell the ad platforms (only the event name, never the email).
+      if (purpose === "signup") await queueAdEvent("CompleteRegistration");
+      redirect(next);
+    }
   }
   return { step: "code", email, error: BAD_CODE };
 }

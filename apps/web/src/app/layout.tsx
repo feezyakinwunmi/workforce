@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { AdTags } from "@/components/ad-tags";
 import { APP_NAME } from "@/lib/config";
 
 // Self-hosted (no request to Google at build or page load). Both are variable fonts, OFL licensed.
@@ -34,7 +35,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Meta Pixel + Google tag: public pages and conversions only; off until the IDs are set. */}
+        <AdTags />
+      </body>
     </html>
   );
 }

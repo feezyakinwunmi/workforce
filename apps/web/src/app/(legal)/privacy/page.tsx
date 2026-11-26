@@ -95,6 +95,14 @@ export default function PrivacyPage() {
         <li><strong>Cloudflare</strong>: carries Workbase Meet sound and video live (not stored).</li>
         <li><strong>AssemblyAI</strong> (United States): turns meeting sound into text, only for AI notes.</li>
         <li><strong>Anthropic</strong> (United States): writes the AI notes summary from that text.</li>
+        <li>
+          <strong>Meta and Google advertising tags</strong>: on our public pages only (home pages, pricing,
+          sign-up, login), they count visits and tell us when someone who came from one of our ads signs up,
+          starts a trial or buys a plan, so we know which ads work. They get the page address and the event
+          name (and the amount for a plan purchase), never your name, email, company or any work data. They
+          never run inside the dashboard, in meetings, or on our customers&apos; booking pages and forms. You
+          can block them with your browser&apos;s tracking protection or an ad blocker; the service works the same.
+        </li>
       </ul>
       <p>
         Data may be processed outside Nigeria, including in the European Union and the United States. We use

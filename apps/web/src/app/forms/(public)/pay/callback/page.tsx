@@ -17,11 +17,13 @@ export default async function FormPayCallback({ searchParams }: { searchParams: 
   let ok = false;
   // Pro (Book + Forms) bought from the Forms plan page.
   if (/^bookpro_[0-9a-f]{32}$/.test(reference)) {
+    let naira = 0; // for the ad "Purchase" event on the plan page
     if (paystackConfigured()) {
       const tx = await verifyTransaction(reference);
       if (tx) ok = (await recordSuccess(tx)).ok;
+      if (tx && ok) naira = Math.round(tx.amount / 100);
     }
-    redirect(`${base}/plan?${ok ? "paid=1" : "payment=failed"}`);
+    redirect(`${base}/plan?${ok ? `paid=${naira || 1}&ref=${reference}` : "payment=failed"}`);
   }
   let info: { title: string; slug: string; settings: FormSettings; amount: number; token: string | null } | null = null;
   if (paystackConfigured() && /^form_[0-9a-f]{32}$/.test(reference)) {

@@ -1,3 +1,4 @@
+import { AdEvent } from "@/components/ad-tags";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/form";
@@ -11,7 +12,7 @@ import { PageForm, PayoutForm } from "./forms";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default async function BookSettings({ searchParams }: { searchParams: Promise<{ paid?: string; payment?: string }> }) {
+export default async function BookSettings({ searchParams }: { searchParams: Promise<{ paid?: string; ref?: string; payment?: string }> }) {
   const sp = await searchParams;
   const [{ supabase, user, page }, base] = await Promise.all([getBookHost(), bookRequestBase()]);
   if (!user || !page) redirect(base || "/");
@@ -22,6 +23,7 @@ export default async function BookSettings({ searchParams }: { searchParams: Pro
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       <h1 className="font-display text-2xl font-bold text-slate-900">Settings</h1>
+      {sp.paid && sp.ref ? <AdEvent name="Purchase" value={Number(sp.paid) > 1 ? Number(sp.paid) : undefined} once={sp.ref} /> : null}
       {sp.paid && <Notice tone="success">Payment received. You're on Pro (Book + Forms).</Notice>}
       {sp.payment && <Notice tone="error">{sp.payment === "failed" ? "The payment didn't go through." : sp.payment}</Notice>}
 

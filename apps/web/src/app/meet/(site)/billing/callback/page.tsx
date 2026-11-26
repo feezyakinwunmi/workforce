@@ -13,5 +13,6 @@ export default async function MeetPaymentCallback({ searchParams }: { searchPara
   const page = reference.startsWith("meet_top_") ? "usage" : "pricing";
   const res = await recordSuccess(tx);
   if (!res.ok) redirect(`${base}/${page}?error=${encodeURIComponent("Payment received but not recorded yet. It will update in a few minutes.")}`);
-  redirect(`${base}/${page}?paid=1`);
+  // paid = naira amount + ref, for the ad "Purchase" event on the next page.
+  redirect(`${base}/${page}?paid=${Math.round(tx.amount / 100) || 1}&ref=${reference}`);
 }

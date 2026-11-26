@@ -1,3 +1,4 @@
+import { AdEvent } from "@/components/ad-tags";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
@@ -35,8 +36,8 @@ const PAYMENT_MESSAGE: Record<string, { text: string; ok: boolean }> = {
   problem: { text: "Paystack took the payment but we couldn't match it to your order. Contact support with the reference below.", ok: false },
 };
 
-export default async function BillingPage({ searchParams }: { searchParams: Promise<{ payment?: string }> }) {
-  const { payment } = await searchParams;
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ payment?: string; paid?: string; ref?: string }> }) {
+  const { payment, paid: paidNaira, ref } = await searchParams;
   const { supabase, org } = await requireAdmin();
   const [billing, { data: paymentRows }] = await Promise.all([
     getBilling(),
@@ -59,6 +60,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-8">
+      {/* Ad "Purchase" event, once per payment (does nothing until the ad IDs are set). */}
+      {payment === "success" && ref ? <AdEvent name="Purchase" value={Number(paidNaira) || undefined} once={ref} /> : null}
       <PageHeader title="Plan and billing" meta={org.name} />
 
       {msg && (

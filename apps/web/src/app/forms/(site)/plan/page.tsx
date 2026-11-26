@@ -1,3 +1,4 @@
+import { AdEvent } from "@/components/ad-tags";
 import { Icon } from "@/components/icons";
 import { SubmitButton } from "@/components/form";
 import { Notice } from "@/components/ui";
@@ -22,7 +23,7 @@ const ROWS: Array<[string, string, string]> = [
   ["Workbase Book (booking pages)", "3% fee", "No fee, own colour"],
 ];
 
-export default async function PlanPage({ searchParams }: { searchParams: Promise<{ paid?: string; payment?: string }> }) {
+export default async function PlanPage({ searchParams }: { searchParams: Promise<{ paid?: string; ref?: string; payment?: string }> }) {
   const sp = await searchParams;
   const { supabase } = await requireMaker();
   const [{ data: p }, { data: st }] = await Promise.all([supabase.rpc("book_my_plan"), supabase.rpc("form_my_storage")]);
@@ -33,6 +34,7 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10 sm:px-6">
+      {sp.paid && sp.ref ? <AdEvent name="Purchase" value={Number(sp.paid) > 1 ? Number(sp.paid) : undefined} once={sp.ref} /> : null}
       {sp.paid && <Notice tone="success">Payment received. You&apos;re on Pro.</Notice>}
       {sp.payment && <Notice tone="error">{sp.payment === "failed" ? "We couldn't confirm the payment. If money left your account, it will show here within a few minutes." : sp.payment}</Notice>}
       <div>

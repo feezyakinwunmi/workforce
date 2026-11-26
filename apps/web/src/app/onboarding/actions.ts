@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { queueAdEvent } from "@/lib/ad-events";
 import { saveCompanyLogo } from "@/lib/company-logo-server";
 import { createClient } from "@/lib/supabase/server";
 import type { FormState } from "@/lib/types";
@@ -25,6 +26,8 @@ export async function createOrganization(_prev: FormState, formData: FormData): 
   const orgId = (data as { id?: string } | null)?.id;
   if (orgId && logo instanceof File && logo.size > 0) await saveCompanyLogo(supabase, orgId, logo);
 
+  // Every new company starts a 14-day Standard trial: report it as a trial start.
+  await queueAdEvent("StartTrial");
   redirect("/dashboard/team?welcome=1");
 }
 
