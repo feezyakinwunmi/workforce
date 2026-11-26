@@ -93,7 +93,7 @@ function Landing({ base }: { base: string }) {
     <>
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:py-20">
         <div>
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#f2a93b]/15 px-3 py-1 text-xs font-semibold tracking-wide text-[#9a5b06] uppercase dark:text-[#f2c27a]">
+          <p className="mb-4 text-sm font-medium text-[#9a5b06] dark:text-[#f2c27a]">
             Registrations, orders, sign-ups, feedback
           </p>
           <h1 className="font-display text-4xl leading-[1.05] font-bold tracking-tight text-slate-900 sm:text-6xl">

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ADMIN_PASSTHROUGH, isAdminHost } from "@/lib/admin/paths";
 import { BOOK_PASSTHROUGH, isBookHost } from "@/lib/book/paths";
 import { FORMS_PASSTHROUGH, isFormsHost } from "@/lib/forms/paths";
+import { appUrl, HOME_PASSTHROUGH, homeUrl, isHomeHost } from "@/lib/home/paths";
 import { isMeetHost, MEET_PASSTHROUGH } from "@/lib/meet/paths";
 import { safeNext } from "@/lib/utils";
 
@@ -39,6 +40,28 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims?.sub && !data.claims.is_anonymous ? data.claims : null;
 
   const path = request.nextUrl.pathname;
+  const host = request.headers.get("host");
+
+  // The parent site (workbasecore.com): "/" shows the page for all products, a few shared pages
+  // stay, and any other path (an old /dashboard or /invite link) moves to the app's address.
+  if (isHomeHost(host)) {
+    if (path === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/home";
+      const rewritten = NextResponse.rewrite(url, { request });
+      response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
+      return rewritten;
+    }
+    if (!HOME_PASSTHROUGH.test(path) && appUrl()) {
+      return NextResponse.redirect(new URL(path + request.nextUrl.search, appUrl()), 308);
+    }
+    if (HOME_PASSTHROUGH.test(path)) return response;
+  }
+
+  // "/home" on any other address: send people to the real parent address.
+  if (path === "/home" && homeUrl() && !isHomeHost(host)) {
+    return NextResponse.redirect(new URL("/", homeUrl()), 308);
+  }
 
   if (!user && PROTECTED.some((p) => path.startsWith(p))) {
     const url = request.nextUrl.clone();

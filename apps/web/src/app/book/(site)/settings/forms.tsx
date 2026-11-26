@@ -102,7 +102,7 @@ export function PayoutForm({ banks, hasAccount }: { banks: Array<{ name: string;
         </label>
       </div>
       {checking && <p className="text-sm text-slate-500">Checking the account…</p>}
-      {check?.name && <p className="text-sm font-medium text-emerald-700">✓ {check.name}</p>}
+      {check?.name && <p className="text-sm font-medium text-emerald-700">Account name: {check.name}</p>}
       {check?.error && <p className="text-sm text-red-700">{check.error}</p>}
       <FormMessage state={state} />
       <SubmitButton pendingText="Saving…">{hasAccount ? "Change bank account" : "Save bank account"}</SubmitButton>

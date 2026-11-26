@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: { absolute: "Workbase Meet: free vide
 const FEATURES: Array<[IconName, string, string]> = [
   ["zap", "Data saver", "Audio-first, light video, and a live meter of the MB you've used."],
   ["globe", "Nothing to install", "Join from any browser or phone. Guests just type their name."],
-  ["screenShare", "Share, react, chat", "Share your screen, react with 👍 ❤️ 😂, raise your hand, chat, and blur the room behind you."],
+  ["screenShare", "Share, react, chat", "Share your screen, react, raise your hand, chat, and blur the room behind you."],
   ["record", "Free recording", "Hosts record the call to their own device, with a sign everyone can see. Never stored online."],
   ["trash", "Nothing kept", "Chat is deleted when the meeting ends; the meeting itself after 7 days."],
   ["shield", "You're in control", "Waiting room, mute everyone, remove, lock the meeting."],
@@ -33,7 +33,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
         <section className="bg-[#0f0d26] text-white">
           <div className="mx-auto grid max-w-5xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-24">
             <div>
-              <p className="mb-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-[#f2a93b] uppercase">Free · up to 1 hour · 25 people</p>
+              <p className="mb-4 text-sm font-medium text-[#f2a93b]">Free · up to 1 hour · 25 people</p>
               <h1 className="font-display text-4xl leading-[1.05] font-bold tracking-tight sm:text-6xl">
                 Video meetings that <span className="text-[#f2a93b]">respect your data.</span>
               </h1>
@@ -83,7 +83,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
       )}
       <section className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <div className="card p-6 sm:p-8">
-          <p className="text-sm text-slate-500">Hi {name?.split(" ")[0] ?? "there"} 👋</p>
+          <p className="text-sm text-slate-500">Hi {name?.split(" ")[0] ?? "there"}</p>
           <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-slate-900">Start or join a meeting</h1>
           <div className="mt-6 flex flex-wrap gap-3">
             <form action={newMeeting}>
@@ -196,7 +196,7 @@ function MeetingIllustration() {
           <div key={i} className={`relative flex aspect-video items-center justify-center rounded-xl bg-[#26225a] ${k === 0 ? "ring-2 ring-emerald-400" : ""}`}>
             <span className="flex h-12 w-12 items-center justify-center rounded-full font-display text-lg font-bold" style={{ background: c }}>{i}</span>
             <span className="absolute bottom-1.5 left-2 text-[11px] text-white/80">{n}</span>
-            {k === 2 && <span className="absolute top-1.5 left-2 rounded-full bg-[#f2a93b] px-1.5 text-sm">✋</span>}
+            {k === 2 && <span className="absolute top-1.5 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#f2a93b] text-[#15123a]"><Icon name="hand" className="h-3.5 w-3.5" /></span>}
           </div>
         ))}
       </div>
@@ -206,7 +206,7 @@ function MeetingIllustration() {
         ))}
         <span className="flex h-9 items-center rounded-full bg-red-600 px-3"><Icon name="hangUp" className="h-4 w-4" /></span>
       </div>
-      <span className="absolute -top-3 -right-3 rounded-2xl bg-white px-3 py-2 text-2xl shadow-lg">👏</span>
+      <span className="absolute -top-3 -right-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#6a4cf5] shadow-lg"><Icon name="party" className="h-5 w-5" /></span>
     </div>
   );
 }

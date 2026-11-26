@@ -242,10 +242,224 @@
   animation: tour-in 180ms ease-out both;
 }
 
+/* ==============================================================================================
+ * Public site motion (components/motion.tsx and the landing pages)
+ * One easing everywhere so the whole site moves the same way.
+ * ============================================================================================ */
+:root {
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Reveal: hidden until data-shown is set by the observer, then rises / grows into place. */
+.reveal {
+  transition:
+    opacity 700ms var(--ease-out-soft),
+    transform 800ms var(--ease-out-soft),
+    clip-path 900ms var(--ease-out-soft);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal-rise:not([data-shown]) {
+  opacity: 0;
+  transform: translateY(28px);
+  clip-path: inset(0 0 100% 0);
+}
+.reveal-rise[data-shown] {
+  clip-path: inset(-20% -20% -20% -20%);
+}
+.reveal-scale:not([data-shown]) {
+  opacity: 0;
+  transform: scale(0.94) translateY(16px);
+}
+.reveal-fade:not([data-shown]) {
+  opacity: 0;
+}
+
+/* Rotating word: every word sits in the same clipped box; only the current one is in view. */
+.rotating-word-box {
+  position: relative;
+  display: inline-grid;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.08em; /* room for descenders (g, y) */
+}
+.rotating-word-box > * {
+  grid-area: 1 / 1;
+}
+.rotating-word-item {
+  transition:
+    transform 650ms var(--ease-out-soft),
+    opacity 650ms var(--ease-out-soft);
+}
+.rotating-word-item[data-state="wait"] {
+  transform: translateY(105%);
+  opacity: 0;
+  transition: none;
+}
+.rotating-word-item[data-state="out"] {
+  transform: translateY(-105%);
+  opacity: 0;
+}
+
+/* Tilt: the card leans toward the pointer; a soft light follows it. */
+.tilt {
+  position: relative;
+  transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 500ms var(--ease-out-soft);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(420px circle at var(--glow-x, 50%) var(--glow-y, 0%), rgb(255 255 255 / 0.1), transparent 60%);
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.tilt:hover::after {
+  opacity: 1;
+}
+
+/* Links and buttons with an arrow: the arrow nudges forward on hover. */
+.arrow-link svg {
+  transition: transform 300ms var(--ease-out-soft);
+}
+.arrow-link:hover svg,
+.arrow-link:focus-visible svg {
+  transform: translateX(4px);
+}
+
+/* Underline that draws in from the left on hover. */
+.draw-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1.5px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 400ms var(--ease-out-soft);
+}
+.draw-underline:hover,
+.draw-underline:focus-visible {
+  background-size: 100% 1.5px;
+}
+
+/* Endless strip of words (the "what's inside" ticker). Two copies slide by half their width. */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 48s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Product stage progress bar (fills over the auto-advance time). */
+@keyframes stage-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.stage-progress {
+  transform-origin: left;
+  animation: stage-progress var(--stage-ms, 6000ms) linear both;
+}
+.stage-paused .stage-progress {
+  animation-play-state: paused;
+}
+
+/* Product stage screens: the new one opens from a slight scale with a clip, the old one leaves. */
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    clip-path: inset(6% 4% 6% 4% round 18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0 round 18px);
+  }
+}
+.screen-in {
+  animation: screen-in 700ms var(--ease-out-soft) both;
+}
+
+/* Little live details inside the product pictures. */
+@keyframes speak-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(242 169 59 / 0.9);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgb(242 169 59 / 0.35);
+  }
+}
+.speak-ring {
+  animation: speak-ring 1.4s ease-in-out infinite;
+}
+@keyframes soft-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+.soft-blink {
+  animation: soft-blink 1.6s ease-in-out infinite;
+}
+@keyframes float-y {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.float-y {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+/* Fine grain over dark panels so big flat colour doesn't look like a template. */
+.grain {
+  position: relative;
+  isolation: isolate;
+}
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 @media (prefers-reduced-motion: reduce) {
   .timeline-bar,
-  .tour-pop {
+  .tour-pop,
+  .marquee-track,
+  .stage-progress,
+  .screen-in,
+  .speak-ring,
+  .soft-blink,
+  .float-y {
     animation: none;
+  }
+  .reveal,
+  .reveal:not([data-shown]) {
+    opacity: 1;
+    transform: none;
+    clip-path: none;
+    transition: none;
+  }
+  .rotating-word-item,
+  .tilt,
+  .arrow-link svg {
+    transition: none;
   }
   * {
     scroll-behavior: auto !important;

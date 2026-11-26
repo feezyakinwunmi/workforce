@@ -82,7 +82,7 @@ export function Logo({ className, size = "md", product = "workbase" }: { classNa
       <LogoMark className={mark} product={product} />
       <span className={cn("font-display font-bold tracking-tight text-slate-900", text)}>
         Workbase
-        {product !== "workbase" && <span className="text-brand-600 dark:text-brand-700"> {product === "meet" ? "Meet" : "Book"}</span>}
+        {product !== "workbase" && <span className="text-brand-600 dark:text-brand-700"> {product === "meet" ? "Meet" : product === "forms" ? "Forms" : "Book"}</span>}
       </span>
     </span>
   );

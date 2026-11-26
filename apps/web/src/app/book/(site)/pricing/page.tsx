@@ -1,3 +1,4 @@
+import { Icon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { bookRequestBase, getBookHost } from "@/lib/book/server";
@@ -24,7 +25,7 @@ export default async function BookPricing() {
             <h2 className="font-semibold text-slate-900">{p.name}</h2>
             <p className="mt-3"><span className="font-display text-4xl font-bold text-slate-900">{p.price}</span> <span className="text-sm text-slate-500">{p.per}</span></p>
             <ul className="mt-5 space-y-2 text-sm text-slate-600">
-              {p.items.map((i) => <li key={i} className="flex gap-2"><span className="text-emerald-600">✓</span>{i}</li>)}
+              {p.items.map((i) => <li key={i} className="flex gap-2"><Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />{i}</li>)}
             </ul>
             <Link href={p.hot && user ? `${base}/settings#plan` : start} className={p.hot ? "btn-primary mt-6 w-full" : "btn-secondary mt-6 w-full"}>{p.cta}</Link>
           </div>
