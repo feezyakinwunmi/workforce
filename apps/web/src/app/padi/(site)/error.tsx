@@ -19,6 +19,8 @@ export default function PadiError({ error, reset }: { error: Error & { digest?: 
       <pre className="mt-4 overflow-x-auto rounded-xl bg-slate-100 p-3 text-left text-xs whitespace-pre-wrap text-slate-700">
         {error.message || "Unknown error"}
         {error.digest ? `\n(ref ${error.digest})` : ""}
+        {/* First lines of the trace: shows which file and line broke */}
+        {error.stack ? `\n\n${error.stack.split("\n").slice(0, 8).join("\n")}` : ""}
       </pre>
       <div className="mt-5 flex justify-center gap-2">
         <button onClick={() => reset()} className="btn-primary">Try again</button>
