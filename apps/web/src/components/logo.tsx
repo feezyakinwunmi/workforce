@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 /**
  * The Workbase family of marks: one shape resting on the marigold base (from Femi's sketch).
  * The shape says what the product does: Workbase = the curved "work" sail, Meet = a video camera,
- * Book = a calendar with a tick, Forms = a sheet with tick boxes. Same tile, same base, same colours, so they read as one family.
+ * Book = a calendar with a tick, Forms = a sheet with tick boxes, Padi = a chat bubble with a spark (Bizz Padi, the AI assistant). Same tile, same base, same colours, so they read as one family.
  */
-export type Product = "workbase" | "meet" | "book" | "forms";
+export type Product = "workbase" | "meet" | "book" | "forms" | "padi";
 
 /** The shape on the base, drawn on the 48-unit tile grid (white on violet). */
 function Shape({ product, on }: { product: Product; on: "tile" | "plain" }) {
@@ -38,6 +38,15 @@ function Shape({ product, on }: { product: Product; on: "tile" | "plain" }) {
         <rect x="23" y="13.7" width="8.8" height="2.2" rx="1.1" fill={detail} />
         <rect x="16.3" y="19.6" width="4.4" height="4.4" rx="1.2" fill="none" stroke={detail} strokeWidth="1.4" />
         <rect x="23" y="20.7" width="8.8" height="2.2" rx="1.1" fill={detail} />
+      </>
+    );
+  }
+  if (product === "padi") {
+    // A speech bubble (the assistant you chat with) holding a small four-point spark (the ideas).
+    return (
+      <>
+        <path d="M11 12.6c0-2.6 2.1-4.6 4.6-4.6h16.8c2.5 0 4.6 2 4.6 4.6v7.6c0 2.6-2.1 4.6-4.6 4.6H20.5l-5.6 3.8c-.6.4-1.4 0-1.4-.7v-3.2A4.6 4.6 0 0 1 11 20.2Z" fill={fg} />
+        <path d="M24 11.2l1.5 3.9 3.9 1.5-3.9 1.5-1.5 3.9-1.5-3.9-3.9-1.5 3.9-1.5Z" fill={detail} />
       </>
     );
   }
@@ -82,7 +91,7 @@ export function Logo({ className, size = "md", product = "workbase" }: { classNa
       <LogoMark className={mark} product={product} />
       <span className={cn("font-brand font-bold tracking-tight text-slate-900", text)}>
         Workbase
-        {product !== "workbase" && <span className="text-brand-600 dark:text-brand-700"> {product === "meet" ? "Meet" : product === "forms" ? "Forms" : "Book"}</span>}
+        {product !== "workbase" && <span className="text-brand-600 dark:text-brand-700"> {product === "meet" ? "Meet" : product === "forms" ? "Forms" : product === "padi" ? "Padi" : "Book"}</span>}
       </span>
     </span>
   );

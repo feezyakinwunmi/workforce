@@ -5,6 +5,7 @@ import { BOOK_PASSTHROUGH, isBookHost } from "@/lib/book/paths";
 import { FORMS_PASSTHROUGH, isFormsHost } from "@/lib/forms/paths";
 import { appUrl, HOME_PASSTHROUGH, homeUrl, isHomeHost } from "@/lib/home/paths";
 import { isMeetHost, MEET_PASSTHROUGH } from "@/lib/meet/paths";
+import { isPadiHost, PADI_PASSTHROUGH } from "@/lib/padi/paths";
 import { safeNext } from "@/lib/utils";
 
 const PROTECTED = ["/dashboard", "/onboarding"];
@@ -122,6 +123,15 @@ export async function updateSession(request: NextRequest) {
   if (isFormsHost(request.headers.get("host")) && !FORMS_PASSTHROUGH.test(path)) {
     const url = request.nextUrl.clone();
     url.pathname = `/forms${path === "/" ? "" : path}`;
+    const rewritten = NextResponse.rewrite(url, { request });
+    response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
+    return rewritten;
+  }
+
+  // The Bizz Padi address serves the /padi pages at its root (bizzpadi…/setup → /padi/setup).
+  if (isPadiHost(request.headers.get("host")) && !PADI_PASSTHROUGH.test(path)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/padi${path === "/" ? "" : path}`;
     const rewritten = NextResponse.rewrite(url, { request });
     response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
     return rewritten;
