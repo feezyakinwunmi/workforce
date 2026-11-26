@@ -552,3 +552,122 @@
     background: #fff;
   }
 }
+
+/* ==============================================================================================
+ * Landing pages (approved design, 26 Nov 2026): parent site (app/home) and Meet (app/meet/(site)/landing.tsx).
+ * Every class is prefixed "lp-" so it can never clash with Tailwind utilities or the app's own CSS.
+ * Behaviour: components/landing/fx.tsx.
+ * ============================================================================================ */
+
+  
+  
+  .lp { --ease: cubic-bezier(0.2, 0.8, 0.2, 1); background: #fff; color: #15123a; -webkit-font-smoothing: antialiased; color-scheme: light; }
+  .lp-wrap { max-width: 72rem; margin-inline: auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+  .lp h1, .lp h2, .lp h3 { text-wrap: balance; letter-spacing: -0.025em; }
+
+  /* Hero grid: faint lines that fade toward the edges, and a soft light that follows the pointer. */
+  .lp-grid-bg {
+    background-image: linear-gradient(#15123a0d 1px, transparent 1px), linear-gradient(90deg, #15123a0d 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 85%);
+  }
+  .lp-spot { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 20%), rgba(106, 76, 245, 0.14), transparent 60%); transition: background 0.2s; }
+
+  /* Rotating word with a mask slide. */
+  .lp-rot { display: inline-grid; overflow: hidden; vertical-align: bottom; padding-bottom: 0.06em; }
+  .lp-rot > span { grid-area: 1/1; transition: transform 0.6s var(--ease), opacity 0.6s var(--ease); }
+  .lp-rot > span[data-s="wait"] { transform: translateY(100%); opacity: 0; transition: none; }
+  .lp-rot > span[data-s="out"] { transform: translateY(-100%); opacity: 0; }
+
+  /* Buttons */
+  .lp-btn { display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.75rem; font-weight: 600; font-size: 0.9375rem; padding: 0.7rem 1.15rem; transition: transform 0.25s var(--ease), box-shadow 0.25s, background 0.25s; }
+  .lp-btn-main { background: #6a4cf5; color: #fff; box-shadow: 0 1px 0 #ffffff33 inset, 0 8px 24px -10px #6a4cf5; }
+  .lp-btn-main:hover { background: #5638d9; transform: translateY(-1px); box-shadow: 0 1px 0 #ffffff33 inset, 0 14px 30px -12px #6a4cf5; }
+  .lp-btn-ghost { background: #fff; color: #15123a; box-shadow: 0 0 0 1px #e4e1f0; }
+  .lp-btn-ghost:hover { box-shadow: 0 0 0 1px #c9c2ec; transform: translateY(-1px); }
+  .lp-btn svg { transition: transform 0.25s var(--ease); }
+  .lp-btn:hover svg { transform: translateX(3px); }
+
+  /* Nav dropdown */
+  .lp-menu { opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity 0.2s, transform 0.25s var(--ease); }
+  .lp-has-menu:hover .lp-menu, .lp-has-menu:focus-within .lp-menu { opacity: 1; transform: none; pointer-events: auto; }
+
+  /* Product stage */
+  .lp-tab { position: relative; }
+  .lp-tab[aria-selected="true"] { color: #fff; }
+  .lp-tab .lp-bar { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: #f2a93b; transform: scaleX(0); transform-origin: left; }
+  .lp-tab[aria-selected="true"] .lp-bar { animation: lp-fill 5s linear forwards; }
+  .lp-paused .lp-tab[aria-selected="true"] .lp-bar { animation-play-state: paused; }
+  @keyframes lp-fill { to { transform: scaleX(1); } }
+  .lp-screen { animation: lp-screenIn 0.6s var(--ease) both; }
+  @keyframes lp-screenIn { from { opacity: 0; transform: translateY(10px) scale(0.99); } to { opacity: 1; transform: none; } }
+  .lp-grow { transform-origin: bottom; animation: lp-grow 0.7s var(--ease) both; }
+  @keyframes lp-grow { from { transform: scaleY(0); } }
+  .lp-blink { animation: lp-blink 1.6s ease-in-out infinite; }
+  @keyframes lp-blink { 50% { opacity: 0.3; } }
+  .lp-ring { animation: lp-ring 1.4s ease-in-out infinite; }
+  @keyframes lp-ring { 50% { box-shadow: 0 0 0 4px #f2a93b66; } }
+  .lp-rise { animation: lp-rise 2.6s ease-in infinite; }
+  @keyframes lp-rise { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-90px); opacity: 0; } }
+
+  /* Toasts that pop in around the stage */
+  .lp-toast { transition: opacity 0.5s var(--ease), transform 0.6s var(--ease); }
+  .lp-toast[data-on="0"] { opacity: 0; transform: translateY(10px) scale(0.96); }
+
+  /* Feature cards: a light that follows the pointer + an icon that moves. */
+  .lp-fcard { position: relative; overflow: hidden; transition: transform 0.4s var(--ease), box-shadow 0.4s, border-color 0.4s; }
+  .lp-fcard::before { content: ""; position: absolute; inset: 0; background: radial-gradient(280px circle at var(--x, 50%) var(--y, 0%), rgba(106, 76, 245, 0.1), transparent 70%); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .lp-fcard:hover { transform: translateY(-3px); border-color: #d6cffb; box-shadow: 0 18px 40px -24px rgba(21, 18, 58, 0.35); }
+  .lp-fcard:hover::before { opacity: 1; }
+  .lp-ico { transition: background 0.35s, color 0.35s, transform 0.5s var(--ease), box-shadow 0.35s; }
+  .lp-fcard:hover .lp-ico { background: #6a4cf5; color: #fff; transform: rotate(-8deg) scale(1.08); box-shadow: 0 10px 24px -10px #6a4cf5; }
+  .lp-ico svg path, .lp-ico svg rect, .lp-ico svg circle { stroke-dasharray: 80; stroke-dashoffset: 0; }
+  .lp-fcard:hover .lp-ico svg path, .lp-fcard:hover .lp-ico svg rect, .lp-fcard:hover .lp-ico svg circle { animation: lp-draw 0.9s var(--ease); }
+  @keyframes lp-draw { from { stroke-dashoffset: 80; } to { stroke-dashoffset: 0; } }
+
+  /* Product cards */
+  .lp-pcard img { transition: transform 1s var(--ease); }
+  .lp-pcard:hover img { transform: scale(1.06); }
+  .lp-pcard { transition: transform 0.4s var(--ease), box-shadow 0.4s; }
+  .lp-pcard:hover { transform: translateY(-4px); box-shadow: 0 24px 50px -28px rgba(21, 18, 58, 0.45); }
+  .lp-pcard .lp-mark { transition: transform 0.5s var(--ease); }
+  .lp-pcard:hover .lp-mark { transform: translateY(-3px) rotate(-6deg); }
+  .lp-pcard .lp-go { transition: transform 0.35s var(--ease), background 0.35s, color 0.35s; }
+  .lp-pcard:hover .lp-go { transform: rotate(-45deg); background: #6a4cf5; color: #fff; }
+
+  /* Steps: the line fills as you hover a step */
+  .lp-step { transition: background 0.3s; }
+  .lp-step:hover { background: #f7f6fb; }
+  .lp-step .lp-num { transition: background 0.3s, color 0.3s, transform 0.4s var(--ease); }
+  .lp-step:hover .lp-num { background: #6a4cf5; color: #fff; transform: scale(1.08); }
+
+  .lp-float { animation: lp-float 6s ease-in-out infinite; }
+  @keyframes lp-float { 50% { transform: translateY(-8px); } }
+
+  /* Logos strip scrolls slowly */
+  .lp-marquee { mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+  .lp-track { display: flex; width: max-content; animation: lp-slide 40s linear infinite; }
+  .lp-marquee:hover .lp-track { animation-play-state: paused; }
+  @keyframes lp-slide { to { transform: translateX(-50%); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lp *, .lp *::before, .lp *::after { animation: none !important; transition: none !important; }
+  }
+  .lp [data-s][hidden] { display: none !important; }
+  .lp :focus-visible { outline: 2px solid #6a4cf5; outline-offset: 2px; border-radius: 6px; }
+.lp-i { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .lp-float-up { animation: lp-floatUp 3s ease-in infinite; }
+  @keyframes lp-floatUp { 0% { transform: translateY(0) scale(.8); opacity: 0; } 15% { opacity: 1; transform: translateY(-10px) scale(1); } 100% { transform: translateY(-110px); opacity: 0; } }
+  .lp-chat-in { animation: lp-chatIn .5s var(--ease) both; }
+  @keyframes lp-chatIn { from { opacity: 0; transform: translateY(8px); } }
+  .lp-ftab[aria-selected="true"] { background: #fff; box-shadow: 0 10px 30px -18px rgba(21,18,58,.45), 0 0 0 1px #ecebf3; }
+  .lp-ftab[aria-selected="true"] .lp-ico { background: #6a4cf5; color: #fff; }
+  .lp-ftab .lp-prog { transform: scaleX(0); transform-origin: left; }
+  .lp-ftab[aria-selected="true"] .lp-prog { animation: lp-fill 5s linear forwards; }
+  .lp-fpaused .lp-ftab[aria-selected="true"] .lp-prog { animation-play-state: paused; }
+  .lp-bars i { animation: lp-barPulse 1.2s ease-in-out infinite; }
+  @keyframes lp-barPulse { 50% { opacity: .35; } }
+  .lp [data-v][hidden] { display: none !important; }
+
+  @keyframes lp-spin { to { transform: rotate(360deg); } }

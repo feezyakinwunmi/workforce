@@ -1,5 +1,4 @@
-import { PhotoBand } from "@/components/photo-band";
-import { PHOTOS } from "@/lib/photos";
+import { MeetLanding } from "./landing";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SavedRecordings } from "../recordings";
@@ -29,48 +28,8 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const [{ supabase, user, name }, base, origin] = await Promise.all([getMeetUser(), requestBase(), requestOrigin()]);
 
-  if (!user) {
-    return (
-      <>
-        <section className="bg-[#0f0d26] text-white">
-          <div className="mx-auto grid max-w-5xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-24">
-            <div>
-              <h1 className="text-[2.6rem] leading-[1] font-extrabold tracking-[-0.04em] sm:text-6xl">
-                Video meetings that <span className="text-[#f2a93b]">respect your data.</span>
-              </h1>
-              <p className="mt-5 max-w-lg text-lg text-white/70">Built for Nigerian internet. Starts with audio, shows the MB you use, and works in any browser.</p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-start">
-                <Link href={`/signup?next=${encodeURIComponent(base || "/")}`} className="rounded-xl bg-[#6a4cf5] px-6 py-3 text-center font-semibold hover:bg-[#5b3fe0]">Start a free meeting</Link>
-                <div className="flex-1 sm:max-w-xs"><JoinForm base={base} dark /></div>
-              </div>
-              <p className="mt-4 text-sm text-white/50">Already have a Workbase account? <Link className="underline underline-offset-4" href={`/login?next=${encodeURIComponent(base || "/")}`}>Sign in</Link></p>
-            </div>
-            <MeetingIllustration />
-          </div>
-        </section>
-        <PhotoBand
-          photo={PHOTOS.cafeDesk}
-          side={PHOTOS.manSmiling}
-          title="Meet clients, staff and guests from anywhere."
-          body="Send a link and they join with just their name. Free meetings run up to an hour with 25 people; recording is free and stays on your device."
-        />
-        <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(([icon, title, body]) => (
-              <div key={title} className="card p-6 transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_-30px_rgba(21,18,58,0.35)]">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:text-brand-700"><Icon name={icon} className="h-5 w-5" /></span>
-                <h2 className="mt-4 font-semibold text-slate-900">{title}</h2>
-                <p className="mt-1 text-sm text-slate-500">{body}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-10 text-center">
-            <Link href={`${base}/pricing`} className="font-medium text-brand-700 hover:underline">Meet Pro: unlimited meetings up to 24 hours and 100 people, ₦3,000 a month. Pro Max adds AI notes →</Link>
-          </div>
-        </section>
-      </>
-    );
-  }
+  // Signed-out visitors get the landing page (approved design, 26 Nov 2026).
+  if (!user) return <MeetLanding base={base} />;
 
   const [{ data: meetings }, { data: plan }] = await Promise.all([supabase.rpc("meet_my_meetings"), supabase.rpc("meet_my_plan")]);
   const list = (meetings ?? []) as MyMeeting[];
