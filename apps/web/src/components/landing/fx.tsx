@@ -86,13 +86,21 @@ export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet"; meet
     /* ---------------------------------------------------------------- home */
     if (kind === "home") {
       // Rotating word in the headline.
+      // The box takes the width of the word on screen, so there is never a gap beside it.
+      const rot = $("#lp-rot");
       const words = $$("#lp-rot > span");
       let w = 0;
+      const fit = () => {
+        if (rot && words[w]) rot.style.width = `${words[w].scrollWidth}px`;
+      };
+      fit();
+      on(window as unknown as Element, "resize", fit);
       if (!reduce && words.length > 1)
         every(2400, () => {
           const prev = w;
           w = (w + 1) % words.length;
           words.forEach((el, i) => (el.dataset.s = i === w ? "in" : i === prev ? "out" : "wait"));
+          fit();
         });
 
       // Product window: tab bar fills over 5 s, then the next product comes on.
