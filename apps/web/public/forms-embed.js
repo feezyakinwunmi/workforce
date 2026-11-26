@@ -1,6 +1,6 @@
 /*! Workbase Forms embed. Put this where the form should appear:
- *   <div data-workbase-form="https://workbase-forms.vercel.app/f/abcd2345"></div>
- *   <script src="https://workbase-forms.vercel.app/forms-embed.js" async></script>
+ *   <div data-workbase-form="https://forms.workbasecore.com/f/abcd2345"></div>
+ *   <script src="https://forms.workbasecore.com/forms-embed.js" async></script>
  * Optional: data-theme="dark" | "auto" (default light).
  * The form grows and shrinks to fit, so there is never a scroll bar inside it.
  */

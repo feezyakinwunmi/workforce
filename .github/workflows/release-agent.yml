@@ -9,7 +9,7 @@
 #
 # Needs (repo Settings -> Secrets and variables -> Actions):
 #   secret   RELEASES_TOKEN  fine-grained token, Contents: read & write on workforce-releases
-#   variable DASHBOARD_URL   e.g. https://workforce-xyz.vercel.app
+#   variable DASHBOARD_URL   https://app.workbasecore.com
 on:
   push:
     tags: ["agent-v*"]

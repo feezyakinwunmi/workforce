@@ -11,7 +11,32 @@ const PROTECTED = ["/dashboard", "/onboarding"];
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 
 /** Refreshes the Supabase session cookie on every request and guards private pages. */
+/**
+ * The old Vercel addresses, retired on 26 Nov 2026 (Femi: "no one should use the vercel again").
+ *
+ * Each one now forwards to its workbasecore.com address with the same path and query, so old
+ * links in WhatsApp chats, emails, installed desktop apps and bookmarks still land in the right
+ * place, but nobody ever stays on a vercel.app address. 308 = "moved for good", and it keeps the
+ * request method, so a stray POST (an old webhook) is forwarded as a POST.
+ *
+ * Preview builds (workforce-git-….vercel.app) are not in this list, so they keep working for tests.
+ */
+const RETIRED_HOSTS: Record<string, string> = {
+  "phantomire-workforce.vercel.app": "https://app.workbasecore.com",
+  "workbase-meet.vercel.app": "https://meet.workbasecore.com",
+  "workbase-book.vercel.app": "https://book.workbasecore.com",
+  "workbase-forms.vercel.app": "https://forms.workbasecore.com",
+  "workbase-admin.vercel.app": "https://admin.workbasecore.com",
+};
+
 export async function updateSession(request: NextRequest) {
+  // Retired address: forward before doing anything else (no session work needed).
+  const retired = RETIRED_HOSTS[(request.headers.get("host") ?? "").toLowerCase()];
+  if (retired) {
+    const { pathname, search } = request.nextUrl;
+    return NextResponse.redirect(`${retired}${pathname}${search}`, 308);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

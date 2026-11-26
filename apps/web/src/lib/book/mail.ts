@@ -32,7 +32,7 @@ type Job = {
   host_name: string;
 };
 
-const siteOrigin = () => (process.env.NEXT_PUBLIC_SITE_URL || "https://phantomire-workforce.vercel.app").replace(/\/$/, "");
+const siteOrigin = () => (process.env.NEXT_PUBLIC_SITE_URL || "https://app.workbasecore.com").replace(/\/$/, "");
 
 function when(iso: string, tz: string) {
   const d = new Date(iso);
