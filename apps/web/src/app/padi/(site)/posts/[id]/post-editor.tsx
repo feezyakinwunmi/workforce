@@ -111,7 +111,7 @@ export function PostEditor({ post, brand, imageUrl, userId }: { post: PadiPost; 
   const textDisabled = flyer.style === "own";
 
   return (
-    <form action={action} className="mt-6 grid gap-6 lg:grid-cols-[24rem_1fr]">
+    <form action={action} className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] [&>*]:min-w-0">
       <input type="hidden" name="id" value={post.id} />
       <input type="hidden" name="style" value={flyer.style} />
       <input type="hidden" name="image" value={flyer.image ?? ""} />

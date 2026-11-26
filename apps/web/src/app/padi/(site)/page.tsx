@@ -73,7 +73,7 @@ export default async function PadiHome({ searchParams }: { searchParams: Promise
           <p className="text-sm text-slate-500">{greeting()}</p>
           <h1 className="text-2xl font-semibold text-slate-900">{sp.welcome ? `Welcome, ${brand.name}` : brand.name}</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {[
             ["Planned this week", `${week.length}`],
             ["Approved", `${ready}/${target}`],
@@ -87,7 +87,7 @@ export default async function PadiHome({ searchParams }: { searchParams: Promise
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_19rem]">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_19rem] [&>*]:min-w-0">
         <Chat messages={messages} base={base} ready={padiAiReady()} colors={brand.colors} brandName={brand.name} />
 
         <aside className="space-y-4">
