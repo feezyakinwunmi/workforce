@@ -1,3 +1,4 @@
+import { BookLanding } from "./landing";
 import { PhotoBand } from "@/components/photo-band";
 import { PHOTOS } from "@/lib/photos";
 import type { Metadata } from "next";
@@ -19,7 +20,8 @@ type SP = Promise<{ view?: string; welcome?: string }>;
 export default async function BookHome({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const [{ supabase, user, name, page }, base] = await Promise.all([getBookHost(), bookRequestBase()]);
-  if (!user) return <Landing base={base} />;
+  // Signed-out visitors get the landing page (approved design, 26 Nov 2026).
+  if (!user) return <BookLanding base={base} />;
   if (!page) {
     return (
       <div className="mx-auto max-w-xl px-4 py-12 sm:px-6">

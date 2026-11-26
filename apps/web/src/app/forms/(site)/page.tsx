@@ -1,3 +1,4 @@
+import { FormsLanding } from "./landing";
 import { PhotoBand } from "@/components/photo-band";
 import { PHOTOS } from "@/lib/photos";
 import type { Metadata } from "next";
@@ -16,7 +17,8 @@ type SP = Promise<{ error?: string }>;
 export default async function FormsHome({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const [{ supabase, user }, base] = await Promise.all([getMeetUser(), formsRequestBase()]);
-  if (!user) return <Landing base={base} />;
+  // Signed-out visitors get the landing page (approved design, 26 Nov 2026).
+  if (!user) return <FormsLanding base={base} />;
   const { data } = await supabase
     .from("forms")
     .select("id, slug, title, published, accepting, responses, updated_at")

@@ -11,6 +11,7 @@
  *   both pages   pointer light in the hero, light under the pointer on cards, count-up numbers
  *   "home"       rotating word, product window that switches every 5 s, pop-up alerts,
  *                live bento cards (ticking clock, tasks ticking off, speaker ring, slots, total)
+ *   generic      [data-lp-tabs] tabs with demos, [data-lp-cycle] moving highlight, [data-lp-timer] clocks
  *   "meet"       live call (speaker ring, rec timer, data meter, chat), feature tabs with demos,
  *                guest typing their name, confetti, network meter, join-by-code box
  *
@@ -21,7 +22,7 @@ import { useEffect } from "react";
 
 type Cleanup = () => void;
 
-export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet"; meetBase?: string }) {
+export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet" | "workbase" | "book" | "forms"; meetBase?: string }) {
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const cleanups: Cleanup[] = [];
@@ -83,8 +84,8 @@ export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet"; meet
       cleanups.push(() => io.disconnect());
     }
 
-    /* ---------------------------------------------------------------- home */
-    if (kind === "home") {
+    /* ---------------------------------------------------------------- home (rotating word, product window, bento) */
+    {
       // Rotating word in the headline.
       // The box takes the width of the word on screen, so there is never a gap beside it.
       const rot = $("#lp-rot");
@@ -205,8 +206,8 @@ export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet"; meet
       }
     }
 
-    /* ---------------------------------------------------------------- meet */
-    if (kind === "meet") {
+    /* ---------------------------------------------------------------- meet (call, feature tabs, network meter) */
+    {
       // Join by code or link.
       const form = $<HTMLFormElement>("#lp-joinform");
       on(form, "submit", (e) => {
@@ -357,6 +358,63 @@ export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet"; meet
           });
       }
     }
+
+
+    /* ---------------------------------------------------------------- generic pieces (Workbase, Book, Forms) */
+
+    // Tabs with a demo each: [data-lp-tabs] holds .lp-ftab buttons (each with a .lp-prog bar) and
+    // [data-v] views. The bar fills over 5 s, then the next tab comes on; hovering pauses it.
+    $$("[data-lp-tabs]").forEach((box) => {
+      const btns = [...box.querySelectorAll<HTMLElement>(".lp-ftab")];
+      const panes = [...box.querySelectorAll<HTMLElement>("[data-v]")];
+      const pick = (n: number) => {
+        btns.forEach((b, i) => b.setAttribute("aria-selected", i === n ? "true" : "false"));
+        panes.forEach((v, i) => {
+          v.hidden = i !== n;
+          if (i === n) {
+            v.classList.remove("lp-screen");
+            void v.offsetWidth;
+            v.classList.add("lp-screen");
+          }
+        });
+        const p = btns[n]?.querySelector<HTMLElement>(".lp-prog");
+        if (p) {
+          p.style.animation = "none";
+          void p.offsetWidth;
+          p.style.animation = "";
+        }
+      };
+      btns.forEach((b, i) => {
+        on(b, "click", () => pick(i));
+        on(b.querySelector(".lp-prog"), "animationend", () => pick((i + 1) % btns.length));
+      });
+      on(box, "mouseenter", () => box.classList.add("lp-fpaused"));
+      on(box, "mouseleave", () => box.classList.remove("lp-fpaused"));
+    });
+
+    // Moving highlight: [data-lp-cycle="ms"] marks one child [data-c] at a time with data-on="1"
+    // (Tailwind data-[on=1]:… classes style it). Used for slots, speakers, rows arriving.
+    if (!reduce)
+      $$("[data-lp-cycle]").forEach((box) => {
+        const items = [...box.querySelectorAll<HTMLElement>("[data-c]")];
+        if (items.length < 2) return;
+        let n = items.findIndex((x) => x.dataset.on === "1");
+        every(Number(box.dataset.lpCycle) || 1500, () => {
+          n = (n + 1) % items.length;
+          items.forEach((x, i) => (x.dataset.on = i === n ? "1" : "0"));
+        });
+      });
+
+    // Running clocks: [data-lp-timer="seconds"] counts up once a second.
+    if (!reduce)
+      $$("[data-lp-timer]").forEach((el) => {
+        let secs = Number(el.dataset.lpTimer) || 0;
+        const p = (n: number) => String(n).padStart(2, "0");
+        every(1000, () => {
+          secs++;
+          el.textContent = `${p(Math.floor(secs / 3600))}:${p(Math.floor(secs / 60) % 60)}:${p(secs % 60)}`;
+        });
+      });
 
     return () => cleanups.forEach((fn) => fn());
   }, [kind, meetBase]);
