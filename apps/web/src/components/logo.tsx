@@ -80,7 +80,7 @@ export function Logo({ className, size = "md", product = "workbase" }: { classNa
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <LogoMark className={mark} product={product} />
-      <span className={cn("font-display font-bold tracking-tight text-slate-900", text)}>
+      <span className={cn("font-brand font-bold tracking-tight text-slate-900", text)}>
         Workbase
         {product !== "workbase" && <span className="text-brand-600 dark:text-brand-700"> {product === "meet" ? "Meet" : product === "forms" ? "Forms" : "Book"}</span>}
       </span>

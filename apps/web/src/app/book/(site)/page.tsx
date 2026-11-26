@@ -1,3 +1,5 @@
+import { PhotoBand } from "@/components/photo-band";
+import { PHOTOS } from "@/lib/photos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyButton } from "@/components/form";
@@ -196,10 +198,7 @@ function Landing({ base }: { base: string }) {
       <section className="overflow-hidden">
         <div className="mx-auto grid max-w-5xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-20">
           <div>
-            <p className="mb-4 text-sm font-medium text-[#9a5b06] dark:text-[#f2c27a]">
-              For consultants, clinics, salons, tutors and more
-            </p>
-            <h1 className="font-display text-4xl leading-[1.05] font-bold tracking-tight text-slate-900 sm:text-6xl">
+            <h1 className="text-[2.6rem] leading-[1] font-extrabold tracking-[-0.04em] text-slate-900 sm:text-6xl">
               Get booked. <span className="text-brand-600 dark:text-brand-700">Get paid.</span> No more no-shows.
             </h1>
             <p className="mt-5 max-w-lg text-lg text-slate-600">
@@ -215,17 +214,22 @@ function Landing({ base }: { base: string }) {
         </div>
       </section>
 
-      <section className="border-y border-slate-200 bg-surface">
-        <div className="mx-auto grid max-w-5xl gap-6 px-4 py-12 sm:grid-cols-3 sm:px-6">
+      <PhotoBand
+        photo={PHOTOS.barber}
+        title="For barbers, clinics, tutors and consultants."
+        body="Customers pick a time on your page, pay a deposit with Paystack and get reminders. No more chasing people on WhatsApp."
+      />
+
+      <section className="border-b border-slate-200 bg-surface">
+        <div className="mx-auto grid max-w-5xl gap-8 px-4 py-16 sm:grid-cols-3 sm:px-6">
           {[
             ["1", "Make your page", "Add your services, prices and opening hours. Takes five minutes."],
             ["2", "Share the link", "On WhatsApp, Instagram, your website or business card."],
             ["3", "Get booked and paid", "Customers book and pay. You get an email, they get reminders."],
           ].map(([n, t, d]) => (
-            <div key={n}>
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 font-display font-bold text-white">{n}</span>
-              <h2 className="mt-3 font-semibold text-slate-900">{t}</h2>
-              <p className="mt-1 text-sm text-slate-600">{d}</p>
+            <div key={n} className="border-l-2 border-slate-200 pl-5 transition-colors duration-500 hover:border-brand-600">
+              <h2 className="text-xl font-bold text-slate-900">{t}</h2>
+              <p className="mt-1.5 text-slate-600">{d}</p>
             </div>
           ))}
         </div>
@@ -234,7 +238,7 @@ function Landing({ base }: { base: string }) {
       <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([icon, title, body]) => (
-            <div key={title} className="card p-5">
+            <div key={title} className="card p-6 transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_-30px_rgba(21,18,58,0.35)]">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:text-brand-700"><Icon name={icon} className="h-5 w-5" /></span>
               <h2 className="mt-4 font-semibold text-slate-900">{title}</h2>
               <p className="mt-1 text-sm text-slate-500">{body}</p>

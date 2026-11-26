@@ -3,10 +3,13 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons";
 import { Logo } from "@/components/logo";
 import { Reveal, Tilt } from "@/components/motion";
+import { Photo } from "@/components/photo";
+import type { CSSProperties } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FREE_HISTORY_DAYS, FREE_SEATS, PRO_PRICE_NAIRA, SEAT_PRICE_NAIRA } from "@/lib/billing";
 import { APP_NAME, OPERATOR_NAME } from "@/lib/config";
 import { homeUrl } from "@/lib/home/paths";
+import { PHOTOS } from "@/lib/photos";
 import { getSession } from "@/lib/session";
 import { HeroProduct } from "./_landing/timeline";
 
@@ -98,113 +101,142 @@ export default async function Home() {
   const family = homeUrl();
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-surface text-slate-900">
-      {/* Header ------------------------------------------------------------------------------- */}
-      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Link href="/" aria-label={`${APP_NAME} home`} className="transition-opacity hover:opacity-80"><Logo /></Link>
-          <nav className="flex items-center gap-1 text-sm" aria-label="Site">
-            <a href="#features" className="draw-underline hidden px-3 py-2 text-slate-600 hover:text-slate-900 md:inline">Features</a>
-            <a href="#pricing" className="draw-underline hidden px-3 py-2 text-slate-600 hover:text-slate-900 md:inline">Pricing</a>
-            <a href="#privacy" className="draw-underline hidden px-3 py-2 text-slate-600 hover:text-slate-900 md:inline">Privacy</a>
-            {family && <a href={family} className="draw-underline hidden px-3 py-2 text-slate-600 hover:text-slate-900 lg:inline">All products</a>}
-            <span className="mx-1 hidden sm:block"><ThemeToggle /></span>
-            {!user && <Link href="/login" className="btn-ghost">Log in</Link>}
-            <Link href={primary.href} className="btn-primary whitespace-nowrap">{user ? "Dashboard" : "Start free"}</Link>
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-screen overflow-x-clip bg-canvas text-slate-900">
+      {/* Hero (dark, with the header on it) ------------------------------------------------------ */}
+      <section className="grain relative overflow-hidden bg-[#110e2e] text-white">
+        <span className="orb -top-40 -left-40 h-[34rem] w-[34rem] bg-[#6a4cf5]/45" aria-hidden />
+        <span className="orb -right-32 bottom-0 h-[26rem] w-[26rem] bg-[#f2a93b]/20" style={{ animationDelay: "-7s" }} aria-hidden />
 
-      <main>
-        {/* Hero: the headline, and the product's own "team today" view leaning toward the pointer. */}
-        <section className="relative">
-          <div className="relative mx-auto grid max-w-6xl gap-14 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:pt-20 lg:pb-28">
-            <div>
-              <h1 className="font-display text-[2.6rem] leading-[1.03] font-bold tracking-[-0.04em] sm:text-[3.6rem] xl:text-[4.1rem]">
-                <Reveal as="span" className="block">Know your team</Reveal>
-                <Reveal as="span" delay={80} className="block">is working,</Reveal>
-                <Reveal as="span" delay={160} className="block text-brand-600 dark:text-brand-700">wherever they are.</Reveal>
-              </h1>
-              <Reveal delay={240}>
-                <p className="mt-6 max-w-[32rem] text-lg leading-relaxed text-slate-600">
-                  Hours, real activity and finished tasks for remote teams, with chat, leave and payroll in the same place. Priced in naira.
-                </p>
-              </Reveal>
-              <Reveal delay={320}>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link href={primary.href} className="btn-primary arrow-link px-6 py-3 text-base">
-                    {primary.label}
-                    <Icon name="arrowRight" className="h-4 w-4" />
-                  </Link>
-                  <Link href="/download" className="btn-secondary px-6 py-3 text-base">
-                    <Icon name="windows" className="h-4 w-4" />
-                    Windows app
-                  </Link>
-                </div>
-                <p className="mt-4 text-sm text-slate-500">14 days free, no card. Free for up to {FREE_SEATS} people after.</p>
-              </Reveal>
+        <header className="relative z-20">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
+            <Link href="/" aria-label={`${APP_NAME} home`} className="transition-opacity hover:opacity-80 [&_span]:text-white"><Logo /></Link>
+            <nav className="flex items-center gap-1 text-sm" aria-label="Site">
+              <a href="#features" className="draw-underline hidden px-3 py-2 text-white/70 hover:text-white md:inline">Features</a>
+              <a href="#pricing" className="draw-underline hidden px-3 py-2 text-white/70 hover:text-white md:inline">Pricing</a>
+              <a href="#privacy" className="draw-underline hidden px-3 py-2 text-white/70 hover:text-white md:inline">Privacy</a>
+              {family && <a href={family} className="draw-underline hidden px-3 py-2 text-white/70 hover:text-white lg:inline">All products</a>}
+              {!user && <Link href="/login" className="px-3 py-2 font-medium text-white/80 transition hover:text-white">Log in</Link>}
+              <Link href={primary.href} className="ml-1 inline-flex items-center rounded-full bg-white px-4 py-2 font-semibold whitespace-nowrap text-[#15123a] transition hover:bg-marigold-300">
+                {user ? "Dashboard" : "Start free"}
+              </Link>
+            </nav>
+          </div>
+        </header>
+
+        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-16 px-4 pt-10 pb-24 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:pt-16 lg:pb-32">
+          <div>
+            <h1 className="text-[2.8rem] leading-[0.98] font-extrabold tracking-[-0.045em] sm:text-7xl xl:text-[5.2rem]">
+              <span className="rise-in block">Know your team</span>
+              <span className="rise-in block" style={{ "--d": "120ms" } as CSSProperties}>is working,</span>
+              <span className="rise-in block text-marigold-400" style={{ "--d": "240ms" } as CSSProperties}>wherever they are.</span>
+            </h1>
+            <p className="rise-in mt-7 max-w-[32rem] text-lg leading-relaxed text-white/70 sm:text-xl" style={{ "--d": "360ms" } as CSSProperties}>
+              Hours, real activity and finished tasks for remote teams, with chat, leave and payroll in the same place. Priced in naira.
+            </p>
+            <div className="rise-in mt-9 flex flex-wrap gap-3" style={{ "--d": "460ms" } as CSSProperties}>
+              <Link href={primary.href} className="arrow-link inline-flex items-center gap-2 rounded-full bg-marigold-400 px-7 py-3.5 text-base font-semibold text-[#15123a] shadow-[0_10px_40px_-10px_rgba(242,169,59,0.7)] transition hover:-translate-y-0.5 hover:bg-marigold-300">
+                {primary.label}
+                <Icon name="arrowRight" className="h-4 w-4" />
+              </Link>
+              <Link href="/download" className="inline-flex items-center gap-2 rounded-full border border-white/20 px-7 py-3.5 text-base font-semibold text-white transition hover:border-white/50 hover:bg-white/5">
+                <Icon name="windows" className="h-4 w-4" />
+                Windows app
+              </Link>
             </div>
-            <Reveal variant="scale" delay={200}>
+            <p className="rise-in mt-5 text-white/55" style={{ "--d": "540ms" } as CSSProperties}>14 days free, no card. Free for up to {FREE_SEATS} people after.</p>
+          </div>
+
+          {/* A real photo with the product's own "team today" view resting over it. */}
+          <div className="rise-in relative" style={{ "--d": "200ms" } as CSSProperties}>
+            <div className="ml-auto w-[78%] overflow-hidden rounded-[2rem] rounded-tl-[6rem] shadow-[0_50px_120px_-40px_rgba(0,0,0,0.9)]">
+              <Photo p={PHOTOS.officeRed} w={620} h={700} priority className="aspect-[31/35] w-full object-cover" />
+            </div>
+            <div className="relative -mt-[58%] w-[92%] text-slate-900 sm:-mt-[52%]">
               <Tilt max={4} className="rounded-2xl">
                 <HeroProduct />
               </Tilt>
-            </Reveal>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <main>
+        {/* Marquee of plain promises, sliding slowly (pauses on hover). -------------------------- */}
+        <section aria-label="Promises" className="marquee overflow-hidden border-b border-slate-200 bg-surface py-6">
+          <div className="marquee-track" aria-hidden>
+            {[0, 1].map((copy) => (
+              <ul key={copy} className="flex shrink-0 items-center">
+                {["Activity checked every 10 seconds", "Not a single keystroke recorded", "Time kept when the internet drops", `Free for up to ${FREE_SEATS} people`, "Payslips with PAYE and pension", "Leave with Nigerian holidays built in"].map((t) => (
+                  <li key={t} className="flex items-center gap-8 px-8 text-2xl font-bold tracking-tight whitespace-nowrap text-slate-800 sm:text-3xl">
+                    {t}
+                    <span className="h-2.5 w-2.5 rotate-45 bg-marigold-400" />
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+          <p className="sr-only">Activity checked every 10 seconds. Not a single keystroke recorded. Time kept when the internet drops. Free for up to {FREE_SEATS} people.</p>
+        </section>
+
+        {/* How it works: photo + three steps ------------------------------------------------------ */}
+        <section className="mx-auto grid max-w-7xl items-center gap-14 px-4 py-24 sm:px-6 lg:grid-cols-2 lg:gap-20 lg:py-32">
+          <Reveal variant="scale" className="relative order-last lg:order-first">
+            <div className="group photo-zoom overflow-hidden rounded-[2rem] rounded-br-[6rem]">
+              <Photo p={PHOTOS.sofaLaptop} w={680} h={760} className="aspect-[17/19] w-full object-cover" />
+            </div>
+            {/* The invite, as it lands on WhatsApp. */}
+            <div className="float-y absolute -right-2 bottom-10 w-60 rounded-2xl bg-surface p-4 shadow-2xl ring-1 ring-slate-200 sm:-right-8">
+              <p className="flex items-center gap-2 font-semibold text-slate-900">
+                <Icon name="whatsapp" className="h-5 w-5 text-emerald-600" />
+                You&apos;re invited
+              </p>
+              <p className="mt-1 text-slate-600">Join Adeyemi &amp; Co on Workbase</p>
+              <span className="mt-3 block rounded-lg bg-brand-600 py-2 text-center font-semibold text-white">Accept invite</span>
+            </div>
+          </Reveal>
+          <div>
+            <Reveal as="h2" className="text-4xl leading-[1.05] font-extrabold tracking-[-0.035em] sm:text-6xl">Up and running in an afternoon.</Reveal>
+            <ol className="mt-12 space-y-2">
+              {[
+                ["Invite your people", "Send invite links by email or WhatsApp."],
+                ["They clock in from the app", "They see what's tracked, agree, and press Clock in."],
+                ["Watch the day unfold", "Who's working, hours, activity, tasks and timesheets."],
+              ].map(([title, body]) => (
+                <Reveal as="li" key={title} className="group rounded-2xl p-5 transition duration-500 hover:bg-surface hover:shadow-[0_20px_50px_-30px_rgba(21,18,58,0.4)]">
+                  <h3 className="flex items-center justify-between gap-4 text-2xl font-bold tracking-tight">
+                    {title}
+                    <Icon name="arrowRight" className="h-5 w-5 shrink-0 -translate-x-3 text-brand-600 opacity-0 transition duration-500 group-hover:translate-x-0 group-hover:opacity-100" />
+                  </h3>
+                  <p className="mt-1.5 text-lg text-slate-600">{body}</p>
+                </Reveal>
+              ))}
+            </ol>
           </div>
         </section>
 
-        {/* Four numbers -------------------------------------------------------------------------- */}
-        <section className="border-y border-slate-200">
-          <dl className="mx-auto grid max-w-6xl grid-cols-2 px-4 sm:px-6 lg:grid-cols-4">
-            {[
-              ["10 s", "between activity checks"],
-              ["0", "keystrokes recorded"],
-              ["Offline", "time kept until you're back online"],
-              [`${FREE_SEATS}`, "people free, for as long as you like"],
-            ].map(([k, v], i) => (
-              <Reveal key={v} delay={i * 80} className="border-slate-200 py-9 pr-4 lg:border-l lg:pl-8 lg:first:border-l-0 lg:first:pl-0">
-                <dt className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">{k}</dt>
-                <dd className="mt-2 text-sm text-slate-500">{v}</dd>
+        {/* Features: a photo that stays put while three groups scroll past ------------------------- */}
+        <section id="features" className="scroll-mt-6 bg-[#110e2e] text-white">
+          <div className="mx-auto grid max-w-7xl gap-14 px-4 py-24 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 lg:py-32">
+            <div className="lg:sticky lg:top-10 lg:self-start">
+              <Reveal as="h2" className="text-4xl leading-[1.05] font-extrabold tracking-[-0.035em] sm:text-6xl">One place for the whole working day.</Reveal>
+              <Reveal variant="scale" className="mt-10 hidden lg:block">
+                <div className="group photo-zoom overflow-hidden rounded-[2rem]">
+                  <Photo p={PHOTOS.manCafe} w={600} h={460} className="aspect-[30/23] w-full object-cover" />
+                </div>
               </Reveal>
-            ))}
-          </dl>
-        </section>
-
-        {/* How it works: three steps on a ruled line ------------------------------------------- */}
-        <section className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:py-32">
-          <Reveal as="h2" className="max-w-xl font-display text-3xl font-bold tracking-tight sm:text-[2.6rem]">Up and running in an afternoon</Reveal>
-          <ol className="mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
-            {[
-              ["Invite your people", "Send invite links by email or WhatsApp."],
-              ["They clock in from the app", "They see what's tracked, agree, and press Clock in."],
-              ["Watch the day unfold", "Who's working, hours, activity, tasks and timesheets."],
-            ].map(([title, body], i) => (
-              <Reveal as="li" key={title} delay={i * 110} className="group border-t-2 border-slate-200 pt-6 transition-colors duration-500 hover:border-brand-600">
-                <span className="font-display text-sm font-semibold text-slate-400 tabular-nums transition-colors group-hover:text-brand-600">0{i + 1}</span>
-                <h3 className="mt-3 font-display text-xl font-semibold">{title}</h3>
-                <p className="mt-2 text-slate-600">{body}</p>
-              </Reveal>
-            ))}
-          </ol>
-        </section>
-
-        {/* Features: three groups, each a plain list ------------------------------------------- */}
-        <section id="features" className="scroll-mt-20 border-t border-slate-200 bg-canvas">
-          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:py-32">
-            <Reveal as="h2" className="max-w-2xl font-display text-3xl font-bold tracking-tight sm:text-[2.6rem]">One place for the whole working day</Reveal>
-            <div className="mt-14 grid gap-12 lg:grid-cols-3 lg:gap-10">
-              {FEATURE_GROUPS.map((g, gi) => (
+            </div>
+            <div className="space-y-14">
+              {FEATURE_GROUPS.map((g) => (
                 <div key={g.title}>
-                  <Reveal delay={gi * 100}>
-                    <h3 className="border-b border-slate-300 pb-3 font-display text-lg font-semibold">{g.title}</h3>
-                  </Reveal>
-                  <ul>
-                    {g.items.map(([t, b], n) => (
-                      <Reveal as="li" key={t} delay={gi * 100 + n * 60} className="group border-b border-slate-200 py-4">
-                        <p className="flex items-center justify-between gap-3 font-medium text-slate-900">
+                  <Reveal as="h2" className="text-2xl font-bold text-marigold-400">{g.title}</Reveal>
+                  <ul className="mt-4 divide-y divide-white/10 border-y border-white/10">
+                    {g.items.map(([t, b]) => (
+                      <Reveal as="li" key={t} className="group py-5 transition-all duration-500 hover:pl-3">
+                        <p className="flex items-center justify-between gap-3 text-lg font-semibold">
                           {t}
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 transition duration-300 group-hover:scale-150 group-hover:bg-marigold-400" aria-hidden />
+                          <span className="h-2 w-2 shrink-0 rotate-45 bg-white/25 transition duration-500 group-hover:scale-150 group-hover:bg-marigold-400" aria-hidden />
                         </p>
-                        <p className="mt-1 text-sm leading-6 text-slate-600 transition-colors group-hover:text-slate-800">{b}</p>
+                        <p className="mt-1 text-white/65 transition-colors group-hover:text-white/90">{b}</p>
                       </Reveal>
                     ))}
                   </ul>
@@ -215,12 +247,14 @@ export default async function Home() {
         </section>
 
         {/* Privacy ------------------------------------------------------------------------------- */}
-        <section id="privacy" className="grain scroll-mt-20 bg-[#15123a] text-white dark:bg-raised">
-          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-24 sm:px-6 lg:grid-cols-2 lg:py-32">
+        <section id="privacy" className="relative scroll-mt-6 overflow-hidden text-white">
+          <Photo p={PHOTOS.cafeDesk} w={1600} h={900} className="absolute inset-0 h-full w-full object-cover" />
+          <span className="absolute inset-0 bg-gradient-to-r from-[#110e2e] via-[#110e2e]/90 to-[#110e2e]/60" aria-hidden />
+          <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-24 sm:px-6 lg:grid-cols-2 lg:py-36">
             <div>
-              <Reveal as="h2" className="font-display text-3xl font-bold tracking-tight sm:text-[2.6rem]">Trust works both ways</Reveal>
+              <Reveal as="h2" className="text-4xl leading-[1.05] font-extrabold tracking-[-0.035em] sm:text-6xl">Trust works both ways.</Reveal>
               <Reveal delay={80}>
-                <p className="mt-4 max-w-md text-lg leading-relaxed text-[#c9c3e6]">
+                <p className="mt-6 max-w-md text-lg leading-relaxed text-white/75">
                   Good people don&apos;t mind showing their work. They mind being spied on. Workbase records only what shows work is happening,
                   tells people exactly what that is, and lets them see all of it.
                 </p>
@@ -231,10 +265,10 @@ export default async function Home() {
               </Reveal>
             </div>
             <div>
-              <Reveal><p className="font-semibold">It never records</p></Reveal>
+              <Reveal as="h2" className="text-2xl font-bold text-marigold-400">Workbase never records</Reveal>
               <ul className="mt-5 divide-y divide-white/10 border-y border-white/10">
                 {NEVER.map((n, i) => (
-                  <Reveal as="li" key={n.text} delay={i * 80} className="group flex items-center gap-4 py-4 text-[#e4e0f5]">
+                  <Reveal as="li" key={n.text} delay={i * 80} className="group flex items-center gap-4 py-5 text-lg text-white/90 transition-all duration-500 hover:pl-2">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-[#b8aaff] transition duration-300 group-hover:bg-marigold-400 group-hover:text-[#15123a]">
                       <Icon name={n.icon} className="h-[1.1rem] w-[1.1rem]" />
                     </span>
@@ -247,10 +281,10 @@ export default async function Home() {
         </section>
 
         {/* Pricing ------------------------------------------------------------------------------- */}
-        <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6 lg:py-32">
-          <Reveal as="h2" className="font-display text-3xl font-bold tracking-tight sm:text-[2.6rem]">Simple pricing, in naira</Reveal>
+        <section id="pricing" className="mx-auto max-w-7xl scroll-mt-6 px-4 py-24 sm:px-6 lg:py-32">
+          <Reveal as="h2" className="text-4xl leading-[1.05] font-extrabold tracking-[-0.035em] sm:text-6xl">Simple pricing, in naira.</Reveal>
           <Reveal delay={80}>
-            <p className="mt-3 max-w-xl text-slate-600">Per person, per month. Pay ahead for 1, 3 or 12 months; 12 months costs the same as 10.</p>
+            <p className="mt-5 max-w-xl text-lg text-slate-600">Per person, per month. Pay ahead for 1, 3 or 12 months; 12 months costs the same as 10.</p>
           </Reveal>
           <div className="mt-12 grid gap-5 lg:grid-cols-3 lg:items-stretch">
             <Reveal variant="scale">
@@ -286,13 +320,13 @@ export default async function Home() {
 
         {/* FAQ ----------------------------------------------------------------------------------- */}
         <section className="border-t border-slate-200 bg-canvas">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-24 sm:px-6 lg:grid-cols-[1fr_2fr] lg:py-32">
-            <Reveal as="h2" className="font-display text-3xl font-bold tracking-tight sm:text-[2.6rem]">Questions</Reveal>
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 py-24 sm:px-6 lg:grid-cols-[1fr_2fr] lg:py-32">
+            <Reveal as="h2" className="text-4xl leading-[1.05] font-extrabold tracking-[-0.035em] sm:text-6xl">Questions, answered.</Reveal>
             <div className="divide-y divide-slate-200 border-y border-slate-200">
               {FAQ.map((f, i) => (
                 <Reveal key={f.q} delay={i * 50}>
                   <details className="group py-5">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-slate-900 transition-colors hover:text-brand-700 [&::-webkit-details-marker]:hidden">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-slate-900 transition-colors hover:text-brand-700 [&::-webkit-details-marker]:hidden">
                       {f.q}
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 transition duration-300 group-open:rotate-45 group-open:border-brand-600 group-open:bg-brand-600 group-open:text-white">
                         <Icon name="plus" className="h-4 w-4" />
@@ -306,16 +340,20 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Closing call to action ---------------------------------------------------------------- */}
-        <section className="px-4 py-20 sm:px-6">
-          <Reveal variant="scale" className="mx-auto max-w-6xl">
-            <div className="grain relative overflow-hidden rounded-[2rem] bg-[#15123a] px-6 py-16 text-white sm:px-14 sm:py-20 dark:bg-raised">
-              <h2 className="max-w-xl font-display text-4xl leading-[1.05] font-bold tracking-tight sm:text-6xl">Start with your team today.</h2>
-              <p className="mt-4 max-w-md text-lg text-[#c9c3e6]">14 days of Standard, free. No card needed.</p>
-              <Link href={primary.href} className="arrow-link mt-9 inline-flex items-center gap-2 rounded-xl bg-marigold-400 px-6 py-3 font-semibold text-[#15123a] transition hover:bg-marigold-300">
-                {primary.label}
-                <Icon name="arrowRight" className="h-4 w-4" />
-              </Link>
+        {/* Closing call to action: team photo behind the text ----------------------------------- */}
+        <section className="px-4 pb-20 sm:px-6">
+          <Reveal variant="scale" className="mx-auto max-w-7xl">
+            <div className="group photo-zoom relative overflow-hidden rounded-[2.25rem]">
+              <Photo p={PHOTOS.teamOutdoors} w={1400} h={700} className="absolute inset-0 h-full w-full object-cover" />
+              <span className="absolute inset-0 bg-gradient-to-r from-[#110e2e]/95 via-[#110e2e]/75 to-[#110e2e]/20" aria-hidden />
+              <div className="relative px-7 py-20 text-white sm:px-14 sm:py-28">
+                <h2 className="max-w-xl text-4xl leading-[1.02] font-extrabold tracking-[-0.035em] sm:text-6xl">Start with your team today.</h2>
+                <p className="mt-5 max-w-md text-lg text-white/75">14 days of Standard, free. No card needed.</p>
+                <Link href={primary.href} className="arrow-link mt-10 inline-flex items-center gap-2 rounded-full bg-marigold-400 px-7 py-3.5 font-semibold text-[#15123a] transition hover:-translate-y-0.5 hover:bg-marigold-300">
+                  {primary.label}
+                  <Icon name="arrowRight" className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
           </Reveal>
         </section>
@@ -325,7 +363,7 @@ export default async function Home() {
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
             <Logo size="sm" />
-            <span>© {new Date().getFullYear()} {OPERATOR_NAME}</span>
+            <span>© {new Date().getFullYear()} {OPERATOR_NAME} · Photos from Unsplash</span>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Footer">
             {family && <a href={family} className="draw-underline hover:text-slate-900">All products</a>}
@@ -333,7 +371,7 @@ export default async function Home() {
             <Link href="/what-we-track" className="draw-underline hover:text-slate-900">What we track</Link>
             <Link href="/privacy" className="draw-underline hover:text-slate-900">Privacy</Link>
             <Link href="/terms" className="draw-underline hover:text-slate-900">Terms</Link>
-            <ThemeToggle className="sm:hidden" />
+            <ThemeToggle />
           </nav>
         </div>
       </footer>

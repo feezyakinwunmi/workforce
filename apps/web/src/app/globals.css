@@ -10,7 +10,10 @@
  */
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: var(--font-bricolage), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* Headings now use Inter too (Femi, 26 Nov 2026: less Bricolage). Bricolage is kept only for
+   * the Workbase wordmark in the logo (font-brand). */
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-brand: var(--font-bricolage), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* Neutrals with a hint of ink violet */
   --color-slate-50: #f7f6fb;
@@ -436,6 +439,68 @@
   animation: float-y 6s ease-in-out infinite;
 }
 
+/* Slow drifting colour light behind dark heroes (two blurred circles). */
+@keyframes orb-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(6%, -8%) scale(1.08);
+  }
+  66% {
+    transform: translate(-5%, 6%) scale(0.95);
+  }
+}
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: orb-drift 18s ease-in-out infinite;
+}
+
+/* Photo cards: the picture slowly zooms and the shade deepens on hover. */
+.photo-zoom img {
+  transition: transform 1.2s var(--ease-out-soft);
+}
+.photo-zoom:hover img,
+.photo-zoom:focus-within img {
+  transform: scale(1.06);
+}
+
+/* Lines that appear on hover inside photo cards (desktop); always shown on touch screens. */
+@media (hover: hover) {
+  .hover-reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity 500ms var(--ease-out-soft),
+      transform 600ms var(--ease-out-soft);
+  }
+  .group:hover .hover-reveal,
+  .group:focus-within .hover-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Hero entrance on page load (no JavaScript): words rise one after another. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 900ms var(--ease-out-soft) both;
+  animation-delay: var(--d, 0ms);
+}
+
 /* Fine grain over dark panels so big flat colour doesn't look like a template. */
 .grain {
   position: relative;
@@ -459,8 +524,13 @@
   .screen-in,
   .speak-ring,
   .soft-blink,
-  .float-y {
+  .float-y,
+  .orb,
+  .rise-in {
     animation: none;
+  }
+  .photo-zoom img {
+    transition: none;
   }
   .reveal-rise,
   .reveal-scale,

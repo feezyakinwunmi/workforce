@@ -1,3 +1,5 @@
+import { PhotoBand } from "@/components/photo-band";
+import { PHOTOS } from "@/lib/photos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SavedRecordings } from "../recordings";
@@ -33,8 +35,7 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
         <section className="bg-[#0f0d26] text-white">
           <div className="mx-auto grid max-w-5xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-24">
             <div>
-              <p className="mb-4 text-sm font-medium text-[#f2a93b]">Free · up to 1 hour · 25 people</p>
-              <h1 className="font-display text-4xl leading-[1.05] font-bold tracking-tight sm:text-6xl">
+              <h1 className="text-[2.6rem] leading-[1] font-extrabold tracking-[-0.04em] sm:text-6xl">
                 Video meetings that <span className="text-[#f2a93b]">respect your data.</span>
               </h1>
               <p className="mt-5 max-w-lg text-lg text-white/70">Built for Nigerian internet. Starts with audio, shows the MB you use, and works in any browser.</p>
@@ -47,10 +48,16 @@ export default async function MeetHome({ searchParams }: { searchParams: Promise
             <MeetingIllustration />
           </div>
         </section>
-        <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+        <PhotoBand
+          photo={PHOTOS.cafeDesk}
+          side={PHOTOS.manSmiling}
+          title="Meet clients, staff and guests from anywhere."
+          body="Send a link and they join with just their name. Free meetings run up to an hour with 25 people; recording is free and stays on your device."
+        />
+        <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(([icon, title, body]) => (
-              <div key={title} className="card p-5">
+              <div key={title} className="card p-6 transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_-30px_rgba(21,18,58,0.35)]">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:text-brand-700"><Icon name={icon} className="h-5 w-5" /></span>
                 <h2 className="mt-4 font-semibold text-slate-900">{title}</h2>
                 <p className="mt-1 text-sm text-slate-500">{body}</p>

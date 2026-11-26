@@ -1,3 +1,5 @@
+import { PhotoBand } from "@/components/photo-band";
+import { PHOTOS } from "@/lib/photos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons";
@@ -93,10 +95,7 @@ function Landing({ base }: { base: string }) {
     <>
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:py-20">
         <div>
-          <p className="mb-4 text-sm font-medium text-[#9a5b06] dark:text-[#f2c27a]">
-            Registrations, orders, sign-ups, feedback
-          </p>
-          <h1 className="font-display text-4xl leading-[1.05] font-bold tracking-tight text-slate-900 sm:text-6xl">
+          <h1 className="text-[2.6rem] leading-[1] font-extrabold tracking-[-0.04em] text-slate-900 sm:text-6xl">
             Forms that <span className="text-brand-600 dark:text-brand-700">get you paid.</span>
           </h1>
           <p className="mt-5 max-w-lg text-lg text-slate-600">
@@ -110,10 +109,16 @@ function Landing({ base }: { base: string }) {
         </div>
         <FormIllustration />
       </section>
-      <section className="border-y border-slate-200 bg-surface">
+      <PhotoBand
+        photo={PHOTOS.volunteers}
+        side={PHOTOS.braidsLaptop}
+        title="Event sign-ups, orders and tickets, paid on the spot."
+        body="Add prices to any question and the total adds itself up. The money goes straight to your bank, and every answer lands in your inbox."
+      />
+      <section className="border-b border-slate-200 bg-surface">
         <div className="mx-auto grid max-w-6xl gap-4 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
           {FEATURES.map(([icon, title, body]) => (
-            <div key={title} className="p-2">
+            <div key={title} className="rounded-2xl p-5 transition duration-500 hover:-translate-y-1 hover:bg-canvas">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:text-brand-700"><Icon name={icon} className="h-5 w-5" /></span>
               <h2 className="mt-3 font-semibold text-slate-900">{title}</h2>
               <p className="mt-1 text-sm text-slate-600">{body}</p>
