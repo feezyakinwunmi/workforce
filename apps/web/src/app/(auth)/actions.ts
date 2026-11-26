@@ -2,6 +2,7 @@
 
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { emailProblem } from "@/lib/email-check";
 import { setNewPassword } from "@/lib/password";
 import { checkHuman } from "@/lib/turnstile";
 import { createAuthClient } from "@/lib/supabase/auth-client";
@@ -53,6 +54,9 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
 
   if (fullName.length < 2) return { error: "Enter your full name." };
   if (!EMAIL.test(email)) return { error: "Enter a valid email address." };
+  // Bots and scanners sign up with addresses that can never get our code: refuse them here.
+  const badEmail = emailProblem(email);
+  if (badEmail) return { error: badEmail };
   if (password.length < 8) return { error: "Use a password of at least 8 characters." };
   const human = await checkHuman(formData);
   if (human) return { error: human };

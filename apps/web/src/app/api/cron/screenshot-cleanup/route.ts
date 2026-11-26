@@ -10,7 +10,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *    first their stored files, then the company row, which cascades to all its data;
  * 3. removes Workbase Forms files nobody needs any more (migration 0049): uploads never sent
  *    with an answer, and files of deleted answers or forms;
- * 4. retries Google Sheets rows that didn't go through (migration 0050).
+ * 4. retries Google Sheets rows that didn't go through (migration 0050);
+ * 5. deletes sign-ups that never confirmed their email within 7 days (bots, scanners, typos).
+ *    Only real email accounts: Meet guests (anonymous) are cleaned up by meet_housekeeping.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -90,5 +92,34 @@ export async function GET(request: Request) {
   // Meet AI notes older than 90 days, and sound left over from finished notes.
   const { cleanupNotes } = await import("@/lib/meet/notes");
   const notes = await cleanupNotes(admin).catch(() => ({ removed: 0 }));
-  return NextResponse.json({ removed, deleted: deleted.length, formFiles, sheetRows, notes: notes.removed });
+  const unconfirmed = await removeUnconfirmed(admin);
+  return NextResponse.json({ removed, deleted: deleted.length, formFiles, sheetRows, notes: notes.removed, unconfirmed });
+}
+
+/**
+ * Deletes accounts that signed up but never confirmed their email within 7 days. They can't
+ * log in and own nothing (a company needs a confirmed login), so nothing is lost. Never errors
+ * the whole job: problems are counted and the rest of the clean-up still reports normally.
+ */
+const UNCONFIRMED_DAYS = 7;
+async function removeUnconfirmed(admin: ReturnType<typeof createAdminClient>) {
+  const cutoff = Date.now() - UNCONFIRMED_DAYS * 86_400_000;
+  let removed = 0;
+  let failed = 0;
+  // Pages of 1,000 users, newest accounts included; stop after 10 pages to stay within time.
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) return { removed, failed: failed + 1 };
+    const users = data?.users ?? [];
+    for (const u of users) {
+      const stale =
+        !u.is_anonymous && !!u.email && !u.email_confirmed_at && !u.last_sign_in_at && Date.parse(u.created_at) < cutoff;
+      if (!stale) continue;
+      const { error: delError } = await admin.auth.admin.deleteUser(u.id);
+      if (delError) failed++;
+      else removed++;
+    }
+    if (users.length < 1000) break;
+  }
+  return { removed, failed };
 }
