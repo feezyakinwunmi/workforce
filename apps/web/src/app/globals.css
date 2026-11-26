@@ -250,28 +250,41 @@
   --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Reveal: hidden until data-shown is set by the observer, then rises / grows into place. */
-.reveal {
-  transition:
-    opacity 700ms var(--ease-out-soft),
-    transform 800ms var(--ease-out-soft),
-    clip-path 900ms var(--ease-out-soft);
-  transition-delay: var(--reveal-delay, 0ms);
+/* Reveal: content is ALWAYS visible by default. Browsers that support scroll-driven animations
+ * (animation-timeline: view()) play a rise-in as each block enters the screen; everything else
+ * simply shows the content. No JavaScript is needed, so a slow or failed script can never leave
+ * the page blank. */
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-.reveal-rise:not([data-shown]) {
-  opacity: 0;
-  transform: translateY(28px);
-  clip-path: inset(0 0 100% 0);
+@keyframes reveal-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-.reveal-rise[data-shown] {
-  clip-path: inset(-20% -20% -20% -20%);
-}
-.reveal-scale:not([data-shown]) {
-  opacity: 0;
-  transform: scale(0.94) translateY(16px);
-}
-.reveal-fade:not([data-shown]) {
-  opacity: 0;
+@supports (animation-timeline: view()) {
+  .reveal-rise,
+  .reveal-scale,
+  .reveal-fade {
+    animation: reveal-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 55%;
+  }
+  .reveal-scale {
+    animation-name: reveal-scale;
+  }
 }
 
 /* Rotating word: every word sits in the same clipped box; only the current one is in view. */
@@ -449,12 +462,10 @@
   .float-y {
     animation: none;
   }
-  .reveal,
-  .reveal:not([data-shown]) {
-    opacity: 1;
-    transform: none;
-    clip-path: none;
-    transition: none;
+  .reveal-rise,
+  .reveal-scale,
+  .reveal-fade {
+    animation: none;
   }
   .rotating-word-item,
   .tilt,

@@ -11,7 +11,7 @@
  * timers below don't start.
  */
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /** True when the visitor asked their device for less motion. */
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -19,12 +19,12 @@ const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("
 /* ------------------------------------------------------------------------------------------------
  * Reveal
  * ------------------------------------------------------------------------------------------------
- * Adds data-shown once the element is 12% on screen; the .reveal CSS does the rest.
- * `delay` (ms) staggers siblings. `as` keeps the markup semantic (li, h2, section…).
+ * A wrapper that rises into view as it scrolls onto the screen. The animation is pure CSS
+ * (scroll-driven, see "Reveal" in globals.css), so the content is always rendered visible and
+ * nothing depends on JavaScript. `delay` is kept for callers but no longer needed.
  */
 export function Reveal({
   children,
-  delay = 0,
   className = "",
   as: Tag = "div",
   variant = "rise",
@@ -33,43 +33,10 @@ export function Reveal({
   delay?: number;
   className?: string;
   as?: "div" | "li" | "section" | "h2" | "p" | "span" | "article" | "figure";
-  /** rise = slide up from a mask; scale = grow from slightly smaller; fade = opacity only. */
+  /** rise = slide up; scale = grow from slightly smaller; fade = opacity only. */
   variant?: "rise" | "scale" | "fade";
 }) {
-  const ref = useRef<HTMLElement | null>(null);
-  const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    // No observer (very old browser) or reduced motion: just show it.
-    if (typeof IntersectionObserver === "undefined" || reducedMotion()) {
-      setShown(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setShown(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  return (
-    <Tag
-      ref={ref as never}
-      className={`reveal reveal-${variant} ${className}`}
-      data-shown={shown ? "" : undefined}
-      style={{ "--reveal-delay": `${delay}ms` } as CSSProperties}
-    >
-      {children}
-    </Tag>
-  );
+  return <Tag className={`reveal-${variant} ${className}`}>{children}</Tag>;
 }
 
 /* ------------------------------------------------------------------------------------------------
