@@ -22,7 +22,7 @@ import { useEffect } from "react";
 
 type Cleanup = () => void;
 
-export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet" | "workbase" | "book" | "forms"; meetBase?: string }) {
+export function LandingFx({ kind, meetBase = "" }: { kind: "home" | "meet" | "workbase" | "book" | "forms" | "padi"; meetBase?: string }) {
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const cleanups: Cleanup[] = [];
