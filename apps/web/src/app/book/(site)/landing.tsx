@@ -59,8 +59,8 @@ export function BookLanding({ base }: { base: string }) {
             <p className="mt-5 max-w-md text-[1.05rem] leading-relaxed text-[#5d5a78]">
               Your own booking page. Customers pick a time, pay a deposit with Paystack and get reminders. The money goes straight to your bank.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <a href={start} className="lp-btn lp-btn-main justify-center">
+            <div className="mt-8 flex flex-col items-start gap-3">
+              <a href={start} className="lp-btn lp-btn-main justify-center whitespace-nowrap">
                 Create your free page
                 <svg className="lp-i h-4 w-4"><use href="#i-arrow" /></svg>
               </a>
@@ -116,7 +116,7 @@ export function BookLanding({ base }: { base: string }) {
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><svg className="lp-i"><use href="#i-check" /></svg></span>
               <span><b className="block">Deposit received</b><span className="text-[#6f6b8a]">₦4,000 from Tobi O.</span></span>
             </div>
-            <div className="lp-float absolute -bottom-6 -left-8 hidden items-center gap-3 rounded-2xl bg-white p-3 text-[0.82rem] shadow-[0_20px_50px_-20px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3] sm:flex" style={{ animationDelay: "-3s" }}>
+            <div className="lp-float absolute -bottom-14 left-4 hidden items-center gap-3 rounded-2xl bg-white p-3 text-[0.82rem] shadow-[0_20px_50px_-20px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3] sm:flex" style={{ animationDelay: "-3s" }}>
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f0ff] text-[#6a4cf5]"><svg className="lp-i"><use href="#i-bell" /></svg></span>
               <span><b className="block">Reminder sent</b><span className="text-[#6f6b8a]">Your haircut is in 1 hour</span></span>
             </div>

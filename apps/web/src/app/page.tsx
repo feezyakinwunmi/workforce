@@ -169,7 +169,7 @@ export default async function Home() {
                 </div>
               </div>
 
-              <div className="lp-float absolute -left-8 -bottom-6 hidden w-60 rounded-2xl bg-white p-4 shadow-[0_20px_50px_-20px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3] sm:block">
+              <div className="lp-float absolute -left-10 -bottom-16 hidden w-60 rounded-2xl bg-white p-4 shadow-[0_20px_50px_-20px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3] sm:block">
                 <span className="flex items-center gap-1.5 text-[0.75rem] font-semibold text-emerald-700"><i className="lp-blink h-1.5 w-1.5 rounded-full bg-emerald-500" />Clocked in</span>
                 <b className="mt-0.5 block text-2xl font-semibold tabular-nums" data-lp-timer="11564">03:12:44</b>
                 <span className="text-[0.75rem] text-[#6f6b8a]">Working on: Invoice page redesign</span>

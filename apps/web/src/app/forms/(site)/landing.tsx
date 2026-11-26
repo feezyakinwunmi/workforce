@@ -105,7 +105,7 @@ export function FormsLanding({ base }: { base: string }) {
                 ))}
               </ul>
             </div>
-            <div className="lp-float absolute -bottom-6 -left-6 hidden items-center gap-3 rounded-2xl bg-white p-3 text-[0.82rem] shadow-[0_20px_50px_-20px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3] sm:flex">
+            <div className="lp-float absolute -bottom-14 left-4 hidden items-center gap-3 rounded-2xl bg-white p-3 text-[0.82rem] shadow-[0_20px_50px_-20px_rgba(21,18,58,0.4)] ring-1 ring-[#ecebf3] sm:flex">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><svg className="lp-i"><use href="#i-check" /></svg></span>
               <span><b className="block">New paid answer</b><span className="text-[#6f6b8a]">₦8,500 · Founders&apos; Dinner</span></span>
             </div>
